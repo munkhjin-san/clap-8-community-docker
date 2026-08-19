@@ -28,7 +28,7 @@
             return `${startDate.toFormat('yyyy / M / d')}  ―  ${endDate.toFormat('yyyy / M / d')}`;
         } else if(props.record.app_type == 7 && props.which == 'charge_period'){
             let startDate = DateTime.fromISO(props.record.created_at);
-            let endDate = DateTime.now().endOf('month');
+            let endDate = startDate.endOf('month');
             return `${startDate.toFormat('M / d')}  ~  ${endDate.toFormat('M / d')}`;
         } else {
             const createdDate = DateTime.fromISO(props.record.created_at);

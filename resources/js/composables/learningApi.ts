@@ -348,6 +348,15 @@ export function useLearningApi() {
         })
     }
 
+    // Case-study themes keep no portfolio, so a learner is reset by clearing
+    // every piece of their data for the theme at once.
+    const deleteAdminThemeProgress = async(themeId: number | string, userId: number) => {
+        return await api.del(`/admin/learning/theme/${themeId}/user/${userId}/progress`, {}, {
+            ask: 'この受講者の学習データをすべて削除しますか？元に戻せません。',
+            toast: '削除しました。',
+        })
+    }
+
     const getMaterialProgressList = async(themeId: number | string) => {
         const response = await api.get(`/admin/learning/themes/${themeId}/progress`, { section: 'case_study' }) as {
             case_study_participants?: LearningParticipantProgress[] | Record<string, LearningParticipantProgress>
@@ -468,6 +477,7 @@ export function useLearningApi() {
         getPortfolioView,
         updatePortfolioStatus,
         deleteAdminPortfolio,
+        deleteAdminThemeProgress,
         getMaterialProgressList,
         getLegacyMaterialProgressList,
         getLearningExam,

@@ -257,15 +257,26 @@ import type { MenuList } from '@/interface/globalInterface';
         }
         
     } 
-    const getDocs = async() => {               
- 
-        const response = await api.post('/user_generate_file_key', {}, {
-            loadingRef: docLoader,
-        })
-        const url = `${window.location.origin}/cdn_external/${auth.id}/${response}${doc_path.value}`
+    const getDocs = async() => {
+        // Office Online（view.officeapps.live.com）が向こう側から取得するので、ログイン不要で
+        // 開けるURLが必要になる。カスタムアプリのファイルは cdn_external（ユーザーIDと鍵さえあれば
+        // storage 配下の任意のパスが読める）ではなく、そのファイル1件だけを指す署名付きの一時URLを使う。
+        let url: string
+        if (source.value === 'flow') {
+            const res = await api.post('/flow_file_viewer_url', { id: currentFile.value.id }, {
+                loadingRef: docLoader,
+            })
+            if (!res?.url) return
+            url = res.url
+        } else {
+            const response = await api.post('/user_generate_file_key', {}, {
+                loadingRef: docLoader,
+            })
+            url = `${window.location.origin}/cdn_external/${auth.id}/${response}${doc_path.value}`
+        }
         const encodedUrl = encodeURIComponent(url);
-        docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`   
-    }        
+        docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`
+    }
     const filePreviewClose = () => {
         if (source.value === 'deeplink') {
             window.close(); 
@@ -282,8 +293,13 @@ import type { MenuList } from '@/interface/globalInterface';
         direcDownload();        
         menu.setMenu( {name: '', id: null})
     }
-    const direcDownload = async() => {                 
-        fetch(currentFile.value.file_path)
+    const direcDownload = async() => {
+        // カスタムアプリのファイルは ?dl=1 で取る。ダウンロードの監査ログはバイトを返すのと同じ
+        // リクエストでサーバー側が書くので、画面からの自己申告（取りこぼす・偽装できる）が要らない。
+        const downloadPath = source.value === 'flow'
+            ? `${currentFile.value.file_path}${currentFile.value.file_path.includes('?') ? '&' : '?'}dl=1`
+            : currentFile.value.file_path
+        fetch(downloadPath)
         .then(response => response.blob())
         .then(blob => {
             const link = document.createElement('a');
@@ -298,10 +314,7 @@ import type { MenuList } from '@/interface/globalInterface';
 
             URL.revokeObjectURL(url);
         })
-        if (source.value === 'flow') {
-            await api.post('/flow_file_download_log', { url: currentFile.value.file_path, name: currentFile.value.name })
-            return
-        }
+        if (source.value === 'flow') return   // 監査は上の ?dl=1 でサーバー側が記録済み
         if (source.value !== 'storage') return
         const payload = {
             id: currentFile.value.id,

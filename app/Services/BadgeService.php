@@ -15,6 +15,7 @@ use App\Models\SalaryIssue;
 use App\Models\AssetRecord;
 use App\Models\customFieldDataRecord;
 use App\Models\CustomfieldRead;
+use App\Models\UserReadHistory;
 use App\Models\ProjectRecordReadState;
 use App\Models\ProjectKintoneContractUpdateNotification;
 use App\Models\FlowDefinition;
@@ -113,9 +114,22 @@ final class BadgeService
                 $lastChargeablePosts = collect();
             }
             
+            // The announced rakuaward results counts as a single unread item.
+            $rakuawardResult = 0;
+            $resultMonth = PostRecord::latestAnnouncedRakuawardMonth();
+
+            if ($resultMonth) {
+                $readResult = UserReadHistory::where('readable_type', 'rakuaward_result')
+                    ->where('readable_id', (int) $resultMonth->format('Ym'))
+                    ->where('user_id', $user->id)
+                    ->exists();
+                $rakuawardResult = $readResult ? 0 : 1;
+            }
+
             $result = [
                 'created' => $created,
                 'changed' => count($changed),
+                'rakuaward_result' => $rakuawardResult,
                 'changed_ids' => $changed,
                 'changed_items' => $changedPosts->map(fn ($post) => [
                     'id' => $post->id,

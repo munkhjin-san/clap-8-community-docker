@@ -1,12 +1,6 @@
 <template>
     <div class="w-full h-full relative" v-if="openedBoard">
-        <Transition name="modalFade">
-            <div class="cal-month-loader" v-if="initialLoader">
-                <div id="loaderMini">
-                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
-                </div>
-            </div>
-        </Transition>
+        <LoaderSpin :initialLoader="initialLoader" top="0" height="100%" />
         <div class="h-full w-full overflow-y-auto" ref="container">
             <div v-if="!loading && !formList.length" class="no-comment-text text-[12px]">
                 現在はフォームはありません。
@@ -82,6 +76,7 @@ import BoardFormItem from './BoardFormItem.vue';
 import FormUsers from './FormUsers.vue';
 import BoardFormFill from './BoardFormFill.vue';
 import BoardFormAnswersSummary from './BoardFormAnswersSummary.vue';
+import LoaderSpin from '@/components/Global/LoaderSpin.vue';
 const api = useApi()
 const { openedBoard } = useBoardList()
 const formList = ref<CustomForm[]>([])

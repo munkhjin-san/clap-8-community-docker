@@ -59,7 +59,7 @@
             <div id="admin-account-scroll" class="user-record-parent" ref="scrollContainer">
                 <div class="admin-account-center-inner" :key="item.id" v-for="item in filteredUsers">
                     <div class="account-card-menu">
-                        <ItemMenu :items="[{title: '編集', action: () => openModal(item)}]" fit="admin-account-scroll"/>
+                        <ItemMenu :items="rowMenu(item)" fit="admin-account-scroll"/>
                     </div>
                     <div class="account-card-head">
                         <UserPanel :disableInstant="true" size="26" :title="item.name" :user="item" imgClass="userNormalIcon"/>
@@ -95,6 +95,12 @@
                 />
             </div>   
         </Transition>
+        <!-- 振込口座（管理者のみ）。平文の番号は「表示」を押したときだけ取得され、記録される -->
+        <Transition name="modalFade">
+            <div class="overlay" v-if="bankUser">
+                <AdminBankAccount :user="bankUser" @close="bankUser = null" />
+            </div>
+        </Transition>
     </div>
    
 </template>
@@ -102,12 +108,20 @@
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import Filter from '../Icons/Filter.vue';
 import UserCreate from './UserCreate.vue'
+import AdminBankAccount from './AdminBankAccount.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useApi } from '@/composables/api';
     const showModalContent = ref(false)
     const editUserData = ref(null)
+    /** 口座モーダルの対象ユーザー。null で閉じている */
+    const bankUser = ref(null)
+    const openBank = (item) => { bankUser.value = item }
+    const rowMenu = (item) => ([
+        { title: '編集', action: () => openModal(item) },
+        { title: '口座', action: () => openBank(item) },
+    ])
     const passwordFlag = ref(false)
     const scrollContainer = ref(null)
     const retire = ref(0)

@@ -3,11 +3,7 @@
          Not a notification: no read state, no prefs; it drops only when the record moves on. -->
     <div v-if="count > 0" ref="rootEl" class="fpend">
         <button class="fpend-btn" :class="{ on: open }" :title="`対応待ち ${count}件`" @click.stop="toggle">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7.2v5.6" />
-                <path d="M12 16.3v.1" stroke-width="2.6" />
-            </svg>
+            <TaskIcon size="18" />
             <Badge class="fpend-badge" :count="count" />
         </button>
 
@@ -42,6 +38,7 @@ import { nextTick, onBeforeUnmount, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApi } from '@/composables/api'
 import Badge from '@/components/Global/Badge.vue'
+import TaskIcon from '@/components/Icons/TaskIcon.vue'
 
 interface PendingItem {
     record_id: number
@@ -145,7 +142,7 @@ const openRecord = (it: PendingItem) => {
 .fpend-menu { position: fixed; z-index: 1000; width: 300px; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .14); padding: 6px; cursor: default; }
 .fpend-head { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 6px; border-bottom: 1px solid var(--formBorder); }
 .fpend-title { font-size: 12px; color: var(--sub-color); letter-spacing: .04em; flex-shrink: 0; }
-.fpend-hint { font-size: 10.5px; color: var(--sub-color); opacity: .75; }
+.fpend-hint { font-size: 10.5px; color: var(--sub-color); opacity: .75; line-height: 1.7; }
 .fpend-list { max-height: 320px; overflow-y: auto; padding-top: 4px; }
 /* position/box pinned explicitly — a global button rule otherwise leaks position:absolute + top:50px in here */
 .fpend-item { position: relative; inset: auto; box-sizing: border-box !important; display: flex; align-items: flex-start; gap: 7px; width: 100%; border: none; background: none; text-align: left; padding: 8px; border-radius: 6px; cursor: pointer; }

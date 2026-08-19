@@ -183,7 +183,7 @@ import Badge from './Badge.vue';
         return null
     })
     const postUpdateBadgeCount = computed(() => {
-        return badge.post.changed + badge.post.created + badge.post.last_chargeable
+        return badge.post.changed + badge.post.created + badge.post.last_chargeable + (badge.post.rakuaward_result ?? 0)
     })
     const newsItems = computed(() => {
         if(newsList.value && newsList.value.length){

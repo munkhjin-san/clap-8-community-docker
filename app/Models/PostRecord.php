@@ -54,6 +54,9 @@ class PostRecord extends Model
     public function awards(){
         return $this->belongsToMany(User::class, 'post_awards', 'record_id', 'user_id')->withPivot('award_bet')->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.email']);
     }
+    public function rakuawardScores(){
+        return $this->hasMany(PostRakuawardScore::class, 'post_id');
+    }
     public function emotedUsers()
     {
         return $this->morphToMany(User::class, 'stampable', 'stamps', 'stampable_id', 'user_id')
@@ -90,4 +93,46 @@ class PostRecord extends Model
     protected $casts = [
         'chargeable' => 'boolean',
     ];
+
+    /**
+     * Rakuaward months grouped by 'Y-m' => [total, ranked] nomination counts.
+     * A director announcement stores rakuaward_rank on every nomination of that month,
+     * so a month is "announced" only when every nomination in it is ranked. A month that
+     * received new nominations after being announced becomes pending again.
+     */
+    private static function rakuawardMonthCounts(): \Illuminate\Support\Collection
+    {
+        return static::where('app_type', 7)
+            ->get(['created_at', 'rakuaward_rank'])
+            ->groupBy(fn ($post) => \Carbon\Carbon::parse($post->created_at)->format('Y-m'))
+            ->map(fn ($posts) => [
+                'total' => $posts->count(),
+                'ranked' => $posts->whereNotNull('rakuaward_rank')->count(),
+            ]);
+    }
+
+    public static function latestAnnouncedRakuawardMonth(): ?\Carbon\Carbon
+    {
+        $key = static::rakuawardMonthCounts()
+            ->filter(fn ($counts) => $counts['total'] > 0 && $counts['ranked'] === $counts['total'])
+            ->keys()
+            ->sortDesc()
+            ->first();
+
+        return $key ? \Carbon\Carbon::createFromFormat('Y-m', $key)->startOfMonth() : null;
+    }
+
+    /**
+     * Oldest month that still has nominations waiting for a director announcement.
+     */
+    public static function earliestPendingRakuawardMonth(): ?\Carbon\Carbon
+    {
+        $key = static::rakuawardMonthCounts()
+            ->filter(fn ($counts) => $counts['ranked'] < $counts['total'])
+            ->keys()
+            ->sort()
+            ->first();
+
+        return $key ? \Carbon\Carbon::createFromFormat('Y-m', $key)->startOfMonth() : null;
+    }
 }

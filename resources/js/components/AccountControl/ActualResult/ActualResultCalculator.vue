@@ -9,31 +9,17 @@
         <header class="pl-topbar" aria-label="実績操作">
             <div class="pl-topbar-actions">
                 <MonthPickerNew v-model:year="selectedYear" v-model:month="selectedMonth" @set-date="handleMonthPicked" />
+                <button v-if="result?.exists" type="button" class="pl-btn pl-ghost" :disabled="loading" @click="postToFreee">
+                    freeeへ送信
+                </button>
                 <button v-if="result?.exists" type="button" class="pl-btn pl-ghost" :disabled="loading" @click="exportCsv">
                     CSV出力
                 </button>
-                <label class="pl-btn pl-ghost" :class="{ disabled: loading }">
-                    CSV選択
-                    <input
-                        ref="fileInput"
-                        type="file"
-                        accept=".csv,text/csv"
-                        :disabled="loading"
-                        @change="handleFileChange"
-                    />
-                </label>
             </div>
         </header>
 
         <main class="actual-body">
-            <section
-                class="file-info"
-                :class="{ dragging }"
-                @dragenter.prevent="dragging = true"
-                @dragover.prevent="dragging = true"
-                @dragleave.prevent="dragging = false"
-                @drop.prevent="handleDrop"
-            >
+            <section class="file-info">
                 <div class="file-info-main">
                     <div class="file-icon">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
@@ -63,8 +49,8 @@
                         </div>
                     </div>
                 </div>
-                <button type="button" class="pl-btn pl-primary" :disabled="!selectedFile || loading" @click="calculate">
-                    {{ loading ? '保存中...' : '計算して保存' }}
+                <button type="button" class="pl-btn pl-primary" :disabled="loading" @click="syncFromFreee">
+                    {{ loading ? '取込中...' : 'freeeから取込' }}
                 </button>
             </section>
 
@@ -124,7 +110,6 @@
                                     >
                                         <td class="main-cell">
                                             <p>{{ row.dep.department }}</p>
-                                            <small v-if="row.dep.project_record_id">#{{ row.dep.project_record_id }}</small>
                                         </td>
                                         <td v-for="(cell, index) in row.cells" :key="index" class="num-cell" :style="{ color: cell.color }">{{ cell.text }}</td>
                                         <td class="num-cell profit-cell" :style="{ color: row.profit.color }">{{ row.profit.text }}</td>
@@ -161,17 +146,27 @@
                                         元部門: {{ sourceDepartmentLabel(selectedDepartment) }}
                                     </small>
                                     <small v-else class="source-departments"></small>
-                                    <button type="button" class="pl-btn pl-ghost pl-ghost-sm" :disabled="!selectedDepartment.id" @click="openAddAccount">
-                                        明細追加
-                                    </button>
                                 </div>
                             </div>
 
                             <div class="detail-body">
                                 <div class="detail-stats">
-                                    <div v-for="(metric, index) in detailMetrics" :key="index" class="stat-cell" :class="{ filler: metric.filler }">
+                                    <div
+                                        v-for="(metric, index) in detailMetrics"
+                                        :key="index"
+                                        class="stat-cell"
+                                        :class="{ filler: metric.filler, clickable: !!metric.bucket }"
+                                        :role="metric.bucket ? 'button' : undefined"
+                                        :tabindex="metric.bucket ? 0 : undefined"
+                                        :title="metric.bucket ? `${metric.label}の内訳（${metric.detailCount}名）を見る` : undefined"
+                                        @click="metric.bucket && openAllocation(metric)"
+                                        @keydown.enter="metric.bucket && openAllocation(metric)"
+                                    >
                                         <template v-if="!metric.filler">
-                                            <div class="stat-label">{{ metric.label }}</div>
+                                            <div class="stat-label">
+                                                {{ metric.label }}
+                                                <span v-if="metric.bucket" class="stat-detail-badge">{{ metric.detailCount }}名</span>
+                                            </div>
                                             <div class="stat-value" :style="{ color: metric.color }">{{ metric.value }}</div>
                                         </template>
                                     </div>
@@ -179,24 +174,27 @@
 
                                 <div class="account-heading">勘定科目明細</div>
                                 <div class="account-list">
-                                    <div v-for="account in selectedDepartment.accounts" :key="accountKey(account)" class="account-row">
+                                    <div
+                                        v-for="account in selectedDepartment.accounts"
+                                        :key="accountKey(account)"
+                                        class="account-row"
+                                        :class="{ clickable: hasAccrualBreakdown(account) }"
+                                        :role="hasAccrualBreakdown(account) ? 'button' : undefined"
+                                        :tabindex="hasAccrualBreakdown(account) ? 0 : undefined"
+                                        :title="hasAccrualBreakdown(account) ? '内訳を見る' : undefined"
+                                        @click="hasAccrualBreakdown(account) && openAccrual(account)"
+                                        @keydown.enter="hasAccrualBreakdown(account) && openAccrual(account)"
+                                    >
                                         <div class="account-info">
                                             <span :class="['category-pill', account.category]">{{ account.bucket_label || categoryLabel(account.category) }}</span>
-                                            <p class="account-name">{{ account.account_name }}</p>
+                                            <p class="account-name">
+                                                {{ account.account_name }}
+                                                <span v-if="hasAccrualBreakdown(account)" class="stat-detail-badge">内訳</span>
+                                            </p>
                                             <small>{{ accountDetailLabel(account) }}</small>
                                         </div>
-                                        <div class="account-actions">
-                                            <div class="account-amount" :style="{ color: account.amount < 0 ? 'var(--neg)' : 'var(--text)' }">
-                                                {{ formatCurrency(account.amount) }}
-                                            </div>
-                                            <button
-                                                v-if="selectedDepartment.id && !isCalculatedAccount(account)"
-                                                type="button"
-                                                class="pl-btn pl-ghost pl-ghost-sm"
-                                                @click.stop="editAccount(account)"
-                                            >
-                                                編集
-                                            </button>
+                                        <div class="account-amount" :style="{ color: account.amount < 0 ? 'var(--neg)' : 'var(--text)' }">
+                                            {{ formatCurrency(account.amount) }}
                                         </div>
                                     </div>
                                     <div v-if="selectedDepartment.accounts.length === 0" class="account-empty">
@@ -205,25 +203,6 @@
                                 </div>
                             </div>
 
-                            <div class="history-panel">
-                                <div class="history-header">
-                                    <span class="history-title">編集履歴</span>
-                                    <div class="history-header-actions">
-                                        <span class="history-count">{{ selectedDepartmentHistories.length }}件</span>
-                                        <button
-                                            v-if="selectedDepartmentHistories.length > 0"
-                                            type="button"
-                                            class="pl-btn pl-ghost pl-ghost-sm"
-                                            @click="openHistory(selectedDepartmentHistories[0])"
-                                        >
-                                            履歴を見る
-                                        </button>
-                                    </div>
-                                </div>
-                                <div v-if="selectedDepartmentHistories.length === 0" class="history-empty">
-                                    この部門の手動編集はまだありません。
-                                </div>
-                            </div>
                         </template>
                         <div v-else class="empty-detail">
                             <h2>部門を選択</h2>
@@ -239,100 +218,92 @@
             </section>
         </main>
 
-        <Modal v-if="editorOpen" custom-class="actual-result-edit-modal" @close="closeAccountEditor">
+        <Modal v-if="allocationOpen" custom-class="actual-result-allocation-modal" @close="allocationOpen = false">
             <template #title>
                 <div class="actual-modal-title">
-                    <span>{{ selectedDepartment?.department }}</span>
-                    <p class="text-base">{{ editingAccountKey ? '明細編集' : '明細追加' }}</p>
+                    <span>{{ selectedDepartment?.department }} ・ {{ selectedMonthKey }}</span>
+                    <p class="text-base">{{ allocationLabel }}の内訳（勤務時間で按分）</p>
                 </div>
             </template>
             <template #content>
-                <div class="manual-editor-grid actual-modal-form">
-                    <label>
-                        <span>既存科目から選択</span>
-                        <select v-model="accountForm.template_key" @change="applyAccountTemplate">
-                            <option value="">選択なし</option>
-                            <option v-for="option in editableAccountOptions" :key="option.account_key" :value="option.account_key">
-                                {{ option.account_name }} / {{ option.source_department }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>勘定科目名</span>
-                        <input v-model.trim="accountForm.account_name" type="text" />
-                    </label>
-                    <label>
-                        <span>区分</span>
-                        <select v-model="accountForm.category" @change="handleAccountCategoryChange">
-                            <option value="expense">費用</option>
-                            <option value="sales">売上</option>
-                        </select>
-                    </label>
-                    <label>
+                <div class="allocation-list">
+                    <div class="allocation-row allocation-head">
+                        <span>メンバー</span>
+                        <span>当部門</span>
+                        <span>全体</span>
+                        <span>割合</span>
                         <span>金額</span>
-                        <input
-                            v-model="amountInput"
-                            type="text"
-                            inputmode="numeric"
-                            placeholder="0"
-                            @input="handleAmountInput"
-                        />
-                    </label>
-                    <label>
-                        <span>メモ</span>
-                        <input v-model.trim="accountForm.note" type="text" placeholder="任意" />
-                    </label>
-                </div>
-
-                <div class="actual-modal-actions">
-                    <span v-if="editError" class="upload-error">{{ editError }}</span>
-                    <LoaderButton
-                        v-if="editingAccountKey"
-                        class="!m-0 actual-loader-button"
-                        :loading="loading"
-                        content="削除"
-                        @triggered="deleteAccount"
-                    />
-                    <LoaderButton
-                        class="!m-0 actual-loader-button"
-                        :class="{ 'actual-loader-button-disabled': !canSaveAccount || loading }"
-                        :loading="loading"
-                        content="保存"
-                        @triggered="saveAccountIfValid"
-                    />
+                    </div>
+                    <div v-for="(row, index) in allocationRows" :key="index" class="allocation-row">
+                        <span class="allocation-name">
+                            {{ row.user_name || '(氏名なし)' }}
+                            <small>{{ row.user_code }}</small>
+                        </span>
+                        <span>{{ formatMinutes(row.work_minutes) }}</span>
+                        <span>{{ formatMinutes(row.total_work_minutes) }}</span>
+                        <span>{{ allocationShare(row) }}</span>
+                        <span class="allocation-amount">{{ formatCurrency(row.amount) }}</span>
+                    </div>
+                    <div v-if="allocationRows.length === 0" class="allocation-empty">内訳がありません。</div>
+                    <div v-else class="allocation-row allocation-total">
+                        <span>合計（{{ allocationRows.length }}名）</span>
+                        <span></span><span></span><span></span>
+                        <span class="allocation-amount">{{ formatCurrency(allocationTotal) }}</span>
+                    </div>
                 </div>
             </template>
         </Modal>
 
-        <Modal
-            v-if="historyOpen"
-            custom-class="actual-result-history-modal"
-            disable-scroll
-            body-style="height: calc(100% - 80px); overflow: hidden;"
-            @close="closeHistory"
-        >
+        <Modal v-if="accrualOpen" custom-class="actual-result-allocation-modal" @close="accrualOpen = false">
             <template #title>
                 <div class="actual-modal-title">
-                    <span>{{ selectedDepartment?.department }}</span>
-                    <p class="text-base">編集履歴</p>
+                    <span>{{ selectedDepartment?.department }} ・ {{ selectedMonthKey }}</span>
+                    <p class="text-base">賞与引当金繰入額の内訳</p>
                 </div>
             </template>
             <template #content>
-                <div class="actual-history-list">
-                    <button
-                        v-for="history in selectedDepartmentHistories"
-                        :key="history.id"
-                        type="button"
-                        class="history-row"
-                        :class="{ selected: selectedHistory?.id === history.id }"
-                        @click="selectedHistory = history"
-                    >
-                        <div>
-                            {{ historyActionLabel(history.action) }} / {{ historyAccountName(history) }}
-                            <small>{{ formatHistoryDate(history.created_at) }} / {{ history.editor_name || `user:${history.edited_by || '-'}` }}</small>
-                        </div>
-                        <span>{{ historyAmountLabel(history) }}</span>
-                    </button>
+                <div class="allocation-list">
+                    <div class="allocation-row allocation-head accrual-row">
+                        <span>区分</span>
+                        <span>通常利益</span>
+                        <span>率</span>
+                        <span>金額</span>
+                    </div>
+
+                    <div class="allocation-row accrual-row accrual-group">
+                        <span class="allocation-name">
+                            基本賞与分
+                            <small>社内振替入金（基本賞与）・{{ accrualBreakdown?.basic_bonus_users ?? 0 }}名</small>
+                        </span>
+                        <span>—</span>
+                        <span>—</span>
+                        <span class="allocation-amount">{{ formatCurrency(accrualBreakdown?.basic_bonus_total ?? 0) }}</span>
+                    </div>
+
+                    <div class="allocation-row accrual-row accrual-group">
+                        <span class="allocation-name">
+                            業績連動分
+                            <small>各部門 10%×通常利益（マイナス込み）</small>
+                        </span>
+                        <span>—</span>
+                        <span>—</span>
+                        <span class="allocation-amount">{{ formatCurrency(accrualBreakdown?.performance_bonus_total ?? 0) }}</span>
+                    </div>
+
+                    <div v-for="(row, index) in accrualDepartments" :key="index" class="allocation-row accrual-row accrual-child">
+                        <span class="allocation-name">{{ row.department }}</span>
+                        <span>{{ formatCurrency(row.normal_profit) }}</span>
+                        <span>{{ Math.round(row.rate * 100) }}%</span>
+                        <span class="allocation-amount" :style="{ color: row.amount < 0 ? 'var(--neg)' : 'var(--text)' }">
+                            {{ formatCurrency(row.amount) }}
+                        </span>
+                    </div>
+
+                    <div class="allocation-row accrual-row allocation-total">
+                        <span>合計</span>
+                        <span></span><span></span>
+                        <span class="allocation-amount">{{ formatCurrency(accrualAccount?.amount ?? 0) }}</span>
+                    </div>
                 </div>
             </template>
         </Modal>
@@ -362,13 +333,10 @@ import { useDialog } from '@/composables/dialog';
 import { useTheme } from '@/store/theme';
 import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
 import Modal from '@/components/Global/Modal.vue';
-import LoaderButton from '@/components/Global/LoaderButton.vue';
 import type {
     ActualAccount,
     ActualAccountCategory,
-    ActualAccountOption,
     ActualDepartment,
-    ActualEditHistory,
     ActualResult,
     ActualResultSortKey,
 } from '@/interface/actualResultInterface';
@@ -398,6 +366,18 @@ interface DetailMetric {
     value: string;
     color: string;
     filler: boolean;
+    /** 内訳を持つ積立金のときだけ入る。クリックで明細を開く。 */
+    bucket?: string;
+    detailCount?: number;
+}
+
+interface AllocationDetail {
+    user_name: string;
+    user_code: string;
+    work_minutes: number;
+    total_work_minutes: number;
+    source_amount: number;
+    amount: number;
 }
 
 const actualResultExportColumns: { header: string; key: ActualResultExportKey }[] = [
@@ -426,53 +406,24 @@ const dialog = useDialog();
 const theme = useTheme();
 const showZeroAsDash = true;
 const now = DateTime.now();
-const fileInput = ref<HTMLInputElement | null>(null);
 const selectedYear = ref(now.year);
 const selectedMonth = ref(
   now.minus({ months: 1 }).month as MonthNumbers
 );
-const selectedFile = ref<File | null>(null);
 const result = ref<ActualResult | null>(null);
-const accountOptions = ref<ActualAccountOption[]>([]);
-const editHistories = ref<ActualEditHistory[]>([]);
 const selectedDepartmentName = ref('');
 const loading = ref(false);
-const dragging = ref(false);
 const uploadError = ref('');
-const editError = ref('');
+const allocationOpen = ref(false);
+const allocationBucket = ref('');
+const allocationLabel = ref('');
+const accrualOpen = ref(false);
+const accrualAccount = ref<ActualAccount | null>(null);
 const search = ref('');
 const sortKey = ref<ActualResultSortKey>('real_profit');
-const editingAccountKey = ref('');
-const editorOpen = ref(false);
-const historyOpen = ref(false);
 const warningOpen = ref(false);
-const selectedHistory = ref<ActualEditHistory | null>(null);
-const amountInput = ref('0');
-const accountForm = ref({
-    template_key: '',
-    account_code: '',
-    account_name: '',
-    category: 'expense' as ActualAccountCategory,
-    bucket: 'ordinary_expense',
-    bucket_label: '通常経費',
-    amount: 0,
-    note: '',
-});
-
 const selectedMonthKey = computed(() => `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}`);
 const emptyMonthMessage = computed(() => `${selectedMonthKey.value} の保存済みデータはありません。CSVをアップロードしてください。`);
-const editableAccountOptions = computed(() => accountOptions.value.filter((option) => !isCalculatedSource(option.bucket, option.amount_source || '')));
-const canSaveAccount = computed(() => !!selectedDepartment.value?.id && accountForm.value.account_name.trim() !== '');
-const selectedDepartmentHistories = computed(() => {
-    const department = selectedDepartment.value?.department;
-
-    if (!department) return [];
-
-    return editHistories.value
-        .filter((history) => history.department_name === department)
-        .slice(0, 8);
-});
-
 const filteredDepartments = computed(() => {
     const query = search.value.toLowerCase();
     const rows = [...(result.value?.departments || [])].filter((department) => {
@@ -502,13 +453,11 @@ const selectedDepartment = computed(() => {
 
 const dataTheme = computed(() => (theme.dark ? 'dark' : 'light'));
 
-const fileLabel = computed(() => selectedFile.value?.name
-    || result.value?.file.title
+const fileLabel = computed(() => result.value?.file.title
     || result.value?.file.name
-    || `${selectedMonthKey.value} のCSVファイル`);
+    || `${selectedMonthKey.value} の実績（freee取込）`);
 
 const fileStatus = computed(() => {
-    if (selectedFile.value) return { label: '未保存（計算待ち）', tone: 'pending' };
     if (result.value?.exists) return { label: '保存済み', tone: 'saved' };
 
     return { label: '未保存', tone: 'idle' };
@@ -571,14 +520,37 @@ const displayRows = computed(() => filteredDepartments.value.map((department) =>
     },
 })));
 
+/** 積立金の内訳（誰の勤務時間から幾ら配分されたか）を勘定科目明細から拾う。 */
+const allocationDetailsFor = (bucket: string): AllocationDetail[] => {
+    const accounts = selectedDepartment.value?.accounts || [];
+    const account = accounts.find((a) => a.bucket === bucket && (a.allocation_details?.length ?? 0) > 0);
+
+    return [...(account?.allocation_details || [])].sort((a, b) => b.amount - a.amount);
+};
+
 const detailMetrics = computed<DetailMetric[]>(() => {
     const department = selectedDepartment.value;
 
     if (!department) return [];
 
     const dash = showZeroAsDash ? '—' : formatCurrency(0);
-    const amount = (label: string, value: number, profit = false): DetailMetric => {
+    const amount = (label: string, value: number, profit = false, bucket?: string): DetailMetric => {
         if (value === 0) return { label, value: dash, color: 'var(--text-3)', filler: false };
+
+        if (bucket) {
+            const details = allocationDetailsFor(bucket);
+
+            if (details.length) {
+                return {
+                    label,
+                    value: formatCurrency(value),
+                    color: 'var(--text)',
+                    filler: false,
+                    bucket,
+                    detailCount: details.length,
+                };
+            }
+        }
 
         return {
             label,
@@ -599,10 +571,10 @@ const detailMetrics = computed<DetailMetric[]>(() => {
         amount('利益', department.real_profit, true),
         { label: '利益率', value: formatMargin(department.real_margin), color: department.real_profit < 0 ? 'var(--neg)' : 'var(--pos)', filler: false },
         { label: '通常利益率', value: formatMargin(department.margin), color: department.normal_profit < 0 ? 'var(--neg)' : 'var(--pos)', filler: false },
-        amount('基本賞与', department.basic_bonus_reserve),
-        amount('有給', department.paid_leave_reserve),
-        amount('福利厚生', department.welfare_reserve),
-        amount('リフレッシュ', department.refresh_reserve),
+        amount('基本賞与', department.basic_bonus_reserve, false, 'basic_bonus_reserve'),
+        amount('有給', department.paid_leave_reserve, false, 'paid_leave_reserve'),
+        amount('福利厚生', department.welfare_reserve, false, 'welfare_reserve'),
+        amount('リフレッシュ', department.refresh_reserve, false, 'refresh_reserve'),
         amount('振替売上', department.reserve_transfer_sales),
     ];
 });
@@ -615,7 +587,6 @@ const handleMonthPicked = async ({ year, month }: { year: number; month: MonthNu
 
 const loadMonth = async () => {
     uploadError.value = '';
-    editError.value = '';
 
     const data = await api.get('/admin/actual-results', { month: selectedMonthKey.value }, {
         loadingRef: loading,
@@ -626,122 +597,38 @@ const loadMonth = async () => {
     if (data?.exists) {
         result.value = data as ActualResult;
         selectedDepartmentName.value = result.value.departments[0]?.department || '';
-        await loadAccountOptions();
-        await loadEditHistories();
     } else {
         result.value = null;
         selectedDepartmentName.value = '';
-        accountOptions.value = [];
-        editHistories.value = [];
     }
-
-    selectedFile.value = null;
-    resetFileInput();
-    closeAccountEditor();
-    closeHistory();
 };
 
-const loadAccountOptions = async () => {
-    if (!result.value?.exists) {
-        accountOptions.value = [];
-        return;
-    }
-
-    const data = await api.get('/admin/actual-results/account-options', { month: selectedMonthKey.value }, {
-        silent: true,
-        cancel: true,
-    }) as { options: ActualAccountOption[] } | null;
-
-    accountOptions.value = data?.options || [];
-};
-
-const loadEditHistories = async () => {
-    if (!result.value?.exists) {
-        editHistories.value = [];
-        return;
-    }
-
-    const data = await api.get('/admin/actual-results/edit-histories', { month: selectedMonthKey.value }, {
-        silent: true,
-        cancel: true,
-    }) as { histories: ActualEditHistory[] } | null;
-
-    editHistories.value = data?.histories || [];
-};
-
-const handleFileChange = (event: Event) => {
-    const input = event.target as HTMLInputElement;
-    setFile(input.files?.[0] || null);
-};
-
-const handleDrop = (event: DragEvent) => {
-    dragging.value = false;
-    setFile(event.dataTransfer?.files?.[0] || null);
-};
-
-const setFile = (file: File | null) => {
-    uploadError.value = '';
-
-    if (!file) {
-        selectedFile.value = null;
-        return;
-    }
-
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-        uploadError.value = 'CSVファイルを選択してください。';
-        selectedFile.value = null;
-        return;
-    }
-
-    selectedFile.value = file;
-};
-
-const calculate = async () => {
-    if (!selectedFile.value) {
-        uploadError.value = 'CSVファイルを選択してください。';
-        return;
-    }
-
-    const hasManualEdits = result.value?.departments.some((department) => department.manual_adjusted) ?? false;
-
+/**
+ * freee会計から対象月の損益計算書を取り込む。
+ * 保存済みの月は上書き確認を挟む。
+ */
+const syncFromFreee = async () => {
     if (result.value?.exists) {
-        const question = hasManualEdits
-            ? `${selectedMonthKey.value} は保存済みで、手動編集もあります。編集内容を破棄してCSVで上書きしますか？`
-            : `${selectedMonthKey.value} の保存済み実績を、このCSVで上書きしますか？`;
-        const confirmed = await dialog.ask(question, {
-            answers: [
-                { value: true, label: '上書き' },
-                { value: false, label: 'キャンセル' },
-            ],
-        });
+        const confirmed = await dialog.ask(
+            `${selectedMonthKey.value} の保存済み実績を、freeeの取込結果で上書きしますか？`,
+            {
+                answers: [
+                    { value: true, label: '上書き' },
+                    { value: false, label: 'キャンセル' },
+                ],
+            },
+        );
 
         if (!confirmed.value) return;
     }
 
-    await submitCalculation({
-        overwriteConfirmed: !!result.value?.exists,
-        discardManualEdits: hasManualEdits,
-    });
-};
-
-type CalculationConfirmations = {
-    overwriteConfirmed: boolean;
-    discardManualEdits: boolean;
-};
-
-const submitCalculation = async (confirmations: CalculationConfirmations) => {
-    if (!selectedFile.value) return;
-
-    const formData = new FormData();
-    formData.append('file', selectedFile.value);
-    formData.append('month', selectedMonthKey.value);
-    formData.append('overwrite_confirmed', confirmations.overwriteConfirmed ? '1' : '0');
-    formData.append('discard_manual_edits', confirmations.discardManualEdits ? '1' : '0');
-
     try {
-        const data = await api.post('/admin/actual-results/calculate', formData, {
+        const data = await api.post('/admin/actual-results/sync-freee', {
+            month: selectedMonthKey.value,
+            overwrite_confirmed: result.value?.exists ? 1 : 0,
+        }, {
             loadingRef: loading,
-            toast: '実績を保存しました。',
+            toast: 'freeeから実績を取り込みました。',
             silent: true,
         }) as ActualResult | null;
 
@@ -749,12 +636,6 @@ const submitCalculation = async (confirmations: CalculationConfirmations) => {
             result.value = data;
             selectedDepartmentName.value = data.departments[0]?.department || '';
             uploadError.value = '';
-            selectedFile.value = null;
-            resetFileInput();
-            await loadAccountOptions();
-            await loadEditHistories();
-            closeAccountEditor();
-            closeHistory();
             warningOpen.value = false;
         }
     } catch (error: any) {
@@ -762,7 +643,104 @@ const submitCalculation = async (confirmations: CalculationConfirmations) => {
 
         uploadError.value = Object.values(errors || {})[0]?.[0]
             || error?.response?.data?.message
-            || 'CSVの計算または保存に失敗しました。';
+            || 'freeeからの取込に失敗しました。';
+    }
+};
+
+type FreeeJournalResult = {
+    bucket: string;
+    label: string;
+    action: 'created' | 'updated' | 'unchanged' | 'skipped';
+    reason?: string;
+    amount: number;
+    freee_journal_id?: number | null;
+};
+
+type FreeeJournalResponse = {
+    month: string;
+    dry_run: boolean;
+    results: FreeeJournalResult[];
+    warnings: string[];
+};
+
+const freeeActionLabels: Record<FreeeJournalResult['action'], string> = {
+    created: '新規登録',
+    updated: '更新',
+    unchanged: '変更なし',
+    skipped: '対象外',
+};
+
+/**
+ * 計算済みの積立金をfreeeへ振替伝票として送る。
+ * まずドライランで内容を提示し、確認が取れてから実際に送信する。
+ */
+const postToFreee = async () => {
+    if (!result.value?.exists) return;
+
+    const preview = await api.post('/admin/actual-results/post-freee', {
+        month: selectedMonthKey.value,
+        dry_run: true,
+    }, { loadingRef: loading, silent: true }) as FreeeJournalResponse | null;
+
+    if (!preview) return;
+
+    const sendable = preview.results.filter((row) => row.action === 'created' || row.action === 'updated');
+
+    // 送れなかった理由（科目や品目が無いなど）は必ず出す。
+    // 「既に最新」に紛れ込ませると、送信できていないことに気付けない。
+    const blocked = preview.results.filter((row) => row.action === 'skipped' && row.reason);
+    const blockedText = blocked.length
+        ? `\n\n送信できなかったもの:\n${blocked.map((row) => `・${row.label}：${row.reason}`).join('\n')}`
+        : '';
+
+    if (!sendable.length) {
+        const unchanged = preview.results.filter((row) => row.action === 'unchanged');
+
+        await dialog.ping((unchanged.length
+            ? 'freeeは既に最新です。送信の必要はありません。'
+            : '送信できる積立金がありません。') + blockedText);
+
+        return;
+    }
+
+    const lines = sendable
+        .map((row) => `・${row.label}：${row.amount.toLocaleString()}円（${freeeActionLabels[row.action]}）`)
+        .join('\n');
+    const warningText = preview.warnings.length ? `\n\n※ ${preview.warnings.join('\n※ ')}` : '';
+
+    const confirmed = await dialog.ask(
+        `${selectedMonthKey.value} の積立金をfreeeへ送信します。\n\n${lines}${warningText}`,
+        {
+            answers: [
+                { value: true, label: '送信' },
+                { value: false, label: 'キャンセル' },
+            ],
+        },
+    );
+
+    if (!confirmed.value) return;
+
+    try {
+        const sent = await api.post('/admin/actual-results/post-freee', {
+            month: selectedMonthKey.value,
+            dry_run: false,
+        }, { loadingRef: loading, silent: true }) as FreeeJournalResponse | null;
+
+        if (sent) {
+            const summary = sent.results
+                .filter((row) => row.action !== 'skipped')
+                .map((row) => `${row.label}：${freeeActionLabels[row.action]}`)
+                .join(' / ');
+
+            uploadError.value = '';
+            await dialog.ping(summary ? `freeeへ送信しました。（${summary}）` : 'freeeへ送信しました。');
+        }
+    } catch (error: any) {
+        const errors = error?.response?.data?.errors as Record<string, string[]> | undefined;
+
+        uploadError.value = Object.values(errors || {})[0]?.[0]
+            || error?.response?.data?.message
+            || 'freeeへの送信に失敗しました。';
     }
 };
 
@@ -791,186 +769,52 @@ const exportCsv = () => {
 
 const selectDepartment = (department: ActualDepartment) => {
     selectedDepartmentName.value = department.department;
-    closeAccountEditor();
-    closeHistory();
+    allocationOpen.value = false;
 };
 
-const resetAccountForm = () => {
-    editingAccountKey.value = '';
-    editError.value = '';
-    accountForm.value = {
-        template_key: '',
-        account_code: '',
-        account_name: '',
-        category: 'expense',
-        bucket: 'ordinary_expense',
-        bucket_label: '通常経費',
-        amount: 0,
-        note: '',
-    };
-    amountInput.value = '0';
+/** 積立金の内訳モーダル。 */
+const openAllocation = (metric: DetailMetric) => {
+    if (!metric.bucket) return;
+
+    allocationBucket.value = metric.bucket;
+    allocationLabel.value = metric.label;
+    allocationOpen.value = true;
 };
 
-const openAddAccount = () => {
-    resetAccountForm();
-    editorOpen.value = true;
+const allocationRows = computed(() => allocationDetailsFor(allocationBucket.value));
+
+const allocationTotal = computed(() =>
+    allocationRows.value.reduce((sum, row) => sum + (row.amount || 0), 0));
+
+const formatMinutes = (minutes: number) => {
+    const h = Math.floor((minutes || 0) / 60);
+    const m = (minutes || 0) % 60;
+
+    return m === 0 ? `${h}時間` : `${h}時間${m}分`;
 };
 
-const closeAccountEditor = () => {
-    editorOpen.value = false;
-    resetAccountForm();
+/** 賞与引当金繰入額の内訳（基本賞与分＋部門ごとの業績連動分）。 */
+const hasAccrualBreakdown = (account: ActualAccount) =>
+    (account.accrual_breakdown?.performance_bonus_by_department?.length ?? 0) > 0
+    || (account.accrual_breakdown?.basic_bonus_total ?? 0) !== 0;
+
+const openAccrual = (account: ActualAccount) => {
+    accrualAccount.value = account;
+    accrualOpen.value = true;
 };
 
-const editAccount = (account: ActualAccount) => {
-    editingAccountKey.value = accountKey(account);
-    editError.value = '';
-    accountForm.value = {
-        template_key: '',
-        account_code: account.account_code || '',
-        account_name: account.account_name || '',
-        category: account.category,
-        bucket: account.bucket || 'ordinary_expense',
-        bucket_label: account.bucket_label || '',
-        amount: account.amount || 0,
-        note: '',
-    };
-    amountInput.value = formatMoneyInput(account.amount || 0);
-    editorOpen.value = true;
-};
+const accrualBreakdown = computed(() => accrualAccount.value?.accrual_breakdown ?? null);
 
-const applyAccountTemplate = () => {
-    const option = accountOptions.value.find((row) => row.account_key === accountForm.value.template_key);
-    if (!option) return;
+const accrualDepartments = computed(() =>
+    [...(accrualBreakdown.value?.performance_bonus_by_department ?? [])]
+        .sort((a, b) => b.amount - a.amount));
 
-    accountForm.value.account_code = option.account_code || '';
-    accountForm.value.account_name = option.account_name;
-    accountForm.value.category = option.category;
-    accountForm.value.bucket = option.bucket;
-    accountForm.value.bucket_label = option.bucket_label;
-};
-
-const handleAccountCategoryChange = () => {
-    accountForm.value.template_key = '';
-    accountForm.value.bucket = accountForm.value.category === 'sales' ? 'operating_sales' : 'ordinary_expense';
-    accountForm.value.bucket_label = accountForm.value.category === 'sales' ? '売上' : '通常経費';
-};
-
-const handleAmountInput = () => {
-    const raw = amountInput.value;
-
-    if (raw.trim() === '-') {
-        accountForm.value.amount = 0;
-        return;
-    }
-
-    const amount = parseMoneyInput(raw);
-    accountForm.value.amount = amount;
-    amountInput.value = formatMoneyInput(amount);
-};
-
-const saveAccount = async () => {
-    const department = selectedDepartment.value;
-    if (!department?.id) return;
-    const actionLabel = editingAccountKey.value ? '更新' : '追加';
-
-    try {
-        const data = await api.patch(`/admin/actual-results/departments/${department.id}/accounts`, {
-            account_key: editingAccountKey.value || null,
-            account: {
-                account_code: accountForm.value.account_code,
-                account_name: accountForm.value.account_name,
-                category: accountForm.value.category,
-                bucket: accountForm.value.bucket,
-                bucket_label: accountForm.value.bucket_label,
-                amount: accountForm.value.amount,
-            },
-            note: accountForm.value.note || null,
-        }, {
-            loadingRef: loading,
-        }) as ActualResult | null;
-
-        await applySavedResult(data);
-        dialog.toast(`明細を${actionLabel}しました。`);
-    } catch (error) {
-        editError.value = '明細の保存に失敗しました。';
-    }
-};
-
-const saveAccountIfValid = () => {
-    if (!canSaveAccount.value || loading.value) return;
-    void saveAccount();
-};
-
-const deleteAccount = async () => {
-    const department = selectedDepartment.value;
-    if (!department?.id || !editingAccountKey.value) return;
-
-    const confirmed = await dialog.ask('この明細を削除しますか？', {
-        answers: [
-            { value: true, label: '削除' },
-            { value: false, label: 'キャンセル' },
-        ],
-    });
-
-    if (!confirmed.value) {
-        return;
-    }
-
-    try {
-        const data = await api.patch(`/admin/actual-results/departments/${department.id}/accounts`, {
-            account_key: editingAccountKey.value,
-            delete: true,
-            note: accountForm.value.note || null,
-        }, {
-            loadingRef: loading,
-        }) as ActualResult | null;
-
-        await applySavedResult(data);
-        dialog.toast('明細を削除しました。');
-    } catch (error) {
-        editError.value = '明細の削除に失敗しました。';
-    }
-};
-
-const openHistory = (history: ActualEditHistory) => {
-    selectedHistory.value = history;
-    historyOpen.value = true;
-};
-
-const closeHistory = () => {
-    historyOpen.value = false;
-    selectedHistory.value = null;
-};
-
-const applySavedResult = async (data: ActualResult | null) => {
-    if (!data) return;
-
-    const previousDepartment = selectedDepartment.value?.department || data.departments[0]?.department || '';
-    result.value = data;
-    selectedDepartmentName.value = data.departments.some((department) => department.department === previousDepartment)
-        ? previousDepartment
-        : data.departments[0]?.department || '';
-    closeAccountEditor();
-    closeHistory();
-    await loadAccountOptions();
-    await loadEditHistories();
-};
-
-const resetFileInput = () => {
-    if (fileInput.value) {
-        fileInput.value.value = '';
-    }
-};
+const allocationShare = (row: AllocationDetail) =>
+    row.total_work_minutes > 0
+        ? `${(row.work_minutes / row.total_work_minutes * 100).toFixed(1)}%`
+        : '—';
 
 const formatCurrency = (value: number) => `${new Intl.NumberFormat('ja-JP').format(Math.round(value || 0))}円`;
-const formatMoneyInput = (value: number) => new Intl.NumberFormat('ja-JP').format(Math.round(value || 0));
-const parseMoneyInput = (value: string) => {
-    const negative = value.trim().startsWith('-');
-    const digits = value.replace(/[^\d]/g, '');
-    const amount = digits === '' ? 0 : Number(digits);
-
-    return negative ? -amount : amount;
-};
 const formatMargin = (value: number | null) => value === null ? '-' : `${Number(value).toFixed(1)}%`;
 const categoryLabel = (category: ActualAccountCategory) => category === 'sales' ? '売上' : '費用';
 const accountKey = (account: ActualAccount) => account.account_key || `${account.account_code}|${account.account_name}|${account.category}|${account.bucket}`;
@@ -983,57 +827,13 @@ const sourceDepartmentLabel = (department: ActualDepartment) => {
 
     return sources.join(' / ');
 };
+// freee取込では勘定科目コードも行数も意味を持たないので、
+// 複数のfreee部門がまとまったときだけ内訳元を出す。
 const accountDetailLabel = (account: ActualAccount) => {
-    const base = `${account.account_code || 'コードなし'} / ${account.rows}行`;
     const sources = account.source_departments || [];
 
-    return sources.length > 1 ? `${base} / ${sources.join(' / ')}` : base;
+    return sources.length > 1 ? sources.join(' / ') : '';
 };
-const historyActionLabel = (action: string) => {
-    if (action === 'add_account') return '追加';
-    if (action === 'update_account') return '更新';
-    if (action === 'delete_account') return '削除';
-
-    return action;
-};
-const historyAccountName = (history: ActualEditHistory) => {
-    return history.after_value?.account_name
-        || history.before_value?.account_name
-        || history.account_key
-        || '明細';
-};
-const historyAmountLabel = (history: ActualEditHistory) => {
-    const before = history.before_value?.amount;
-    const after = history.after_value?.amount;
-
-    if (before === undefined && after === undefined) return '';
-    if (before === undefined) return formatCurrency(after || 0);
-    if (after === undefined) return `${formatCurrency(before)} → 削除`;
-
-    return `${formatCurrency(before)} → ${formatCurrency(after)}`;
-};
-const formatHistoryDate = (value: string | null) => {
-    if (!value) return '-';
-
-    const date = DateTime.fromISO(value);
-
-    return date.isValid ? date.toFormat('yyyy/MM/dd HH:mm') : value;
-};
-const isCalculatedAccount = (account: ActualAccount) => isCalculatedSource(account.bucket, account.amount_source || '');
-const isCalculatedSource = (bucket: string, amountSource: string) => {
-    return [
-        'performance_bonus_reserve',
-        'indirect_allocation_expense',
-        'reserve_transfer_sales',
-        'indirect_allocation_sales',
-    ].includes(bucket) || [
-        'generated_charge',
-        'generated_internal_sales',
-        'generated_bonus_accrual',
-        'timecard_kintone',
-    ].includes(amountSource);
-};
-
 onMounted(loadMonth);
 </script>
 
@@ -1180,11 +980,6 @@ onMounted(loadMonth);
     border: 1px solid var(--border);
     background: var(--surface);
     box-shadow: var(--shadow);
-}
-
-.file-info.dragging {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .file-info-main {
@@ -1460,12 +1255,6 @@ select:focus {
     color: var(--text);
 }
 
-.main-cell small {
-    display: block;
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--text-3);
-}
 
 .empty-cell {
     padding: 34px 12px !important;
@@ -1633,13 +1422,6 @@ select:focus {
     white-space: nowrap;
 }
 
-.account-actions {
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .account-amount {
     font-size: 12.5px;
     font-variant-numeric: tabular-nums;
@@ -1669,42 +1451,6 @@ select:focus {
 }
 
 /* history footer */
-.history-panel {
-    flex: 0 0 auto;
-    padding: 12px 18px;
-    border-top: 1px solid var(--border);
-    background: var(--surface-2);
-}
-
-.history-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.history-title {
-    font-size: 12px;
-    color: var(--text-2);
-}
-
-.history-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.history-count {
-    font-size: 12px;
-    color: var(--text-3);
-}
-
-.history-empty {
-    margin-top: 4px;
-    font-size: 11px;
-    color: var(--text-3);
-}
-
 /* empty states */
 .empty-result,
 .empty-detail {
@@ -1743,22 +1489,107 @@ select:focus {
 }
 
 /* modals (teleported - use global theme vars) */
-.manual-editor-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+/* 内訳を持つ数値はクリックできることが分かるようにする */
+.stat-cell.clickable {
+    cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease;
 }
 
-.actual-modal-form {
-    grid-template-columns: 1fr;
+.stat-cell.clickable:hover,
+.stat-cell.clickable:focus-visible {
+    background: var(--hover);
+    border-color: var(--accent);
+    outline: none;
 }
 
-.actual-modal-form label {
+.stat-detail-badge {
+    margin-left: 4px;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--hover);
+    color: var(--text-3);
+    font-size: 10px;
+}
+
+.allocation-list {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.allocation-row {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr .7fr 1.1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
     font-size: 12px;
-    color: var(--primary-color);
+}
+
+.allocation-row span:not(.allocation-name) {
+    text-align: right;
+}
+
+.allocation-head {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    color: var(--text-3);
+    font-size: 11px;
+}
+
+.allocation-name {
+    display: flex;
+    flex-direction: column;
+}
+
+.allocation-name small {
+    color: var(--text-3);
+    font-size: 10px;
+}
+
+.allocation-amount {
+    font-weight: 600;
+}
+
+.allocation-total {
+    border-bottom: none;
+    border-top: 2px solid var(--border);
+    font-weight: 600;
+}
+
+.account-row.clickable {
+    cursor: pointer;
+    transition: background-color .12s ease;
+}
+
+.account-row.clickable:hover,
+.account-row.clickable:focus-visible {
+    background: var(--hover);
+    outline: none;
+}
+
+.accrual-row {
+    grid-template-columns: 1.8fr 1fr .5fr 1.1fr;
+}
+
+.accrual-group {
+    font-weight: 600;
+    background: var(--hover);
+}
+
+.accrual-child .allocation-name {
+    padding-left: 14px;
+    color: var(--text-2);
+}
+
+.allocation-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12px;
 }
 
 .actual-modal-title span {
@@ -1772,36 +1603,6 @@ select:focus {
     font-size: 16px;
 }
 
-.actual-modal-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 16px;
-}
-
-.actual-modal-actions .upload-error {
-    margin-right: auto;
-}
-
-.actual-loader-button {
-    min-width: 86px;
-}
-
-.actual-loader-button-disabled {
-    opacity: 0.55;
-    pointer-events: none;
-}
-
-.actual-history-list {
-    height: 100%;
-    display: grid;
-    align-content: start;
-    gap: 2px;
-    overflow: auto;
-    border-top: 1px solid var(--formBorder);
-}
-
 .actual-warning-list {
     display: grid;
     gap: 8px;
@@ -1809,50 +1610,6 @@ select:focus {
     padding: 0 0 0 18px;
     color: var(--primary-color);
     font-size: 13px;
-}
-
-.history-row {
-    width: 100%;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-    padding: 8px 10px;
-    border: 0;
-    border-top: 1px solid var(--formBorder);
-    background: transparent;
-    color: var(--primary-color);
-    cursor: pointer;
-    text-align: left;
-    font-size: 12px;
-}
-
-.history-row:hover,
-.history-row.selected {
-    background: var(--secondary-background);
-}
-
-.history-row small {
-    display: block;
-    margin-top: 2px;
-    color: gray;
-    font-size: 11px;
-}
-
-.history-row span {
-    align-self: center;
-    color: gray;
-    white-space: nowrap;
-}
-
-:deep(.actual-result-edit-modal) {
-    width: min(520px, calc(100vw - 40px)) !important;
-    height: auto !important;
-    max-height: calc(100vh - 80px);
-}
-
-:deep(.actual-result-history-modal) {
-    width: min(640px, calc(100vw - 40px)) !important;
-    height: min(640px, calc(100vh - 80px)) !important;
 }
 
 @media screen and (max-width: 1180px) {

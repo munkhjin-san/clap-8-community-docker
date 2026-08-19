@@ -10,8 +10,6 @@ return new class extends Migration
     {
         Schema::table('lesson_personal_materials', function (Blueprint $table) {
             $table->json('presentation_spec')->nullable()->after('content');
-            $table->string('presentation_theme', 32)->nullable()->after('presentation_spec');
-            $table->string('presentation_path')->nullable()->after('presentation_theme');
         });
     }
 
@@ -20,8 +18,6 @@ return new class extends Migration
         Schema::table('lesson_personal_materials', function (Blueprint $table) {
             $table->dropColumn([
                 'presentation_spec',
-                'presentation_theme',
-                'presentation_path',
             ]);
         });
     }

@@ -11,12 +11,15 @@ const list = ref<FacilityData>({
 
 const myGroupData = ref<{
     all_members: User[],
-    my_groups: CalendarGroup[]
+    my_groups: CalendarGroup[],
+    extra_users: number[]
 }>()
 
 
 
 const selectedDepartmentIds = ref<number[]>([])
+
+const extraUserIds = ref<number[]>([])
 
 const dragItem = ref<CalendarRecord | null>(null)
 
@@ -29,7 +32,11 @@ export function useCalendar() {
 
     const getMyGroupData = async () => {
         try {
-            await axios.post('/get_my_groups').then(res => myGroupData.value = res.data)
+            await axios.post('/get_my_groups').then(res => {
+                myGroupData.value = res.data
+                // 追加ユーザーはサーバー保存なので、取得のたびに同期する
+                extraUserIds.value = Array.isArray(res.data?.extra_users) ? res.data.extra_users : []
+            })
         } catch (e) {}
     }
 
@@ -82,7 +89,8 @@ export function useCalendar() {
         draggingCalendar,
         setDraggingCalendar,
         getMyGroupData,
-        myGroupData
+        myGroupData,
+        extraUserIds
     }
 
 }

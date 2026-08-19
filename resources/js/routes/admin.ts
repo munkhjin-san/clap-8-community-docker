@@ -122,6 +122,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                         component: () => import('@/components/AccountControl/ProjectControl/ProjectList.vue'),
                     },
                     {
+                        path: 'partners',
+                        name: 'partnerlist',
+                        component: () => import('@/components/AccountControl/ProjectControl/PartnerList.vue'),
+                    },
+                    {
                         path: 'projecttypes',
                         name: 'projecttypes',
                         component: () => import('@/components/AccountControl/ProjectControl/ProjectTypes.vue'),
@@ -214,6 +219,23 @@ export const adminRoutes: RouteRecordRaw[] = [
                         path: 'web-meetings',
                         name: 'web-meetings',
                         component: () => import('@/components/AccountControl/ScheduleControl/WebMeetings.vue'),
+                    },
+                    {
+                        // freee配下は連携設定と取引先の2画面。親に名前は付けず、既定の子を連携設定にする。
+                        path: 'freee',
+                        component: () => import('@/components/AccountControl/ScheduleControl/FreeeControl.vue'),
+                        children: [
+                            {
+                                path: '',
+                                name: 'freee-integration',
+                                component: () => import('@/components/AccountControl/ScheduleControl/FreeeIntegration.vue'),
+                            },
+                            {
+                                path: 'partners',
+                                name: 'freee-partners',
+                                component: () => import('@/components/AccountControl/ScheduleControl/FreeePartners.vue'),
+                            },
+                        ],
                     },
                 ],
             },

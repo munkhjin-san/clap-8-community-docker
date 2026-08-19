@@ -54,13 +54,21 @@ class OpenAiRegulationSyncService
 
     public function previousStoreId(): ?string
     {
+        return $this->storeData()['vector_store_id'] ?? null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function storeData(): array
+    {
         if (! Storage::disk('local')->exists(self::STORE_DATA_PATH)) {
-            return null;
+            return [];
         }
 
         $data = json_decode(Storage::disk('local')->get(self::STORE_DATA_PATH), true);
 
-        return $data['vector_store_id'] ?? null;
+        return is_array($data) ? $data : [];
     }
 
     public function resetPageDirectory(): void
@@ -69,6 +77,25 @@ class OpenAiRegulationSyncService
         Storage::disk('local')->makeDirectory(self::PAGE_DIRECTORY);
         Storage::disk('local')->makeDirectory(self::STORE_DIRECTORY);
         Storage::disk('local')->makeDirectory(self::PAGE_COPY_DIRECTORY);
+    }
+
+    /**
+     * Discard only the generated Markdown owned by one file, so a single-file
+     * sync leaves the pages belonging to every other regulation file intact.
+     */
+    public function resetGeneratedPagesForFile(RegulationFile $file): void
+    {
+        $disk = Storage::disk('local');
+
+        $disk->makeDirectory(self::PAGE_DIRECTORY);
+        $disk->makeDirectory(self::STORE_DIRECTORY);
+        $disk->makeDirectory(self::PAGE_COPY_DIRECTORY);
+
+        foreach ($file->vectorPages()->pluck('markdown_path') as $path) {
+            if ($path && $disk->exists($path)) {
+                $disk->delete($path);
+            }
+        }
     }
 
     public function syncFile(
@@ -313,6 +340,105 @@ class OpenAiRegulationSyncService
     public function writeStoreData(array $data): void
     {
         Storage::disk('local')->put(self::STORE_DATA_PATH, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Rebuild store.json from the tracked vector pages.
+     *
+     * Single-file syncs only touch one regulation file, so the store data has
+     * to be derived from the tracking table instead of a single run's results.
+     * Copies may legitimately span several timestamped directories.
+     */
+    public function rebuildStoreData(?Store $store = null): void
+    {
+        $existing = $this->storeData();
+
+        $pages = RegulationFileVectorPage::query()
+            ->with('regulationFile')
+            ->orderBy('regulation_file_id')
+            ->orderBy('page_number')
+            ->get();
+
+        $uploadedFiles = $pages->map(fn (RegulationFileVectorPage $page) => [
+            'regulation_file_id' => $page->regulation_file_id,
+            'source_path' => $page->regulationFile ? $this->sourcePath($page->regulationFile) : null,
+            'generated_path' => $page->markdown_path,
+            'copy_path' => $page->markdown_copy_path,
+            'document_id' => $page->vector_store_file_id,
+            'file_id' => $page->openai_file_id,
+            'page' => $page->page_number,
+        ])->all();
+
+        $copyDirectories = $pages
+            ->pluck('markdown_copy_path')
+            ->filter()
+            ->map(fn (string $path) => dirname($path))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $this->writeStoreData([
+            'vector_store_id' => $store?->id ?? ($existing['vector_store_id'] ?? null),
+            'name' => $store?->name ?? ($existing['name'] ?? self::STORE_NAME),
+            'synced_at' => now()->toISOString(),
+            'markdown_copy_directory' => $copyDirectories === [] ? null : end($copyDirectories),
+            'markdown_copy_directories' => $copyDirectories,
+            'source_file_count' => $pages->pluck('regulation_file_id')->unique()->count(),
+            'generated_page_count' => $pages->count(),
+            'uploaded_files' => $uploadedFiles,
+            'file_counts' => $store?->fileCounts->toArray() ?? ($existing['file_counts'] ?? null),
+            'ready' => $store?->ready ?? ($existing['ready'] ?? null),
+        ]);
+    }
+
+    /**
+     * Delete Markdown copies that no longer back a tracked vector store page.
+     *
+     * @return list<string>
+     */
+    public function pruneOrphanedMarkdownCopies(): array
+    {
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists(self::PAGE_COPY_DIRECTORY)) {
+            return [];
+        }
+
+        $livePaths = RegulationFileVectorPage::query()
+            ->whereNotNull('markdown_copy_path')
+            ->pluck('markdown_copy_path')
+            ->all();
+
+        // With no tracked pages every copy looks orphaned; keep them rather
+        // than wiping the directory on an empty or half-migrated table.
+        if ($livePaths === []) {
+            return [];
+        }
+
+        $live = array_flip($livePaths);
+        $removed = [];
+
+        foreach ($disk->allFiles(self::PAGE_COPY_DIRECTORY) as $path) {
+            if (isset($live[$path])) {
+                continue;
+            }
+
+            $disk->delete($path);
+            $removed[] = $path;
+        }
+
+        foreach ($disk->directories(self::PAGE_COPY_DIRECTORY) as $directory) {
+            if ($disk->allFiles($directory) === []) {
+                $disk->deleteDirectory($directory);
+            }
+        }
+
+        if ($removed !== []) {
+            Log::info('OpenAiRegulationSyncService: pruned ['.count($removed).'] orphaned Markdown copies.');
+        }
+
+        return $removed;
     }
 
     public function newMarkdownCopyDirectory(): string

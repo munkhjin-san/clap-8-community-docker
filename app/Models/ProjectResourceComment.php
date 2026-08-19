@@ -15,6 +15,12 @@ class ProjectResourceComment extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    // 収支コメントと共用の project_comment_reminds を使う
+    public function remindUsers()
+    {
+        return $this->morphMany(ProjectCommentRemind::class, 'comment')->where('reminded', 1);
+    }
+
     protected $casts = [
         'period' => 'string',
     ];

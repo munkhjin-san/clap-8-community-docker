@@ -61,7 +61,7 @@
                 />
                 <MaterialExam
                     v-if="hasExam && sectionStatus != 2"
-                    :theme-id="route.params.lessonThemeId as string"
+                    :theme-id="lessonThemeId"
                     :material-id="material.id"
                     @finished="completeExamMaterial"
                 />
@@ -106,6 +106,11 @@ import type { LearningMaterial, LearningSection, LearningSummaryAnswer, Learning
 
     const router = useRouter()
     const route = useRoute()
+    /*
+     * ルータのパラメータは string | string[]。テンプレート側に `as string` と書くと
+     * エディタによってはそこから下の解析が崩れるので、キャストはここで済ませる。
+     */
+    const lessonThemeId = computed(() => String(route.params.lessonThemeId ?? ''))
     const learningApi = useLearningApi()
     const { ask, toast } = useDialog()
     const props = defineProps<{

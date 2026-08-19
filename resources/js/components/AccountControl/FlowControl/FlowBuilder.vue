@@ -97,7 +97,7 @@
             <FlowFormTab v-show="tab === 'form'" :def="def" />
             <FlowStatusTab v-show="tab === 'status'" :def="def" :users="users" :positions="positions" />
             <FlowViewTab v-show="tab === 'view'" :def="def" :users="users" />
-            <FlowToolsTab v-show="tab === 'tools'" :def="def" :users="users" />
+            <FlowToolsTab v-show="tab === 'tools'" :def="def" :users="users" :positions="positions" />
             <FlowPermissionTab v-show="tab === 'permission'" :def="def" :users="users" :positions="positions" />
             <FlowAuditLogTab v-if="def.id && auditOpened" v-show="tab === 'audit'" :def="def" />
         </div>
@@ -110,6 +110,9 @@
 <script setup lang="ts">
 import 'styles/flow-shared.css'
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
+import { useUnsavedGuard } from '@/composables/unsavedGuard'
+import { builderFingerprint } from '@/utils/flowDirty'
+import { provideFlowDrafts } from '@/composables/flowDrafts'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
@@ -183,7 +186,13 @@ const tabFromRoute = (): BuilderTab => {
 const tab = ref<BuilderTab>(tabFromRoute())
 const setTab = (key: BuilderTab) => {
     tab.value = key
-    router.replace({ name: 'flow-builder', params: { ...route.params, tab: key === 'general' ? undefined : key }, query: route.query })
+    // `sub` belongs to whichever tab owns it (ツール), so drop it when leaving — spreading
+    // route.params without this carries /tools/aggregation's suffix onto the next tab's URL.
+    router.replace({
+        name: 'flow-builder',
+        params: { ...route.params, tab: key === 'general' ? undefined : key, sub: undefined },
+        query: route.query,
+    })
 }
 watch(() => route.params.tab, () => { if (route.name === 'flow-builder') tab.value = tabFromRoute() })
 // lazy-mount the audit tab: it fetches from the server (unlike the other tabs, which just edit the
@@ -235,7 +244,7 @@ const newDefinition = (): BuilderDefinition => ({
 })
 
 const defaultView = (): BuilderView => ({
-    name: 'すべて', is_default: true, columns: [], filters: [], sort: [],
+    name: 'すべて', is_default: true, columns: [], filters: [], filter_logic: 'and', sort: [],
 })
 
 const def = ref<BuilderDefinition>(newDefinition())
@@ -353,7 +362,7 @@ const onKintoneImport = (preview: any) => {
             const from = statuses.find((s) => s.key === nameToKey[a.from])
             const toKey = nameToKey[a.to]
             if (from && toKey) {
-                from.actions.push({ name: a.name, label: a.name, color: '#3b6df5', to_status_key: toKey, eligible: [] })
+                from.actions.push({ name: a.name, label: a.name, color: '#3b6df5', to_status_key: toKey, eligible: [], notify: true })
             }
         })
         // Importing a flow implies wanting it — enable it (the admin can toggle off). kintone's own enable is shown in the preview.
@@ -420,6 +429,7 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
                     color: a.color ?? '#3b6df5',
                     to_status_key: a.to_status_id ? `s${a.to_status_id}` : null,
                     eligible: (a.eligible ?? []).map((e) => ({ subject_type: e.subject_type, subject_id: e.subject_id ?? null })),
+                    notify: (a as any).notify === undefined ? true : !!(a as any).notify,
                 }))
             return {
                 id: s.id,
@@ -446,6 +456,7 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
             ? (api.views ?? []).map((v) => ({
                 id: v.id, name: v.name, is_default: !!v.is_default,
                 columns: v.columns ?? [], filters: v.filters ?? [], sort: v.sort ?? [],
+                filter_logic: v.filter_logic === 'or' ? 'or' : 'and',
             }))
             : [defaultView()],
         tools: (api.tools ?? []).map((t: any) => ({
@@ -490,6 +501,7 @@ const buildPayload = () => ({
             label: a.label,
             color: a.color,
             eligible: a.eligible,
+            notify: a.notify !== false,
         })).filter((a) => a.to_status_key && a.label)
     ),
     app_permissions: def.value.appPermissions,
@@ -501,6 +513,7 @@ const buildPayload = () => ({
         // view was configured). System columns ($record_number 等) and live field ids are kept.
         columns: (v.columns ?? []).filter(liveRef),
         filters: (v.filters ?? []).filter((f) => liveRef(f.field)),
+        filter_logic: v.filter_logic === 'or' ? 'or' : 'and',
         sort: (v.sort ?? []).filter((s) => liveRef(s.field)),
     })),
     tools: def.value.tools.map((t) => ({
@@ -543,11 +556,21 @@ const save = async () => {
         dialog.toast(fErr)
         return
     }
+    // A composed-but-not-added permission row looks finished on screen, so saving over it read as
+    // "it saved" while the row was thrown away. Blocked, shown, and told what to press.
+    const draft = drafts.firstPending()
+    if (draft) {
+        setTab(draft.tab as BuilderTab)
+        draft.reveal?.()
+        dialog.toast(`${draft.label}に未追加の設定があります。「＋追加」を押すか、選択を解除してください。`)
+        return
+    }
     saving.value = true
     try {
         const data = await api.post('/flow_definition_save', buildPayload(), { toast: '保存しました。' })
         if (data) {
             def.value = toBuilder(data as FlowDefinitionApi)
+            snapshotDefinition() // saved: nothing to warn about on the way out
             // land inside the app itself (both edit and newly created)
             router.push({ name: 'flow-records', params: { flowId: (data as FlowDefinitionApi).id } })
         }
@@ -567,6 +590,17 @@ const truncateRecords = async () => {
         truncating.value = false
     }
 }
+
+/* ---- unsaved-changes guard -------------------------------------------------------------------
+ * buildPayload() is the exact state a save would send, which makes it the honest definition of
+ * "unsaved": every difference it reports is something that would be lost, down to a status node
+ * nudged on the canvas (ui_x/ui_y ride along in the payload). Re-baselined on load and on save.
+ */
+const drafts = provideFlowDrafts()
+const savedPayload = ref('')
+const snapshotDefinition = () => { savedPayload.value = builderFingerprint(buildPayload()) }
+useUnsavedGuard(() => !loading.value
+    && (builderFingerprint(buildPayload()) !== savedPayload.value || !!drafts.firstPending()))
 
 const back = () => {
     // return to wherever settings was opened from (app list / records / a record)
@@ -594,6 +628,8 @@ onMounted(async () => {
         }
     } finally {
         loading.value = false
+        // baseline whatever we ended up with: a loaded app, a new one, or a project-scoped new one
+        snapshotDefinition()
     }
 })
 </script>
@@ -611,7 +647,7 @@ onMounted(async () => {
 .fg-truncate { background: tomato; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .fg-truncate:hover { background: #e8482e; }
 .fg-truncate:disabled { opacity: 0.55; cursor: not-allowed; }
-.fg-danger-hint { font-size: 11.5px; color: gray; margin: 0; }
+.fg-danger-hint { font-size: 11.5px; color: gray; margin: 0; line-height: 1.8; line-break: strict; }
 .fg-label { font-size: 12px; color: gray; font-weight: 500; }
 .fg-required { color: #e24b4a; }
 .fg-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--primary-color); cursor: pointer; width: fit-content; }

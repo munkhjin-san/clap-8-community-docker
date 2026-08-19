@@ -20,6 +20,9 @@ use App\Models\ProjectGoal;
 use App\Models\ProjectAssignRecord;
 use Carbon\Carbon;
 use App\Models\ProjectRecord;
+use App\Models\ProjectFinanceComment;
+use App\Models\ProjectResourceComment;
+use App\Support\ProjectAccess;
 use App\Models\CalendarRecord;
 use App\Models\PostRecord;
 use App\Models\PostRelay;
@@ -98,6 +101,75 @@ class DashboardController extends Controller
         $active_user = Auth::user();
         $messages = $this->reminderMessageService->getReminderMessagesForUser($active_user, ['remindedMessages']);
         return $messages['remindedMessages'];
+    }
+    // リマインドメッセージカードの「プロジェクト」側。収支コメントと要員コメントのリマインド分。
+    public function remindedProjectComments(){
+        $active_user = Auth::user();
+
+        $monthLabel = fn(?string $period) => $period
+            ? Carbon::parse($period . '-01')->format('Y年n月')
+            : null;
+
+        // --- 収支コメント ---
+        $financeQuery = ProjectFinanceComment::query()
+            ->whereHas('remindUsers', fn($q) => $q->where('user_id', $active_user->id));
+
+        // 役員・管理系と全社閲覧ユーザー以外は、自分が関わるプロジェクトだけに絞る。
+        // リマインド後にプロジェクトから外れた場合でも残り続けないようにする。
+        if (!ProjectAccess::hasProjectFullAccess($active_user) && !ProjectAccess::isCompanyAdmin($active_user)) {
+            $financeQuery->whereIn('project_record_id', ProjectRecord::query()
+                ->where('director_id', $active_user->id)
+                ->orWhereIn('id', DB::table('project_members')
+                    ->where('user_id', $active_user->id)
+                    ->select('project_id'))
+                ->select('id'));
+        }
+
+        $finance = $financeQuery
+            ->with(['author:id,name,icon_path,icon_bg', 'project:id,name'])
+            ->get()
+            ->map(fn($comment) => [
+                'kind'         => 'finance',
+                'id'           => $comment->id,
+                'project_id'   => $comment->project_record_id,
+                'project_name' => $comment->project?->name,
+                'member_name'  => null,
+                'period'       => $comment->period,
+                'month_label'  => $monthLabel($comment->period),
+                'comment'      => $comment->comment,
+                'created_at'   => $comment->created_at,
+                'author'       => $comment->author,
+            ]);
+
+        // --- 要員コメント ---
+        // project_resource_comments はプロジェクト単位ではないため、要員ページ自体の
+        // 閲覧条件（auth.hasPrivilage 相当）をそのまま使う。
+        // Community-aware (was position_id <= 6): matches FE hasPrivilage.
+        $canViewResource = $active_user->isBoss() || $active_user->isPM() || $active_user->isAdmin();
+
+        $resource = $canViewResource
+            ? ProjectResourceComment::query()
+                ->whereHas('remindUsers', fn($q) => $q->where('user_id', $active_user->id))
+                ->with(['author:id,name,icon_path,icon_bg'])
+                ->get()
+                ->map(fn($comment) => [
+                    'kind'         => 'resource',
+                    'id'           => $comment->id,
+                    'project_id'   => null,
+                    'project_name' => null,
+                    'member_name'  => $comment->member_name,
+                    'period'       => $comment->period,
+                    'month_label'  => $monthLabel($comment->period),
+                    'comment'      => $comment->comment,
+                    'created_at'   => $comment->created_at,
+                    'author'       => $comment->author,
+                ])
+            : collect();
+
+        return $finance
+            ->concat($resource)
+            ->sortByDesc('created_at')
+            ->values();
     }
     public function pendingApprovalTasks(){
         $active_user = Auth::user();
@@ -617,7 +689,7 @@ class DashboardController extends Controller
         $date = Carbon::now();
         $prevMonthStart = $date->clone()->subMonthNoOverflow()->startOfMonth()->format('Y-m-d');
         [$activeUser, $isTimesheetAdmin, $targetUsers, $workGroupIds] = $this->timesheetApprovalScope();
-
+        
         if (empty($targetUsers) || (!$isTimesheetAdmin && empty($workGroupIds))) {
             return [];
         }
@@ -706,19 +778,25 @@ class DashboardController extends Controller
         $workGroupIds = [];
         $headquartersIds = [];
         $hqProject = ProjectRecord::where('id', 20)->first();
+        // Community-aware admin check (main: hardcoded TIMESHEET_ADMIN_IDS)
         $isTimesheetAdmin = $activeUser->isAdmin();
-
+        $noPmProjectMembers = [];
+        $noPmProject = ProjectRecord::where('id', 51)->first();
+        if($noPmProject){
+            $noPmProjectMembers = $noPmProject->members()->pluck('users.id')->toArray();
+        }
         if($hqProject){
             $headquartersIds = $hqProject->members()->pluck('users.id')->toArray();
         }
         if($isTimesheetAdmin){
+            $queryUsers = array_merge($headquartersIds, $noPmProjectMembers);
             $targetUsers = User::where('retire', 0)
                 ->where('partner_flag', 0)
                 ->where('deleted_flag', 0)
                 ->where('on_leave', 0)
-                ->where(function ($query) use ($headquartersIds) {
+                ->where(function ($query) use ($queryUsers) {
                     $query->where('position_id', 6)
-                        ->orWhereIn('id', $headquartersIds);
+                        ->orWhereIn('id', $queryUsers);
                 })
                 ->pluck('id')
                 ->toArray();

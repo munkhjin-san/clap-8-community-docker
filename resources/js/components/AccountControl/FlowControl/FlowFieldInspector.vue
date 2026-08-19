@@ -61,25 +61,42 @@
                 />
             </template>
 
+            <div v-if="col0.input_type !== 'formula' && !isLayoutType(col0.input_type)" class="irow" style="margin-top: 10px">
+                <label>無効化</label>
+                <span class="flow-sw" :class="{ on: colV(col0).disabled }" @click="setColDisabled(col0, !colV(col0).disabled)"></span>
+            </div>
+            <div class="irow">
+                <label>列幅</label>
+                <div class="flex items-center gap-[6px]">
+                    <input type="number" min="60" v-model.number="col0.width" placeholder="自動" class="custom-a-input !box-border !w-[110px]">
+                    <span class="text-[12px] text-gray-500">px</span>
+                </div>
+            </div>
             <div v-if="col0.input_type !== 'formula'" class="irow" style="margin-top: 10px">
                 <label>必須</label>
                 <span class="flow-sw" :class="{ on: col0.required }" @click="col0.required = !col0.required"></span>
             </div>
 
             <div class="divider"></div>
+            <FlowFieldRules :input-type="col0.input_type" :validation="colV(col0)" :options="col0.options" />
+
             <button class="col-del" :disabled="columns.length <= 1" @click="deleteSelectedColumn">この列を削除</button>
         </template>
 
         <template v-else>
-        <div class="insp-h">
-            <FlowFieldIcon :type="field.input_type" :size="15" />
-            <span>{{ typeLabel(field.input_type) }}の設定</span>
-        </div>
+        <!-- 見出しはモーダル側のタイトルが出す（ここにも置くと同じ文字が2回並ぶ） -->
 
-        <div class="irow" v-if="field.input_type !== 'spacer' && field.input_type !== 'divider'" :class="{ 'items-start': field.input_type === 'label' }">
+        <!-- ラベル項目はリッチテキスト。左に見出しを置くと編集領域が痩せるので、幅いっぱいに使う。 -->
+        <RichEditor
+            v-if="field.input_type === 'label'"
+            :key="field.uid || field.key"
+            class="insp-richtext"
+            :initilaValue="field.label"
+            @content-updated="field.label = $event"
+        />
+        <div class="irow" v-else-if="field.input_type !== 'spacer' && field.input_type !== 'divider'">
             <label>{{ labelFieldName }}</label>
-            <textarea v-if="field.input_type === 'label'" v-model="field.label" rows="3" class="custom-a-input !box-border flex-1" placeholder="説明や注意書きを入力"></textarea>
-            <input v-else type="text" v-model="field.label" class="custom-a-input !box-border flex-1"
+            <input type="text" v-model="field.label" class="custom-a-input !box-border flex-1"
                 @focus="renameFrom = field.label" @change="commitFieldRename(field.label)">
         </div>
         <div class="irow" v-if="!isLayout">
@@ -97,11 +114,83 @@
         </div>
         <p v-if="v.disabled && !isLayout && field.input_type !== 'formula'" class="def-hint">フォームに表示されますが入力できません。ルックアップの自動入力は反映されます。</p>
 
+        <!-- この項目が他のフィールドの自動入力先になっている場合の逆引き表示 -->
+        <template v-if="autoFillIntoThis.length">
+            <div class="divider"></div>
+            <div class="sec">自動入力されます</div>
+            <div v-for="(a, ai) in autoFillIntoThis" :key="ai" class="af-src">
+                <FlowFieldIcon :type="a.type" :size="13" />
+                <span class="af-src-name">{{ a.label }}</span>
+                <span class="af-src-type">{{ typeLabel(a.type) }}</span>
+            </div>
+        </template>
+
         <template v-if="field.input_type === 'password'">
             <div class="divider"></div>
             <div class="sec">暗号化について</div>
-            <p class="def-hint">値は暗号化して保存され、一覧・CSV出力・検索・PDF・計算式には表示されません。表示するには「表示」ボタンを押す必要があり、操作は監査ログに記録されます。</p>
-            <p class="def-hint">アクセス権を設定していない間は<strong>アプリの管理権限を持つ人だけ</strong>が表示できます。「アクセス権」タブでこの項目の閲覧を設定すると、<strong>そこで許可した人だけ</strong>が表示できるようになります（管理者も一覧に含める必要があります）。</p>
+            <p class="def-hint">値は暗号化して保存され、一覧・CSV出力・検索・PDF・計算式には表示されません。</p>
+            <p class="def-hint">表示するには「表示」ボタンを押す必要があります。</p>
+        </template>
+
+        <!-- 関連レコード：値の一致で結ぶのではなく、既にあるルックアップ関係から選ぶ。
+             ここに出てこない組み合わせは設定できない＝壊れた関連レコードを作れない。 -->
+        <template v-if="field.input_type === 'related'">
+            <div class="sec">表示するレコード</div>
+            <p v-if="relLoading" class="def-hint">読み込み中…</p>
+            <p v-else-if="!relCandidates.length" class="def-hint">
+                このアプリを参照しているアプリがまだありません。相手のアプリに「ルックアップ」項目を追加して、
+                参照先をこのアプリにすると、ここで選べるようになります。
+            </p>
+            <template v-else>
+                <div class="irow">
+                    <label>アプリ</label>
+                    <select v-model.number="v.child_definition_id" class="custom-a-input !box-border flex-1" @change="onRelAppChange">
+                        <option :value="null" disabled>選択…</option>
+                        <option v-for="c in relCandidates" :key="c.definition_id" :value="c.definition_id">{{ c.definition_name }}</option>
+                    </select>
+                </div>
+                <div class="irow" v-if="relPicked">
+                    <label>結び付け</label>
+                    <select v-model.number="v.child_field_id" class="custom-a-input !box-border flex-1">
+                        <option :value="null" disabled>選択…</option>
+                        <option v-for="lf in relPicked.link_fields" :key="lf.id" :value="lf.id">{{ lf.label }}</option>
+                    </select>
+                </div>
+                <p v-if="relPicked" class="def-hint">
+                    「{{ relPicked.definition_name }}」の選んだルックアップ項目がこのレコードを指している行を一覧します。
+                    項目名を変えても壊れません（名前ではなくレコードそのものを見ています）。
+                </p>
+
+                <template v-if="relPicked && v.child_field_id">
+                    <div class="sec">表示する列</div>
+                    <div class="rel-cols">
+                        <label v-for="f in relPicked.fields" :key="f.id" class="rel-chk">
+                            <input type="checkbox" :checked="(v.related_columns ?? []).includes(f.id)" @change="toggleRelCol(f.id)">
+                            {{ f.label }}
+                        </label>
+                    </div>
+                    <p class="def-hint">未選択のときは先頭の数項目を表示します。</p>
+
+                    <div class="sec">合計を出す項目</div>
+                    <p v-if="!relNumericFields.length" class="def-hint">数値・計算の項目がありません。</p>
+                    <div v-else class="rel-cols">
+                        <label v-for="f in relNumericFields" :key="f.id" class="rel-chk">
+                            <input type="checkbox" :checked="(v.related_aggregates ?? []).includes(f.id)" @change="toggleRelAgg(f.id)">
+                            {{ f.label }}
+                        </label>
+                    </div>
+                    <p class="def-hint">合計は表示件数ではなく、閲覧できる全件を対象にします。</p>
+
+                    <div class="irow">
+                        <label>表示件数</label>
+                        <div class="flex items-center gap-[6px]">
+                            <input type="number" min="1" max="200" v-model.number="v.related_limit" class="custom-a-input !box-border !w-[110px]">
+                            <span class="text-[12px] text-gray-500">件まで</span>
+                        </div>
+                    </div>
+                </template>
+            </template>
+            <p class="def-hint">この項目は値を持ちません。CSV出力・検索・計算式・並び替えの対象外です。</p>
         </template>
 
         <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
@@ -129,117 +218,6 @@
             </div>
         </template>
 
-        <template v-if="hasRules">
-            <div class="divider"></div>
-            <div class="sec">入力ルール</div>
-
-            <template v-if="field.input_type === 'short' || field.input_type === 'long'">
-                <div class="irow">
-                    <label>文字数</label>
-                    <div class="minmax">
-                        <input type="number" min="0" v-model.number="v.min_length" placeholder="最小" class="custom-a-input !box-border">
-                        <span class="tilde">〜</span>
-                        <input type="number" min="0" v-model.number="v.max_length" placeholder="最大" class="custom-a-input !box-border">
-                    </div>
-                </div>
-                <div class="irow" v-if="field.input_type === 'short'">
-                    <label>形式</label>
-                    <select v-model="v.format" class="custom-a-input !box-border flex-1">
-                        <option value="none">指定なし</option>
-                        <option value="email">メールアドレス</option>
-                        <option value="tel">電話番号</option>
-                        <option value="url">URL</option>
-                    </select>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'number'">
-                <div class="irow">
-                    <label>値の範囲</label>
-                    <div class="minmax">
-                        <input type="number" v-model.number="v.min" placeholder="最小" class="custom-a-input !box-border">
-                        <span class="tilde">〜</span>
-                        <input type="number" v-model.number="v.max" placeholder="最大" class="custom-a-input !box-border">
-                    </div>
-                </div>
-                <div class="irow">
-                    <label>整数のみ</label>
-                    <span class="flow-sw" :class="{ on: v.integer_only }" @click="v.integer_only = !v.integer_only"></span>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'checkbox'">
-                <div class="irow">
-                    <label>選択数</label>
-                    <div class="minmax">
-                        <input type="number" min="0" v-model.number="v.min_select" placeholder="最小" class="custom-a-input !box-border">
-                        <span class="tilde">〜</span>
-                        <input type="number" min="0" v-model.number="v.max_select" placeholder="最大" class="custom-a-input !box-border">
-                    </div>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'file'">
-                <div class="vcol">
-                    <label class="vlabel">受付形式</label>
-                    <div class="chips">
-                        <button v-for="a in fileAccepts" :key="a.value" class="achip" :class="{ on: (v.accept || []).includes(a.value) }" @click="toggleAccept(a.value)">{{ a.label }}</button>
-                    </div>
-                </div>
-                <div class="irow">
-                    <label>最大サイズ</label>
-                    <div class="flex items-center gap-[6px]">
-                        <input type="number" min="0" v-model.number="v.max_size_mb" placeholder="制限なし" class="custom-a-input !box-border !w-[100px]">
-                        <span class="text-[12px] text-gray-500">MB</span>
-                    </div>
-                </div>
-                <div class="irow">
-                    <label>複数可</label>
-                    <span class="flow-sw" :class="{ on: v.allow_multiple }" @click="v.allow_multiple = !v.allow_multiple"></span>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'user' || field.input_type === 'member'">
-                <div class="irow">
-                    <label>複数選択</label>
-                    <span class="flow-sw" :class="{ on: v.multiple !== false }" @click="v.multiple = v.multiple === false"></span>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'date'">
-                <div class="irow">
-                    <label>日付の範囲</label>
-                    <div class="minmax">
-                        <input type="date" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                        <span class="tilde">〜</span>
-                        <input type="date" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                    </div>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'datetime'">
-                <div class="irow">
-                    <label>日時の範囲</label>
-                    <div class="minmax">
-                        <input type="datetime-local" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                        <span class="tilde">〜</span>
-                        <input type="datetime-local" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                    </div>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'time'">
-                <div class="irow">
-                    <label>時刻の範囲</label>
-                    <div class="minmax">
-                        <input type="time" v-model="v.min_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                        <span class="tilde">〜</span>
-                        <input type="time" v-model="v.max_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                    </div>
-                </div>
-            </template>
-        </template>
-
         <template v-if="hasOptions">
             <div class="divider"></div>
             <div class="sec">選択肢</div>
@@ -250,44 +228,7 @@
             <button class="flow-ghost-btn mt-[8px]" @click="addOption">＋ 選択肢を追加</button>
         </template>
 
-        <template v-if="hasDefault">
-            <div class="divider"></div>
-            <div class="sec">初期値（新規作成時）</div>
-
-            <input v-if="field.input_type === 'short'" type="text" v-model="v.default" class="custom-a-input !box-border w-full" placeholder="初期テキスト">
-            <textarea v-else-if="field.input_type === 'long'" v-model="v.default" rows="2" class="custom-a-input !box-border w-full" placeholder="初期テキスト"></textarea>
-            <input v-else-if="field.input_type === 'number'" type="number" v-model.number="v.default" class="custom-a-input !box-border w-full" placeholder="初期値">
-
-            <div v-else-if="field.input_type === 'toggle'" class="irow" style="margin: 0">
-                <label>初期状態</label>
-                <span class="flow-sw" :class="{ on: v.default }" @click="v.default = !v.default"></span>
-            </div>
-
-            <select v-else-if="field.input_type === 'select' || field.input_type === 'radio'" v-model="v.default" class="custom-a-input !box-border w-full">
-                <option :value="null">なし</option>
-                <option v-for="o in field.options || []" :key="o" :value="o">{{ o }}</option>
-            </select>
-
-            <div v-else-if="field.input_type === 'checkbox'" class="def-checks">
-                <label v-for="o in field.options || []" :key="o" class="fi-opt">
-                    <input type="checkbox" :checked="defaultArray.includes(o)" @change="toggleDefault(o)"> {{ o }}
-                </label>
-                <span v-if="!(field.options || []).length" class="text-[12px] text-gray-400">選択肢を先に追加してください。</span>
-            </div>
-
-            <template v-else-if="field.input_type === 'date' || field.input_type === 'datetime' || field.input_type === 'time'">
-                <div class="irow" style="margin: 0">
-                    <label>現在日時にする</label>
-                    <span class="flow-sw" :class="{ on: v.default_now }" @click="v.default_now = !v.default_now"></span>
-                </div>
-                <p class="def-hint">オンにすると作成時の日時が自動で入ります。</p>
-            </template>
-
-            <div v-else-if="field.input_type === 'user' || field.input_type === 'member'" class="irow" style="margin: 0">
-                <label>作成者を初期値</label>
-                <span class="flow-sw" :class="{ on: v.default_me }" @click="v.default_me = !v.default_me"></span>
-            </div>
-        </template>
+        <FlowFieldRules :input-type="field.input_type" :validation="v" :options="field.options" />
 
         <template v-if="field.input_type === 'formula'">
             <div class="divider"></div>
@@ -334,6 +275,44 @@
             <p class="def-hint">列名や表の列をクリックすると、その列の設定を編集できます。</p>
         </template>
 
+        <!-- ユーザー/プロジェクト auto-fill. Same editor as the 参照 field's field copy: the source options
+             are this master's allowlisted columns, the destinations and type rules are shared. -->
+        <template v-if="autoFillSource && refTargetFields.length">
+            <div class="divider"></div>
+            <div class="sec">フィールドのコピー（自動入力）</div>
+            <!-- 縦積み。インスペクタは固定幅のサイドバーなので、2つのセレクトを横に並べると
+                 日本語のラベルが4文字ほどで切れて選べなくなる。 -->
+            <div v-for="(m, mi) in (v.field_mappings || [])" :key="mi" class="map-row">
+                <div class="map-line">
+                    <FlowSearchSelect
+                        class="map-sel"
+                        :model-value="m.from || null"
+                        :options="refFieldOptions"
+                        :clearable="false"
+                        :placeholder="autoFillSource === 'user' ? 'ユーザーの項目' : 'プロジェクトの項目'"
+                        @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
+                    />
+                    <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                </div>
+                <div class="map-line">
+                    <span class="map-arrow">↓</span>
+                    <FlowSearchSelect
+                        class="map-sel"
+                        :model-value="m.to || null"
+                        :options="destOptionsFor(m.from)"
+                        :clearable="false"
+                        placeholder="このアプリの項目"
+                        @update:model-value="(val) => m.to = String(val ?? '')"
+                    />
+                </div>
+            </div>
+            <button class="flow-ghost-btn mt-[20px]" :disabled="!mappingDestFields.length" @click="addMapping">＋ コピーを追加</button>
+            <p class="def-hint">
+                選んだときの値がコピーされます。あとでマスタ側が変わっても、保存済みのレコードはそのままです。コピーされた項目は手で修正できます。
+            </p>
+            <p v-if="autoFillMultiHint" class="def-hint">複数選択のため、1人だけ選ばれているときに自動入力されます。</p>
+        </template>
+
         <template v-if="field.input_type === 'reference'">
             <div class="divider"></div>
             <div class="sec">参照先</div>
@@ -364,24 +343,28 @@
                 <div class="divider"></div>
                 <div class="sec">フィールドのコピー（自動入力）</div>
                 <div v-for="(m, mi) in (v.field_mappings || [])" :key="mi" class="map-row">
-                    <FlowSearchSelect
-                        class="map-sel"
-                        :model-value="m.from || null"
-                        :options="refFieldOptions"
-                        :clearable="false"
-                        placeholder="参照先の項目"
-                        @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
-                    />
-                    <span class="map-arrow">→</span>
-                    <FlowSearchSelect
-                        class="map-sel"
-                        :model-value="m.to || null"
-                        :options="destOptionsFor(m.from)"
-                        :clearable="false"
-                        placeholder="このアプリの項目"
-                        @update:model-value="(val) => m.to = String(val ?? '')"
-                    />
-                    <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                    <div class="map-line">
+                        <FlowSearchSelect
+                            class="map-sel"
+                            :model-value="m.from || null"
+                            :options="refFieldOptions"
+                            :clearable="false"
+                            placeholder="参照先の項目"
+                            @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
+                        />
+                        <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                    </div>
+                    <div class="map-line">
+                        <span class="map-arrow">↓</span>
+                        <FlowSearchSelect
+                            class="map-sel"
+                            :model-value="m.to || null"
+                            :options="destOptionsFor(m.from)"
+                            :clearable="false"
+                            placeholder="このアプリの項目"
+                            @update:model-value="(val) => m.to = String(val ?? '')"
+                        />
+                    </div>
                 </div>
                 <button class="flow-ghost-btn mt-[20px]" :disabled="!mappingDestFields.length" @click="addMapping">＋ コピーを追加</button>
             </template>
@@ -399,12 +382,14 @@ import { referencingFormulas, referencedDeleteMessage, renameFieldRefEverywhere,
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import FlowFieldIcon from './FlowFieldIcon.vue'
+import FlowFieldRules from './FlowFieldRules.vue'
+import RichEditor from '@/components/Global/RichEditor.vue'
 import FlowFormulaEditor from './FlowFormulaEditor.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
 import { useTheme } from '@/store/theme'
 
-const props = defineProps<{ field: FlowField; fields?: FlowField[]; tools?: FlowAppTool[]; columnKey?: string | null }>()
+const props = defineProps<{ field: FlowField; fields?: FlowField[]; tools?: FlowAppTool[]; columnKey?: string | null; definitionId?: number | null }>()
 const theme = useTheme()
 // native date/time pickers render their icon per `color-scheme`; follow the app theme (dark-mode visibility)
 const nativeScheme = computed(() => (theme.dark ? 'dark' : 'light'))
@@ -423,7 +408,7 @@ const commitFieldRename = (newName: string) => {
 const commitColumnRename = (col: TableColumn) => {
     const from = renameFrom.value
     renameFrom.value = ''
-    if (from && from !== col.label) renameColumnRefInTable(props.field, from, col.label)
+    if (from && from !== col.label) renameColumnRefInTable(props.field, from, col.label, props.fields)
 }
 
 /* ---- reference field: target app / system source + label field ---- */
@@ -432,6 +417,15 @@ const refApps = ref<{ id: number; name: string }[]>([])
 const refSystemSources = ref<{ key: string; label: string }[]>([])
 const refTargetFields = ref<{ key: string; label: string; input_type: string; result_type?: string | null }[]>([])
 const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file', 'password']
+/**
+ * ユーザー/プロジェクト自動入力の「コピー元」候補。REF_LABEL_SKIP を流用してはいけない。
+ *
+ * あちらは「参照レコードの何を“ラベル”として表示するか」の選択肢で、パスワードを除くのは当然
+ * （伏せ字をラベルにする意味がない）。こちらはコピー元の選択肢で、暗号化された口座番号を
+ * 暗号化フィールドへ渡すことがこの機能の主目的なので、password を除いてしまうと肝心の列が
+ * 一覧から消える。実際に消えていた。
+ */
+const AUTOFILL_SOURCE_SKIP = REF_LABEL_SKIP.filter((t) => t !== 'password')
 // a reference targets either a Flow app (target_definition_id) or a system source (target_source)
 const hasRefTarget = computed(() => v.value.target_definition_id != null || !!v.value.target_source)
 const loadRefApps = async () => {
@@ -458,30 +452,135 @@ const loadRefFields = async () => {
     refTargetFields.value = (data?.fields ?? []).filter((f: any) => !REF_LABEL_SKIP.includes(f.input_type))
 }
 
+/** The FlowSystemSources key whose columns a ユーザー/プロジェクト field can auto-fill from. */
+const autoFillSourceFor = (t: string): 'user' | 'project' | null =>
+    t === 'project' ? 'project' : (t === 'user' || t === 'member') ? 'user' : null
+const autoFillSource = computed(() => autoFillSourceFor(props.field.input_type))
+/** Loads into the same refTargetFields the 参照 mapping editor reads, so that editor works unchanged. */
+const loadAutoFillFields = async (t: string) => {
+    const src = autoFillSourceFor(t)
+    refTargetFields.value = []
+    if (!src) return
+    const data = await api.get(`/flow_system_fields/${src}`)
+    refTargetFields.value = (data?.fields ?? []).filter((f: any) => !AUTOFILL_SOURCE_SKIP.includes(f.input_type))
+}
+/**
+ * ユーザー fields are 複数選択 by default, so gating the editor on single-select would hide the feature
+ * from most fields. It is shown either way; when several people are selected there is no single 役職 to
+ * copy, so the runtime leaves the destinations alone and this hint says so.
+ */
+const autoFillMultiHint = computed(() =>
+    autoFillSource.value === 'user' && v.value.multiple !== false,
+)
+
+/**
+ * この項目を「コピー先」にしているフィールド（ユーザー / プロジェクト / 参照）。
+ *
+ * 設定はコピー元のフィールド側に置いてあるので、コピー先の項目を開いても自分が自動入力される側だと
+ * 分からなかった。「なぜ勝手に値が入るのか」「なぜ手で直しても戻るのか」がこの画面から読み取れない
+ * のは設定漏れと区別できないため、逆引きして出す。
+ */
+const autoFillIntoThis = computed(() => {
+    const me = props.field.key
+    if (!me) return [] as { label: string; type: string; from: string }[]
+
+    return (props.fields ?? [])
+        .filter((f) => f.key !== me)
+        .flatMap((f) => (f.validation?.field_mappings ?? [])
+            .filter((m) => m?.to === me)
+            .map((m) => ({ label: f.label || f.key, type: f.input_type, from: m.from })))
+})
+
 const fileAccepts = FLOW_FILE_ACCEPT
 const typeLabel = (t: string) => FLOW_TYPE_LABEL[t] ?? t
 const hasOptions = computed(() => ['select', 'radio', 'checkbox'].includes(props.field.input_type))
 const isLayout = computed(() => isLayoutType(props.field.input_type))
-const DEFAULT_TYPES = ['short', 'long', 'number', 'select', 'radio', 'checkbox', 'toggle', 'date', 'datetime', 'time', 'user', 'member']
-const hasDefault = computed(() => DEFAULT_TYPES.includes(props.field.input_type))
-const defaultArray = computed<any[]>(() => (Array.isArray(v.value.default) ? v.value.default : []))
-const toggleDefault = (o: string) => {
-    const next = defaultArray.value.slice()
-    const i = next.indexOf(o)
-    if (i >= 0) next.splice(i, 1)
-    else next.push(o)
-    v.value.default = next
-}
 const labelFieldName = computed(() =>
     props.field.input_type === 'heading' ? '見出し文' : props.field.input_type === 'label' ? 'テキスト' : 'ラベル'
 )
-const RULE_TYPES = ['short', 'long', 'number', 'date', 'datetime', 'time', 'checkbox', 'file', 'user', 'member']
-const hasRules = computed(() => RULE_TYPES.includes(props.field.input_type))
-
 // Other formula fields ARE referenceable (chains compute multi-pass server-side) — only self and layout parts are excluded.
-const referenceableFields = computed(() =>
-    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type) && !isSecretType(f.input_type))
-)
+/**
+ * 計算式で参照できるものの一覧（オートコンプリートに出る候補）。
+ *
+ * テーブルは「表全体」と「列ごと」の両方を出す。評価側は前から `テーブル.列` を解釈できて、
+ * kintone から取り込んだアプリは実際に SUM([販管費テーブル.販管費]) の形を使っているのに、
+ * この一覧が表全体しか出していなかったので、手で組むと SUM([テーブル]) になり
+ * 「1列だけ合計したいのに全部の数値列が合算される」という食い違いになっていた。
+ * 表全体の候補にも（表全体）と付けて、どちらを選んでいるのか読めるようにする。
+ */
+const referenceableFields = computed(() => {
+    const out: { key: string; label: string; input_type: string }[] = []
+
+    for (const f of props.fields ?? []) {
+        if (f.key === props.field.key || isLayoutType(f.input_type) || isSecretType(f.input_type)) continue
+
+        if (f.input_type === 'table') {
+            out.push({ key: f.key, label: `${f.label}（表全体）`, input_type: f.input_type })
+            for (const c of f.validation?.columns ?? []) {
+                if (!c?.key || isLayoutType(c.input_type)) continue
+                out.push({
+                    // 挿入されるのはラベル形式。式を読んだときに何を合計しているのか分かるほうが
+                    // c1/c3 より安全（列キーでも解決できるので、既存の式はそのまま動く）。
+                    key: `${f.label}.${c.label || c.key}`,
+                    label: `${f.label} › ${c.label || c.key}`,
+                    input_type: c.input_type,
+                })
+            }
+            continue
+        }
+        out.push({ key: f.key, label: f.label, input_type: f.input_type })
+    }
+
+    return out
+})
+
+/* ---- 関連レコード（related）: 既にあるルックアップ関係の一覧から選ばせる ----------------
+ * 候補はサーバーが出す（このアプリを target にしているルックアップ項目を持つアプリだけ）。
+ * だから「値の一致で結ぶ」設定が存在せず、壊れた組み合わせを作る余地がない。
+ */
+interface RelCandidate {
+    definition_id: number
+    definition_name: string
+    link_fields: { id: number; label: string }[]
+    fields: { id: number; label: string; input_type: string }[]
+}
+const relCandidates = ref<RelCandidate[]>([])
+const relLoading = ref(false)
+const loadRelCandidates = async () => {
+    if (!props.definitionId || relCandidates.value.length || relLoading.value) return
+    relLoading.value = true
+    try {
+        const d = await api.get(`/flow_related_candidates/${props.definitionId}`) as { candidates: RelCandidate[] } | null
+        relCandidates.value = d?.candidates ?? []
+    } finally {
+        relLoading.value = false
+    }
+}
+const relPicked = computed(() =>
+    relCandidates.value.find((c) => c.definition_id === props.field.validation?.child_definition_id) ?? null)
+const relNumericFields = computed(() =>
+    (relPicked.value?.fields ?? []).filter((f) => f.input_type === 'number' || f.input_type === 'formula'))
+/** Changing the app invalidates every choice made against the previous one. */
+const onRelAppChange = () => {
+    const val = props.field.validation as FlowFieldValidation
+    val.child_field_id = relPicked.value?.link_fields.length === 1 ? relPicked.value.link_fields[0].id : null
+    val.related_columns = []
+    val.related_aggregates = []
+}
+const toggleRelCol = (id: number) => {
+    const val = props.field.validation as FlowFieldValidation
+    const list = Array.isArray(val.related_columns) ? [...val.related_columns] : []
+    const i = list.indexOf(id)
+    i >= 0 ? list.splice(i, 1) : list.push(id)
+    val.related_columns = list
+}
+const toggleRelAgg = (id: number) => {
+    const val = props.field.validation as FlowFieldValidation
+    const list = Array.isArray(val.related_aggregates) ? [...val.related_aggregates] : []
+    const i = list.indexOf(id)
+    i >= 0 ? list.splice(i, 1) : list.push(id)
+    val.related_aggregates = list
+}
 
 watch(() => props.field, (f) => {
     if (!f) return
@@ -493,6 +592,19 @@ watch(() => props.field, (f) => {
         loadRefApps()
         loadRefFields()
         if (!Array.isArray(f.validation.field_mappings)) f.validation.field_mappings = []
+    }
+    // ユーザー/プロジェクト auto-fill reuses the 参照 field's mapping editor wholesale — same
+    // field_mappings shape, same destination/type rules; only the source columns differ, and those come
+    // from the matching FlowSystemSources entry rather than a target app.
+    if (autoFillSourceFor(f.input_type)) {
+        loadAutoFillFields(f.input_type)
+        if (!Array.isArray(f.validation.field_mappings)) f.validation.field_mappings = []
+    }
+    if (f.input_type === 'related') {
+        loadRelCandidates()
+        if (!Array.isArray(f.validation.related_columns)) f.validation.related_columns = []
+        if (!Array.isArray(f.validation.related_aggregates)) f.validation.related_aggregates = []
+        if (f.validation.related_limit == null) f.validation.related_limit = 20
     }
     if (f.input_type === 'table') {
         const cols = Array.isArray(f.validation.columns) ? f.validation.columns : []
@@ -549,7 +661,11 @@ const refLabelName = computed(() => {
 
 // Destination fields for lookup field-copy: writable fields in THIS app (exclude self, layout,
 // formula (computed), and container/reference/file types that can't take a copied scalar/value).
-const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference', 'password']
+// 'password' is deliberately NOT skipped: an encrypted field is the only allowed destination for a
+// source column that declares itself 'password' (口座番号), and the strict same-type rule below means
+// a text column still cannot be mapped into one. That pairing is what keeps a secret out of a plain
+// column by construction rather than by convention.
+const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference']
 const mappingDestFields = computed(() =>
     (props.fields ?? []).filter((f) => f.key !== props.field.key && !MAP_DEST_SKIP.includes(f.input_type))
 )
@@ -585,12 +701,6 @@ const onMappingFromChange = (m: { from: string; to: string }) => {
     if (m.to && !destFieldsFor(m.from).some((d) => d.key === m.to)) m.to = ''
 }
 
-const toggleAccept = (val: string) => {
-    if (!v.value.accept) v.value.accept = []
-    const i = v.value.accept.indexOf(val)
-    if (i >= 0) v.value.accept.splice(i, 1)
-    else v.value.accept.push(val)
-}
 
 const setOption = (oi: number, val: string) => { if (props.field.options) props.field.options[oi] = val }
 const addOption = () => {
@@ -600,8 +710,26 @@ const addOption = () => {
 const removeOption = (oi: number) => props.field.options?.splice(oi, 1)
 
 /* ---- table columns ---- */
+/**
+ * A column's rule object, created on demand. TableColumn.validation has always been the same
+ * FlowFieldValidation a field uses — the renderer and the server validator both read it — it simply
+ * had no UI, so it stayed null on every column ever created.
+ */
+const colV = (col: TableColumn): FlowFieldValidation => {
+    if (!col.validation) col.validation = {}
+
+    return col.validation
+}
+// same mutual exclusion as a field: a required column nobody can fill would block every save
+const setColDisabled = (col: TableColumn, val: boolean) => {
+    colV(col).disabled = val
+    if (val) col.required = false
+}
+
 // 'table' stays excluded (no nested tables). formula + reference are allowed as columns.
-const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && t.type !== 'table')
+// note: this list never honoured projectOnly, which is why メンバー showed up as a column type even on
+// apps with no project — the `deprecated` flag hides it from here as well as from the palette.
+const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && t.type !== 'table' && !t.deprecated)
 // Variables offered to a calc column's formula editor: sibling columns + top-level fields.
 // Formula columns/fields are referenceable (intra-row chains + cross-level refs compute
 // multi-pass server-side); only the column itself, the owning table, and layout parts are excluded.
@@ -768,16 +896,22 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .col-arrow:hover:not(:disabled) { color: var(--primary-color); }
 .col-arrow:disabled { opacity: 0.3; cursor: default; }
 .col-back { border: none; background: none; color: var(--primary-color); font-size: 12px; cursor: pointer; padding: 0; margin-bottom: 10px; text-align: left; }
-.col-del { border: 1px solid var(--formBorder); background: var(--background-color); color: #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+.col-del { border: 1px solid var(--formBorder); margin-top: 20px; background: var(--background-color); color: #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
 .col-del:disabled { opacity: 0.4; cursor: not-allowed; }
 .flow-ghost-btn { width: fit-content; }
 .formula-area { width: 100%; min-height: 64px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }
 .def-checks { display: flex; flex-direction: column; gap: 7px; }
 .def-checks .fi-opt { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.def-hint { font-size: 11px; color: gray; margin-top: 6px; }
-.map-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.def-hint { font-size: 11.5px; color: gray; margin-top: 6px; line-height: 1.8; line-break: strict; }
+/* 1組を縦に積み、罫線で囲って組の境目が分かるようにする。横並びだと固定幅のサイドバーでは
+   ラベルが数文字で切れてしまい、どれを選んでいるのか読めなかった。 */
+.af-src { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--calendarBorder); border-radius: 6px; font-size: 12px; }
+.af-src-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.af-src-type { flex: none; font-size: 11px; color: var(--sub-color); }
+.map-row { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 8px; border: 1px solid var(--calendarBorder); border-radius: 6px; }
+.map-line { display: flex; align-items: center; gap: 6px; }
 .map-sel { flex: 1; min-width: 0; }
-.map-arrow { color: gray; flex: none; font-size: 12px; }
+.map-arrow { color: gray; flex: none; font-size: 12px; width: 13px; text-align: center; }
 .map-del { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; flex: none; }
 .map-del:hover { color: tomato; }
 .achip { user-select: none; }
@@ -788,4 +922,28 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .tcol-opts { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--calendarBorder); }
 .tcol-req { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: gray; }
 .sremove:disabled { opacity: .35; cursor: default; }
+
+/* 関連レコード: 列と合計のチェック群。
+   チェックボックス項目（FlowFieldInput の .fi-opt）と同じ見た目に揃える——ブラウザ既定の
+   チェックボックスだけがこの画面で浮いていたため。--primary-button を使うのも同じ理由で、
+   --primary-color はテーマで反転するのでダークモードだと白地に白いチェックになる。 */
+.rel-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 9px 14px; margin: 6px 0 4px; }
+.rel-chk { display: inline-flex; align-items: flex-start; gap: 9px; font-size: 12.5px; line-height: 1.5; color: var(--primary-color); cursor: pointer; }
+.rel-chk input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    box-sizing: border-box !important;
+    width: 18px; height: 18px; margin: 0; flex-shrink: 0;
+    border: 1px solid var(--formBorder); border-radius: 5px; background: var(--background-color);
+    position: relative; cursor: pointer; transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.rel-chk:hover input:not(:checked) { border-color: var(--primary-color); }
+.rel-chk input:checked { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); }
+.rel-chk input:checked::after {
+    content: ""; position: absolute; left: 5px; top: 2px;
+    width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.rel-chk input:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent); }
+/* ラベルのリッチテキスト：モーダル内で幅いっぱい、高さは編集しやすい程度に */
+.insp-richtext { width: 100%; margin-bottom: 12px; }
+.insp-richtext :deep(.tiptap) { min-height: 160px; }
 </style>

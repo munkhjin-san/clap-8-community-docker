@@ -6,9 +6,21 @@
         <div v-show="sub === 'app'" class="flex flex-col gap-[14px] max-w-[860px]">
         <div class="flow-card">
             <div class="flow-card-h">アプリのアクセス権</div>
-            <p class="text-[12px] text-gray-500 mb-[12px]">
-                上の行から順に判定され、最初に一致した行の権限が適用されます。作成者は常にアクセスできます。
-            </p>
+            <div class="perm-intro">
+                <p class="perm-intro-lead">指定が細かい行が優先されます。</p>
+                <div class="perm-tiers">
+                    <span class="perm-tier">全員</span>
+                    <span class="perm-tier-lt">＜</span>
+                    <span class="perm-tier">役職</span>
+                    <span class="perm-tier-lt">＜</span>
+                    <span class="perm-tier">個人指定</span>
+                </div>
+                <ul class="perm-intro-list">
+                    <li>個人指定の行がある人には、その行だけが適用されます（役職・全員の行は無視されます）。</li>
+                    <li>行の並び順は結果に影響しません。</li>
+                    <li>作成者は設定に関わらず常にアクセスできます。</li>
+                </ul>
+            </div>
 
             <div class="perm-scroll">
                 <table class="perm-table">
@@ -20,10 +32,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(row, i) in def.appPermissions" :key="i" :class="{ 'perm-row-shadowed': isShadowed(i) }">
+                        <tr v-for="(row, i) in def.appPermissions" :key="i">
                             <td class="td-subject">
                                 <span class="subj-tag" :class="{ special: row.subject_type === 'creator' || row.subject_type === 'everyone' }">{{ subjectLabel(row) }}</span>
-                                <span v-if="isShadowed(i)" class="perm-shadow-note" title="上の「全員」ルールが先に一致するため、この行は適用されません。">無効</span>
+                                <span v-if="overriddenPosition(row)" class="perm-warn" :title="overrideNote(row)">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                </span>
                             </td>
                             <td v-for="p in PERMS" :key="p.k" class="td-check">
                                 <span class="flow-cbox" :class="{ on: (row as any)[p.k] }" @click="(row as any)[p.k] = !(row as any)[p.k]">
@@ -31,8 +45,6 @@
                                 </span>
                             </td>
                             <td class="td-actions">
-                                <button @click="move(i, -1)" :disabled="i === 0" title="上へ">▲</button>
-                                <button @click="move(i, 1)" :disabled="i === def.appPermissions.length - 1" title="下へ">▼</button>
                                 <button v-if="row.subject_type !== 'creator'" @click="def.appPermissions.splice(i, 1)" title="削除"><CloseIcon size="9" /></button>
                             </td>
                         </tr>
@@ -40,7 +52,24 @@
                 </table>
             </div>
 
-            <div class="perm-add mt-[14px]">
+            <div v-if="overrides.length" class="perm-notice">
+                <span class="perm-notice-ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </span>
+                <div class="perm-notice-body">
+                    <div class="perm-notice-h">個人指定が役職より優先されます</div>
+                    <div v-for="o in overrides" :key="o.user" class="perm-notice-item">
+                        {{ o.user }} … 役職「{{ o.position }}」の行は適用されず、この人には個人指定の行だけが有効になります。
+                    </div>
+                </div>
+            </div>
+
+            <button class="flow-ghost-btn flow-ghost-btn-lg mt-[14px]" @click="openAdd">＋ 権限を追加</button>
+        </div>
+        </div>
+        <Modal v-if="addOpen" persist @close="closeAdd">
+            <template #title>権限を追加</template>
+            <template #content>
                 <div class="flex items-center gap-[8px] flex-wrap">
                     <div class="flow-seg">
                         <button :class="{ on: addType === 'user' }" @click="addType = 'user'">ユーザー</button>
@@ -57,21 +86,24 @@
                     <MemberSelector v-if="addType === 'user'" :multiple="true" :options="(users as any)" v-model="userPicks" compact place-holder="ユーザーを検索（複数選択可）" />
                     <ItemSelector v-else :multiple="true" :options="positions" v-model="positionPicks" label="name" :clearable="true" :close-on-select="false" place-holder="役職を検索（複数選択可）" />
                 </div>
-                <div class="flex items-center gap-[12px] mt-[10px] flex-wrap">
-                    <div class="flow-perm-flags">
-                        <span v-for="p in PERMS" :key="p.k" class="flow-perm-flag" @click="addFlags[p.k] = !addFlags[p.k]">
-                            <span class="flow-cbox" :class="{ on: addFlags[p.k] }">
-                                <svg v-if="addFlags[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
-                            </span>{{ p.l }}
-                        </span>
-                    </div>
-                    <button class="flow-ghost-btn flow-ghost-btn-lg" :disabled="!hasPicks" @click="addRow">＋ 追加</button>
+                <div class="flow-perm-flags mt-[12px]">
+                    <span v-for="p in PERMS" :key="p.k" class="flow-perm-flag" @click="addFlags[p.k] = !addFlags[p.k]">
+                        <span class="flow-cbox" :class="{ on: addFlags[p.k] }">
+                            <svg v-if="addFlags[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
+                        </span>{{ p.l }}
+                    </span>
                 </div>
-            </div>
-        </div>
-        </div>
-        <FlowRecordPermEditor v-show="sub === 'record'" :def="def" :users="users" :positions="positions" />
-        <FlowFieldPermEditor v-show="sub === 'field'" :def="def" :users="users" :positions="positions" />
+                <div class="perm-modal-actions">
+                    <button class="flow-ghost-btn flow-ghost-btn-lg" @click="closeAdd">キャンセル</button>
+                    <!-- 適用, not 追加: the dialog is already titled 権限を追加, and this button's job is to
+                         apply what has been composed to the list behind it -->
+                    <button class="flow-ghost-btn flow-ghost-btn-lg perm-add-primary" :disabled="!hasPicks" @click="addRow">適用</button>
+                </div>
+            </template>
+        </Modal>
+
+        <FlowRecordPermEditor v-show="sub === 'record'" :def="def" :users="users" :positions="positions" :reveal="() => (sub = 'record')" />
+        <FlowFieldPermEditor v-show="sub === 'field'" :def="def" :users="users" :positions="positions" :reveal="() => (sub = 'field')" />
     </div>
 </template>
 
@@ -81,6 +113,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
 import ItemSelector from '@/components/Form/ItemSelector.vue'
+import Modal from '@/components/Global/Modal.vue'
 import FlowRecordPermEditor from './FlowRecordPermEditor.vue'
 import FlowFieldPermEditor from './FlowFieldPermEditor.vue'
 import type { BuilderDefinition, AppPermissionRow, FlowSubjectType, FlowOptionUser, FlowOptionPosition } from '@/types/flow'
@@ -120,6 +153,21 @@ const addFlags = reactive({
     can_view: true, can_add: false, can_edit: false, can_delete: false,
     can_manage: false, can_import: false, can_export: false, can_bulk: false,
 })
+/**
+ * The add form lives in a modal, which is the whole point: 保存 sits behind the overlay, so a row
+ * that has been composed but not added can no longer be left on screen and silently dropped by a
+ * save. Closing the modal is the only way out, and that is an explicit discard.
+ */
+const addOpen = ref(false)
+const openAdd = () => {
+    addType.value = 'user'
+    userPicks.value = []
+    positionPicks.value = []
+    PERMS.forEach((p) => { addFlags[p.k] = false })
+    addOpen.value = true
+}
+const closeAdd = () => { addOpen.value = false }
+
 const hasPicks = computed(() =>
     addType.value === 'user' ? userPicks.value.length > 0
     : addType.value === 'position' ? positionPicks.value.length > 0
@@ -141,12 +189,35 @@ const subjectLabel = (row: AppPermissionRow): string => {
     return row.subject_type
 }
 
-const move = (i: number, dir: number) => {
-    const j = i + dir
-    if (j < 0 || j >= props.def.appPermissions.length) return
-    const arr = props.def.appPermissions
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+/**
+ * An individual row REPLACES the person's 役職 row (個人指定 is the more specific tier), so if the
+ * two disagree the 役職 boxes silently stop applying to them. Surface that rather than let someone
+ * discover it from a support ticket.
+ */
+const positionRowIds = computed(() => new Set(
+    props.def.appPermissions
+        .filter((r) => r.subject_type === 'position' && r.subject_id != null)
+        .map((r) => Number(r.subject_id)),
+))
+const overriddenPosition = (row: any): string | null => {
+    if (row.subject_type !== 'user' || row.subject_id == null) return null
+    const u = props.users.find((x) => Number(x.id) === Number(row.subject_id))
+    const pid = u?.position_id
+    if (!pid || !positionRowIds.value.has(Number(pid))) return null
+
+    return props.positions.find((p) => Number(p.id) === Number(pid))?.name ?? '役職'
 }
+const overrideNote = (row: any) =>
+    `このユーザーは役職「${overriddenPosition(row)}」の行にも該当しますが、個人指定のほうが優先されます。`
+    + '役職の行の権限は適用されず、この行のチェックだけが有効になります。'
+
+/** Same information as the row icon, spelled out below the table — the icon alone is hover-only. */
+const overrides = computed(() =>
+    props.def.appPermissions
+        .map((row) => ({ row, position: overriddenPosition(row) }))
+        .filter((x) => x.position)
+        .map((x) => ({ user: subjectLabel(x.row), position: x.position as string })),
+)
 
 // 全員 matches everyone, so it must sit at the bottom (catch-all). Keep it there after adds.
 const pinEveryoneLast = () => {
@@ -155,9 +226,8 @@ const pinEveryoneLast = () => {
     const everyone = arr.filter((r) => r.subject_type === 'everyone')
     arr.splice(0, arr.length, ...others, ...everyone)
 }
-// A row is unreachable if an earlier row already matches everyone (a 全員 above it).
-const firstEveryoneIndex = computed(() => props.def.appPermissions.findIndex((r) => r.subject_type === 'everyone'))
-const isShadowed = (i: number) => firstEveryoneIndex.value >= 0 && i > firstEveryoneIndex.value
+// No「無効」marker any more: permissions are the union of every matching row, so a 全員 row above
+// no longer swallows the ones below it — each row still contributes what it grants.
 
 const emptyPerms = () => ({
     can_view: false, can_add: false, can_edit: false, can_delete: false,
@@ -180,6 +250,7 @@ const addRow = () => {
         positionPicks.value = []
     }
     pinEveryoneLast()
+    closeAdd()
 }
 </script>
 
@@ -202,10 +273,25 @@ const addRow = () => {
 .td-actions button { border: none; background: none; color: gray; cursor: pointer; font-size: 12px; padding: 2px; }
 .td-actions button:disabled { opacity: 0.25; cursor: default; }
 .perm-add { padding: 12px; border-radius: 8px; background: var(--bg3); }
+/* staged-but-not-added: make it visible here so the block at 保存 is the safety net, not the notice */
+.perm-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--calendarBorder); }
+.perm-add-primary:not(:disabled) { border-color: var(--primary-color); }
 .perm-picker { width: 100%; max-width: 520px; }
-.perm-row-shadowed .subj-tag, .perm-row-shadowed .td-check { opacity: 0.4; }
-.perm-shadow-note { margin-left: 8px; font-size: 10.5px; font-weight: 600; color: #d97706; background: rgba(217, 119, 6, 0.12); border-radius: 8px; padding: 1px 7px; }
 /* ItemSelector has no compact variant — match the thin, rounded inline-input look (like MemberSelector compact) */
 .perm-picker :deep(.item-selector-shell) { border: 1px solid var(--formBorder); border-radius: 6px; }
 .perm-picker :deep(.one-selector .v-field__input) { min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
+/* the rule used to be one dense run of text; split into a lead, the hierarchy, and its consequences */
+.perm-intro { margin-bottom: 14px; }
+.perm-intro-lead { font-size: 12px; color: var(--primary-color); line-height: 1.7; margin: 0; }
+.perm-tiers { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 9px 0; }
+.perm-tier { font-size: 11.5px; color: var(--primary-color); background: var(--bg3); border: 1px solid var(--calendarBorder); border-radius: 6px; padding: 3px 10px; }
+.perm-tier-lt { font-size: 11px; color: gray; }
+.perm-intro-list { margin: 0; padding-left: 1.1em; }
+.perm-intro-list li { font-size: 12px; color: gray; line-height: 1.8; }
+.perm-warn { display: inline-flex; margin-left: 6px; color: #d97706; vertical-align: middle; cursor: help; }
+.perm-notice { display: flex; gap: 9px; margin-top: 12px; padding: 10px 12px; background: rgba(217, 119, 6, 0.08); border: 1px solid rgba(217, 119, 6, 0.28); border-radius: 8px; }
+.perm-notice-ico { color: #d97706; flex-shrink: 0; display: flex; margin-top: 1px; }
+.perm-notice-body { min-width: 0; }
+.perm-notice-h { font-size: 12px; color: var(--primary-color); margin-bottom: 3px; }
+.perm-notice-item { font-size: 12px; color: gray; line-height: 1.6; }
 </style>

@@ -96,9 +96,18 @@ export interface ProjectType {
     key: string
     label: string
 }
+/** プロジェクトに紐付く取引先（一覧・詳細で使う最小構成）。 */
+export interface ProjectPartnerRecord {
+    id: number
+    name: string
+    freee_partner_id: number | null
+}
 interface Project {
     id: number;
     name: string;
+    // freee会計の部門ID。null なら未連携（この値の有無が同期状態を表す）
+    freee_section_id?: number | null;
+    freee_synced_at?: string | null;
     date_start: string;
     date_end: string;
     overview: string;
@@ -125,7 +134,12 @@ interface Project {
     director_id: number;
     project_conditions: ProjectCondition[]
     category: string[]
+    /** パートナー企業（手入力の文字列配列）。取引先マスタとは別物。 */
     partners: string[]
+    /** 取引先マスタ（freee会計の取引先と対応）。 */
+    partner_records?: ProjectPartnerRecord[]
+    /** 保存時に送る取引先マスタのID配列（画面入力用）。 */
+    partner_record_ids?: number[]
     customers: string[]
     industry_type: string[]
     description: string
@@ -154,6 +168,7 @@ interface Project {
     projectAssignRecords?: ProjectAssignRecord[]
     total_work_time?: number
     total_work_day?: number
+    updated_at?: string
 }
 export interface ProjectAssignRecord {
     id: number;
@@ -412,7 +427,16 @@ export interface FinanceComment {
     author: User;
     created_at: string;
     checked_users: User[];
+    remind_users?: ProjectCommentRemind[];
     reply: FinanceComment;
+}
+/** 収支・要員コメント共用の project_comment_reminds の行 */
+export interface ProjectCommentRemind {
+    id: number;
+    comment_type: string;
+    comment_id: number;
+    user_id: number;
+    reminded: boolean;
 }
 export interface ResourceComment {
     id: number;
@@ -423,6 +447,7 @@ export interface ResourceComment {
     author: User;
     created_at: string;
     checked_users: User[];
+    remind_users?: ProjectCommentRemind[];
     reply: ResourceComment;
 }
 interface QuickEditText {

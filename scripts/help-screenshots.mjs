@@ -4,7 +4,8 @@
  * Drives the local dev server with the system Chrome (puppeteer-core) and captures the
  * documentation screenshots into public/images/help/app/. Re-run any time the UI changes:
  *
- *   node scripts/help-screenshots.mjs
+ *   node scripts/help-screenshots.mjs                       # everything
+ *   SHOT_ONLY=records-csv,builder-view node scripts/...     # just these
  *
  * Requirements:
  *  - php artisan serve running on :8000 and vite dev server (or a built bundle)
@@ -105,6 +106,78 @@ const SHOTS = [
             await sleep(500)
         },
     },
+    {
+        // password field, read-only state: masked + the 表示 button (needs a stored value on #3)
+        file: 'password-view', url: `/apps/records/${APP_ID}/edit/3`, waitFor: '.fi-pw-ro',
+        prep: async (p) => {
+            await p.$eval('.fi-pw-ro', (el) => el.closest('.rd-block').scrollIntoView({ block: 'center' }))
+            await sleep(400)
+        },
+    },
+    {
+        // revealed state — the endpoint is permission-gated and writes an audit entry
+        file: 'password-revealed', url: `/apps/records/${APP_ID}/edit/3`, waitFor: '.fi-pw-ro',
+        prep: async (p) => {
+            await p.$eval('.fi-pw-ro', (el) => el.closest('.rd-block').scrollIntoView({ block: 'center' }))
+            await p.click('.fi-pw-ro .fi-pw-btn')
+            await sleep(900)
+        },
+    },
+    {
+        // edit state: 設定済み / 変更 / クリア
+        file: 'password-edit', url: `/apps/records/${APP_ID}/edit/3?edit=1`, waitFor: '.fi-pw',
+        prep: async (p) => {
+            await p.$eval('.fi-pw', (el) => el.closest('.rd-block').scrollIntoView({ block: 'center' }))
+            await sleep(400)
+        },
+    },
+    {
+        // inspector: the encryption + who-can-reveal explanation
+        file: 'password-settings', url: `/apps/builder/${APP_ID}/form`, waitFor: '.field',
+        prep: async (p) => {
+            await p.click('::-p-xpath(//div[contains(@class,"field")][.//span[contains(@class,"lbl")][contains(text(),"発注サイトのパスワード")]])')
+            await p.waitForSelector('.insp-col')
+            await sleep(500)
+        },
+    },
+    {
+        // app-list search suggest: the レコードから検索 row + matching apps (the grid stays unfiltered)
+        file: 'portal-search', url: '/apps', waitFor: '.fc-card',
+        prep: async (p) => {
+            const input = await p.waitForSelector('input[name="postSearchBar"]')
+            await input.click()
+            await input.type('備品', { delay: 40 })
+            await p.waitForSelector('.fc-suggest')
+            await sleep(500)
+        },
+    },
+    {
+        // cross-app record search results. 'ACME' hits a lookup label in the demo app, so the shot
+        // shows a value match rather than an app-name match
+        file: 'record-search', url: '/apps', waitFor: '.fc-card',
+        prep: async (p) => {
+            const input = await p.waitForSelector('input[name="postSearchBar"]')
+            await input.click()
+            await input.type('ACME', { delay: 40 })
+            await p.waitForSelector('.fc-sg-records')
+            await p.click('.fc-sg-records')
+            await p.waitForSelector('.rs-hit')
+            await sleep(600)
+        },
+    },
+    // ツール root: the grid of tool kinds
+    { file: 'builder-tools', url: `/apps/builder/${APP_ID}/tools`, waitFor: '.tt-card' },
+    {
+        // the 集計スロット editor, opened on the demo app's existing slot
+        file: 'slot-editor', url: `/apps/builder/${APP_ID}/tools/aggregation`, waitFor: '.tt-row',
+        prep: async (p) => {
+            await p.click('.tt-row .tt-btn')
+            await p.waitForSelector('.se-item')
+            await sleep(500)
+        },
+    },
+    // record list with the slot strip (the demo app has 合計/平均 configured)
+    { file: 'records-slot', url: `/apps/records/${APP_ID}`, waitFor: '.rv-slot' },
     { file: 'builder-status', url: `/apps/builder/${APP_ID}/status`, waitFor: '::-p-text(ステータス)' },
     { file: 'builder-view', url: `/apps/builder/${APP_ID}/view`, waitFor: '::-p-text(ビュー)' },
     { file: 'builder-permission', url: `/apps/builder/${APP_ID}/permission`, waitFor: '::-p-text(アクセス権)' },
@@ -128,8 +201,19 @@ const main = async () => {
     // local-only session login (route exists only in APP_ENV=local)
     await page.goto(`${BASE}/dev_screenshot_login/${LOGIN_USER}`, { waitUntil: 'networkidle2' })
 
+    // SHOT_ONLY=a,b limits the run. Use it when re-shooting after a UI change: portal-bell and
+    // portal-pending depend on transient seeded state (see the header), so a blind full run can
+    // overwrite good shots with empty ones.
+    const only = (process.env.SHOT_ONLY ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+    const queue = only.length ? SHOTS.filter((s) => only.includes(s.file)) : SHOTS
+    if (only.length) {
+        const missing = only.filter((n) => !SHOTS.some((s) => s.file === n))
+        if (missing.length) console.error(`unknown shot name(s): ${missing.join(', ')}`)
+        console.log(`SHOT_ONLY -> ${queue.map((s) => s.file).join(', ')}`)
+    }
+
     let fail = 0
-    for (const shot of SHOTS) {
+    for (const shot of queue) {
         try {
             await page.goto(`${BASE}${shot.url}`, { waitUntil: 'networkidle2' })
             // the dashboard warning popup (未承認日報 etc.) floats over the toolbar and would

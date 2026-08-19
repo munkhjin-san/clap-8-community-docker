@@ -8,38 +8,47 @@ use App\Models\FlowDefinition;
 use App\Models\FlowField;
 use App\Models\FlowNotification;
 use App\Models\FlowRecord;
+use App\Models\FlowRecordFile;
 use App\Models\positionRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
+use App\Services\FlowFileService;
 use App\Services\FlowFormulaEvaluator;
-use App\Services\FlowService;
 use App\Services\FlowNotificationService;
+use App\Services\FlowRecordActionService;
+use App\Services\FlowRelatedService;
+use App\Services\FlowService;
 use App\Services\KintoneImportService;
 use App\Services\PdfRenderService;
+use App\Support\FlowRecordActions;
+use App\Support\FlowRichText;
 use App\Support\FlowSystemSources;
+use Carbon\Carbon;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Mpdf\Output\Destination;
 
 class FlowController extends Controller
 {
+    /** これを超えるアプリでは、並び順の全件を持たずに番号順で隣を出す。 */
+    private const NAV_MAX_RECORDS = 20000;
+
     public function __construct(
         private FlowService $flowService,
         private FlowNotificationService $flowNotifications,
+        private FlowRecordActionService $flowRecordActions,
     ) {}
 
     private function active_user()
     {
         // Double-account (act-as / linked sub-account) is dropped on this branch — always the auth user.
         return Auth::user();
-    }
-
-    private function ensureCanManageFlows(): void
-    {
-        abort_unless($this->flowService->canManageFlows($this->active_user()), 403);
     }
 
     /* ================================================================
@@ -164,8 +173,9 @@ class FlowController extends Controller
             $ids = FlowRecord::withTrashed()->where('flow_definition_id', $definition->id)->pluck('id');
             $n = $ids->count();
             if ($ids->isNotEmpty()) {
+                // 添付の実体も落とす（レコードフォルダごと）
+                app(FlowFileService::class)->deleteForRecordIds($definition->id, $ids->all());
                 DB::table('flow_record_values')->whereIn('flow_record_id', $ids)->delete();
-                DB::table('flow_record_assignees')->whereIn('flow_record_id', $ids)->delete();
                 DB::table('app_comments')
                     ->whereIn('commentable_id', $ids)
                     ->whereIn('commentable_type', [FlowRecord::class, 'flow_record'])
@@ -228,17 +238,133 @@ class FlowController extends Controller
         ]);
     }
 
+    /**
+     * 下敷きにするPDFを受け取る。
+     *
+     * 既にある帳票（契約書のひな形など）の上に差込項目を置けるようにするためのもの。
+     * ここで**取り込めるかどうかを確かめてから**保存する——出力の瞬間に「この形式は読めません」と
+     * 言われるより、上げた本人がその場で気づける方がいい。
+     */
+    public function uploadToolBackground(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'flow_definition_id' => 'required|integer',
+            'file' => 'required|file|mimetypes:application/pdf|max:20480',
+        ]);
+        $definition = FlowDefinition::findOrFail($data['flow_definition_id']);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        $upload = $request->file('file');
+        $pages = app(PdfRenderService::class)->probeBackground($upload->getRealPath());
+        if ($pages === null) {
+            return response()->json([
+                'message' => 'このPDFは圧縮方式が対応外で、下敷きにできません。'
+                    .'PDFを開いて「印刷 → PDFに保存」または「別名で保存」で作り直したものをお試しください。',
+            ], 422);
+        }
+
+        // 中身のハッシュを名前にする：同じひな形を何度上げても増えないし、推測もされない
+        $hash = sha1_file($upload->getRealPath());
+        $path = "flow_tool_backgrounds/{$definition->id}/{$hash}.pdf";
+        if (! Storage::disk('local')->exists($path)) {
+            Storage::disk('local')->put($path, file_get_contents($upload->getRealPath()));
+        }
+
+        return response()->json([
+            'path' => $path,
+            'name' => $upload->getClientOriginalName(),
+            'pages' => $pages,
+        ]);
+    }
+
+    /** デザイナーが下敷きを表示するための配信。アプリを設定できる人だけ。 */
+    public function toolBackground(Request $request, $definitionId, $hash)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        // ハッシュ以外の文字は受け取らない（パスに使う値なので、形で弾く）
+        abort_unless(preg_match('/^[a-f0-9]{40}$/', (string) $hash) === 1, 404);
+
+        $path = "flow_tool_backgrounds/{$definition->id}/{$hash}.pdf";
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return response(Storage::disk('local')->get($path), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="background.pdf"',
+        ]);
+    }
+
+    /**
+     * 出力するPDFのファイル名。
+     *
+     * `{seq}` `{id}` `{app}` に加えて、`{フィールドコード}` でそのレコードの値を差し込める。
+     * 「契約書No_取引先名.pdf」のように、保存した後で中身を開かずに見分けられるようにするため。
+     *
+     * 値の出し方は画面と同じ FlowService::displayValue を通す——ユーザーやプロジェクトは
+     * IDを持っているので、そのままだとファイル名に「487」と入ってしまう。
+     *
+     * 知らない `{…}` はそのまま残す。黙って空にすると、書き間違えたコードが「値が空だった」と
+     * 見分けられなくなる。
+     */
     private function pdfFilename(FlowAppTool $tool, FlowDefinition $definition, FlowRecord $record): string
     {
         $pattern = $tool->config['filename'] ?? ($tool->name.'_{seq}');
-        $name = strtr($pattern, [
-            '{seq}' => (string) ($record->record_seq ?? $record->id),
+
+        $replacements = [
+            // {seq} は画面に出ているレコード番号。flow_records に record_seq は無く、
+            // これまでは黙って内部IDに落ちていた（説明文の「レコード番号」と食い違っていた）。
+            '{seq}' => (string) ($record->record_number ?? $record->id),
             '{id}' => (string) $record->id,
             '{app}' => (string) $definition->name,
-        ]);
-        $name = preg_replace('/[\/\\\\:*?"<>|]/', '_', $name);
+        ];
 
-        return ($name ?: 'document').'.pdf';
+        if (str_contains($pattern, '{')) {
+            $fields = $definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get();
+            $values = $this->flowService->recordValues($record, $fields);
+            foreach ($fields as $f) {
+                $token = '{'.$f->key.'}';
+                if (isset($replacements[$token]) || ! str_contains($pattern, $token)) {
+                    continue;
+                }
+                // 秘匿項目はファイル名に出さない。名前は保存先にもメールにも残る。
+                if (FlowService::isSecret($f->input_type) || FlowService::isLayoutType($f->input_type)) {
+                    $replacements[$token] = '';
+
+                    continue;
+                }
+                $replacements[$token] = $this->filenamePart(
+                    $this->flowService->displayValue($f->input_type, $values[(string) $f->id] ?? null)
+                );
+            }
+        }
+
+        $name = strtr($pattern, $replacements);
+        // パスに使えない文字と改行を落とす。長文項目を差し込むと改行が混ざりうる。
+        $name = preg_replace('/[\/\\\\:*?"<>|\r\n\t]/', '_', $name);
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
+        // ファイル名の上限（多くのファイルシステムで255バイト）に収める
+        $name = mb_strimwidth($name, 0, 180, '');
+
+        return ($name !== '' ? $name : 'document').'.pdf';
+    }
+
+    /** 差し込む値を1つの文字列にする。配列（ファイル・ユーザーなど）は中黒でつなぐ。 */
+    private function filenamePart(mixed $v): string
+    {
+        if (is_array($v)) {
+            return implode('・', array_map(
+                fn ($x) => is_array($x) ? (string) ($x['name'] ?? $x['label'] ?? '') : (string) $x,
+                $v
+            ));
+        }
+        if (is_bool($v)) {
+            return $v ? 'true' : 'false';
+        }
+
+        return $v === null ? '' : (string) $v;
     }
 
     /**
@@ -295,7 +421,9 @@ class FlowController extends Controller
             'fields' => 'array',
             'fields.*.id' => 'nullable|integer',
             'fields.*.key' => 'required|string|max:255',
-            'fields.*.label' => 'nullable|string|max:255',
+            // ラベル項目はHTMLを持つので255では足りない（kintoneの注意書きは1つで約1,000文字）。
+            // データ項目の見出しは syncFields 側で255に丸める。
+            'fields.*.label' => 'nullable|string|max:'.FlowRichText::MAX_LENGTH,
             'fields.*.input_type' => 'required|string|max:50',
             'fields.*.options' => 'nullable|array',
             'fields.*.is_required' => 'boolean',
@@ -326,6 +454,7 @@ class FlowController extends Controller
             'status_actions.*.label' => 'required|string|max:255',
             'status_actions.*.color' => 'nullable|string|max:32',
             'status_actions.*.eligible' => 'nullable|array',
+            'status_actions.*.notify' => 'boolean',
             'app_permissions' => 'array',
             'app_permissions.*.subject_type' => 'required|string',
             'app_permissions.*.subject_id' => 'nullable|integer',
@@ -354,6 +483,7 @@ class FlowController extends Controller
             'views.*.is_default' => 'boolean',
             'views.*.columns' => 'nullable|array',
             'views.*.filters' => 'nullable|array',
+            'views.*.filter_logic' => 'nullable|in:and,or',
             'views.*.sort' => 'nullable|array',
             'tools' => 'array',
             'tools.*.id' => 'nullable|integer',
@@ -467,7 +597,10 @@ class FlowController extends Controller
                 'can_import' => ! empty($r['can_import']),
                 'can_export' => ! empty($r['can_export']),
                 'can_bulk' => ! empty($r['can_bulk']),
-                'sort_order' => $r['sort_order'] ?? $i,
+                // the payload order IS the intent, so index wins. Honouring an incoming sort_order
+                // meant a reordered row kept the number it was loaded with, and the relation
+                // (ordered by sort_order) put it straight back where it was on the next load.
+                'sort_order' => $i,
             ]);
         }
     }
@@ -558,6 +691,7 @@ class FlowController extends Controller
                 'is_default' => $default,
                 'columns' => $v['columns'] ?? null,
                 'filters' => $v['filters'] ?? null,
+                'filter_logic' => ($v['filter_logic'] ?? 'and') === 'or' ? 'or' : 'and',
                 'sort' => $v['sort'] ?? null,
             ]);
             if (! $model->created_by) {
@@ -575,10 +709,16 @@ class FlowController extends Controller
     {
         $keptIds = [];
         foreach (array_values($tools) as $i => $t) {
+            $config = $t['config'] ?? [];
+            // カスタムボタンが呼べるのは許可リストのメソッドだけ。知らない名前は保存しない
+            // （保存できてしまうと「設定に書いた宛先を呼ぶ」形に一歩近づく）。
+            if (($t['tool_type'] ?? null) === 'action') {
+                $config = $this->sanitizeActionConfig(is_array($config) ? $config : []);
+            }
             $payload = [
                 'tool_type' => $t['tool_type'] ?? 'pdf',
                 'name' => $t['name'] ?? 'ツール',
-                'config' => $t['config'] ?? [],
+                'config' => $config,
                 'is_active' => $t['is_active'] ?? true,
                 'sort_order' => $i,
             ];
@@ -591,6 +731,34 @@ class FlowController extends Controller
             $keptIds[] = $model->id;
         }
         $definition->tools()->whereNotIn('id', $keptIds ?: [0])->delete();
+    }
+
+    /**
+     * カスタムボタンのconfigを、こちらが知っている3つだけに絞る。
+     * handler は許可リストにあるメソッド名でなければ null にする（そのボタンは動かない）。
+     */
+    private function sanitizeActionConfig(array $config): array
+    {
+        $handler = $config['handler'] ?? null;
+        $eligible = [];
+        foreach ((array) ($config['eligible'] ?? []) as $subj) {
+            if (! is_array($subj) || ! filled($subj['subject_type'] ?? null)) {
+                continue;
+            }
+            $eligible[] = [
+                'subject_type' => (string) $subj['subject_type'],
+                'subject_id' => isset($subj['subject_id']) && $subj['subject_id'] !== null
+                    ? (int) $subj['subject_id'] : null,
+            ];
+        }
+        $color = is_string($config['color'] ?? null) && preg_match('/^#[0-9a-fA-F]{6}$/', $config['color'])
+            ? $config['color'] : '';
+
+        return [
+            'handler' => FlowRecordActions::isCallable(is_string($handler) ? $handler : null) ? $handler : null,
+            'color' => $color,
+            'eligible' => $eligible,
+        ];
     }
 
     /** An app is never view-less: seed 「すべて」 (all columns) if empty, and guarantee one default. */
@@ -621,9 +789,15 @@ class FlowController extends Controller
         $keyToId = [];
 
         foreach ($fields as $index => $field) {
+            // ラベル項目だけHTMLを持てる。画面では v-html で出すので、保存する前にここで削る
+            // （書けるのは管理者でも、実行されるのは閲覧者のブラウザなので信用の問題ではない）。
+            $label = ($field['input_type'] ?? null) === 'label'
+                ? FlowRichText::sanitize($field['label'] ?? '')
+                : mb_substr((string) ($field['label'] ?? ''), 0, 255);
+
             $payload = [
                 'key' => $field['key'],
-                'label' => $field['label'] ?? '',
+                'label' => $label,
                 'input_type' => $field['input_type'],
                 'options' => $field['options'] ?? null,
                 'is_required' => $field['is_required'] ?? false,
@@ -735,6 +909,8 @@ class FlowController extends Controller
                 'label' => $a['label'],
                 'color' => $a['color'] ?? null,
                 'eligible' => $a['eligible'] ?? [],
+                // absent in older payloads -> keep notifying, which is the existing behaviour
+                'notify' => $a['notify'] ?? true,
                 'sort_order' => $i,
             ];
             $model = ! empty($a['id']) ? $definition->statusActions()->whereKey($a['id'])->first() : null;
@@ -791,7 +967,7 @@ class FlowController extends Controller
             // Nested conditions/grants aren't worth a fine-grained diff (rare to change, hard to
             // summarize usefully) — a changed/unchanged flag on the whole structure is enough.
             'record_permissions' => $definition->recordPermissionSets()->with('conditions', 'grants')->get()->toArray(),
-            'views' => $definition->views()->get(['id', 'name', 'is_default', 'columns', 'filters', 'sort'])->toArray(),
+            'views' => $definition->views()->get(['id', 'name', 'is_default', 'columns', 'filters', 'filter_logic', 'sort'])->toArray(),
             'tools' => $definition->tools()->get(['id', 'tool_type', 'name', 'config', 'is_active', 'sort_order'])->toArray(),
         ];
     }
@@ -823,7 +999,7 @@ class FlowController extends Controller
             'status_actions' => $byId(['flow_status_id', 'to_status_id', 'name', 'label', 'color', 'eligible', 'sort_order']),
             'app_permissions' => $byIdentity(['subject_type', 'subject_id'], ['can_view', 'can_add', 'can_edit', 'can_delete', 'can_manage', 'can_import', 'can_export', 'can_bulk', 'sort_order']),
             'field_permissions' => $byIdentity(['field_id', 'subject_type', 'subject_id'], ['can_view', 'can_edit', 'sort_order']),
-            'views' => $byId(['name', 'is_default', 'columns', 'filters', 'sort']),
+            'views' => $byId(['name', 'is_default', 'columns', 'filters', 'filter_logic', 'sort']),
             'tools' => $byId(['tool_type', 'name', 'config', 'is_active']),
         ];
         foreach ($concerns as $key => $fn) {
@@ -894,7 +1070,7 @@ class FlowController extends Controller
 
     public function getFlowOptions()
     {
-        $this->active_user();
+        $user = $this->active_user();
 
         return response()->json([
             // User picker: confined to the active community (User is not community-
@@ -912,11 +1088,45 @@ class FlowController extends Controller
                 ->get(),
             // Project picker: ProjectRecord uses BelongsToCommunity, so this query
             // auto-scopes to the active community via the global scope.
+            /*
+             * The projects this person is on come first — with 122 of them, scrolling past everyone
+             * else's to reach your own three is the common case.
+             *
+             * Participation is any project_members row, either authority. The app's own "participated"
+             * queries use the members() relation, which is wherePivot('authority', 0) and so leaves out
+             * the projects you manage — for an account that only ever manages, that returns nothing and
+             * the ordering looks broken. Managing a project is participating in it.
+             *
+             * EXISTS rather than a join: a join over the pivot multiplies rows per membership and would
+             * need a distinct.
+             */
             'projects' => ProjectRecord::query()
-                ->select('id', 'name')
-                ->orderByDesc('id')
+                ->select('project_records.id', 'project_records.name')
+                ->selectRaw(
+                    'EXISTS (SELECT 1 FROM project_members pm'
+                    .' WHERE pm.project_id = project_records.id AND pm.user_id = ? AND pm.deleted_at IS NULL) AS is_mine',
+                    [$user->id]
+                )
+                ->orderByDesc('is_mine')
+                ->orderByDesc('project_records.id')
                 ->get(),
         ]);
+    }
+
+    /**
+     * 「レコードから検索」— keyword search over stored values in every app the user may view.
+     * Permission-scoped in the service (app view, record-level sets, per-field view; secrets and
+     * formulas excluded). `truncated` tells the UI the candidate cap was hit so it can say so
+     * rather than presenting a partial result as complete.
+     */
+    public function searchFlowRecords(Request $request)
+    {
+        $user = $this->active_user();
+        $kw = trim((string) $request->input('q', ''));
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(50, max(1, (int) $request->input('per_page', 20)));
+
+        return response()->json($this->flowService->searchRecordsAcrossApps($user, $kw, $page, $perPage));
     }
 
     /** 自分待ち: records at a status where the current user can press a button. */
@@ -968,18 +1178,30 @@ class FlowController extends Controller
     public function getAppRecords(Request $request, $definitionId)
     {
         $user = $this->active_user();
-        $definition = FlowDefinition::with(['fields', 'statuses', 'statusActions', 'appPermissions', 'recordPermissionSets', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
+        // fieldPermissions + statuses.fieldRules feed editable_field_ids per row (see serializeRecord)
+        $definition = FlowDefinition::with(['fields', 'statuses.fieldRules', 'statusActions', 'appPermissions', 'recordPermissionSets', 'fieldPermissions', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
         $app = $this->flowService->effectiveAppPermissions($user, $definition);
         abort_unless($app['view'], 403);
 
         $fields = $definition->fields;
         $views = $definition->views()->with('creator')->get();
-        $with = ['values', 'currentStatus:id,name', 'createdByUser'];
+        // currentStatus.fieldRules: a record's status is a different instance from definition.statuses,
+        // so without this editable_field_ids would re-query the rules for every row
+        $with = ['values', 'currentStatus:id,name', 'currentStatus.fieldRules', 'createdByUser'];
         $base = [
             'definition' => $definition->makeHidden('appPermissions'),
             'permissions' => $app,
             'views' => $views,
+            // The 新規作成 form loads from this endpoint and has no record to carry per-field answers,
+            // so it would otherwise know nothing about field permissions. It needs these to tell an
+            // auto-fill destination it may not read ("自動入力されます") apart from an ordinary empty
+            // field. Resolved with $record = null: the same basis storeAppRecord() writes on.
+            'new_record_unviewable_field_ids' => $this->flowService->unviewableFieldIds($user, $definition, null),
         ];
+
+        // 集計スロット configs live on the app (tool_type=slot), so every view shows them
+        $slotTools = $definition->tools->where('tool_type', 'slot')->values()->all();
+        $deferredSlots = fn () => $this->flowService->computeSlotAggregates($definition, [], $user, $slotTools, false);
 
         // seeing the record list clears grouped CSV-import events (they have no single record to open)
         $this->flowNotifications->markImportSeen($user, $definition);
@@ -995,8 +1217,9 @@ class FlowController extends Controller
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp'], $user))->values(),
+                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp'], $user, $definition))->values(),
                 'total' => $records->count(),
+                'slots' => $deferredSlots(),
             ]);
         }
 
@@ -1006,6 +1229,7 @@ class FlowController extends Controller
         $view = $views->firstWhere('id', (int) $request->input('view_id'))
             ?? $views->firstWhere('is_default', true) ?? $views->first();
         $filters = is_array($view?->filters) ? $view->filters : [];
+        $filterLogic = $view?->filter_logic === 'or' ? 'or' : 'and';
         $sort = $request->filled('sort_field')
             ? [['field' => $request->input('sort_field'), 'direction' => $request->input('sort_dir') === 'desc' ? 'desc' : 'asc']]
             : (is_array($view?->sort) ? $view->sort : []);
@@ -1032,12 +1256,13 @@ class FlowController extends Controller
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
+                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user, $definition))->values(),
                 'total' => $records->count(),
+                'slots' => $deferredSlots(),
             ]);
         }
 
-        $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter);
+        $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter, $filterLogic);
         $total = (clone $query)->count();
         $this->flowService->applyRecordSort($query, $sort, $definition);
         $records = $query->with($with)->forPage($page, $perPage)->get()
@@ -1045,12 +1270,25 @@ class FlowController extends Controller
 
         $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
 
+        // Aggregates cover the whole filtered set, not the page on screen — so this re-runs the
+        // query without pagination. Only when the app actually has a slot: otherwise every list
+        // load would pay for a full fetch it never uses.
+        $slots = [];
+        if ($slotTools) {
+            $allForSlots = $this->flowService
+                ->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter, $filterLogic)
+                ->with('values')->get()
+                ->each(fn ($r) => $r->setRelation('definition', $definition));
+            $slots = $this->flowService->computeSlotAggregates($definition, $allForSlots, $user, $slotTools);
+        }
+
         return response()->json($base + [
             'mode' => 'server',
-            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
+            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user, $definition))->values(),
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
+            'slots' => $slots,
         ]);
     }
 
@@ -1145,31 +1383,168 @@ class FlowController extends Controller
     }
 
     /**
-     * Best-effort self-report of a Flow file-field download (mirrors DriveController's own
-     * writeDownloadLogs precedent: the frontend reports the event after it fires the download,
-     * rather than gating the shared /cdn/ file route itself). The record id is recoverable straight
-     * from the stored path (flow_record_files/{record_id}/...), so no extra props need threading
-     * through FlowFieldInput → FilePreview just to identify which record a download belongs to.
+     * ファイル項目のアップロード先。
+     *
+     * 共通の /attach_upload_api は使わない——あれはIDを取るために message_files（チャット用の
+     * テーブル）に行を作るので、カスタムアプリのファイルがチャット側に溜まっていた。
+     * レコードはまだ無いので pending として置き、保存時に結び付ける。
      */
-    public function logFileDownload(Request $request)
+    public function uploadRecordFile(Request $request)
     {
+        $user = $this->active_user();
         $data = $request->validate([
-            'url' => 'required|string',
-            'name' => 'required|string',
+            'field_id' => 'required|integer|exists:flow_fields,id',
+            'column_key' => 'nullable|string|max:255',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200',
         ]);
 
-        if (! preg_match('#^/cdn/flow_record_files/(\d+)/#', $data['url'], $m)) {
-            return response()->noContent();
+        $field = FlowField::findOrFail($data['field_id']);
+        $definition = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets', 'fieldPermissions'])
+            ->findOrFail($field->flow_definition_id);
+
+        // アップロードできるのは、そのアプリにレコードを作れる／編集できる人だけ。
+        $perms = $this->flowService->effectiveAppPermissions($user, $definition);
+        abort_unless($perms['add'] || $perms['edit'], 403);
+        // 項目自体の編集権限も見る（閲覧しかできない項目に添付させない）
+        abort_unless($this->flowService->fieldPermissions($user, $definition)[$field->id]['edit'] ?? true, 403);
+
+        // 送られた field/column が本当にファイルを置ける場所かを確かめる
+        $columnKey = $data['column_key'] ?? null;
+        if ($columnKey !== null) {
+            abort_unless($field->input_type === 'table', 422, 'この項目にファイル列はありません。');
+            abort_unless(
+                in_array($columnKey, app(FlowFileService::class)->fileColumnKeys($field), true),
+                422, 'この列はファイル列ではありません。'
+            );
+        } else {
+            abort_unless($field->input_type === 'file', 422, 'この項目はファイル項目ではありません。');
         }
 
-        $record = FlowRecord::with('definition')->find((int) $m[1]);
-        if (! $record) {
-            return response()->noContent();
+        $stored = [];
+        foreach ($request->file('files') as $upload) {
+            $stored[] = app(FlowFileService::class)
+                ->storePending($upload, $definition, $field, $columnKey, $user->id)
+                ->apiPayload();
         }
 
-        $this->flowService->logAudit($record->definition, $this->active_user(), 'file_download', $record, [
-            'file_name' => $data['name'],
+        return response()->json(['files' => $stored]);
+    }
+
+    /**
+     * ファイルの配信。**権限を見てから流す唯一の経路**。
+     *
+     * これまでファイル項目は共通の /cdn/{path} で配られていて、あのルートは
+     * `response()->file(storage_path('app/'.$path))` を無条件に返すだけだった。つまりログインさえ
+     * していれば、アプリ権限・レコード権限・項目の閲覧権限のすべてを飛び越えて読めた（IDも連番で
+     * 推測できた）。ここでアプリ→レコード→項目の3段を確かめる。
+     */
+    public function serveRecordFile(Request $request, $fileId)
+    {
+        $user = $this->active_user();
+        $file = FlowRecordFile::findOrFail($fileId);
+        $record = $this->authorizeRecordFile($file, $user);
+
+        // 監査はここで書く。URLからレコードIDを正規表現で拾って画面に自己申告させていた頃と違い、
+        // バイトを返すのと同じリクエストで記録するので取りこぼしも偽装もできない。
+        if ($record && $request->boolean('dl')) {
+            $this->flowService->logAudit($record->definition, $user, 'file_download', $record, [
+                'file_name' => $file->name,
+                'flow_record_file_id' => $file->id,
+            ]);
+        }
+
+        return $this->streamRecordFile($file, $request->boolean('dl'));
+    }
+
+    /**
+     * ファイル1件の閲覧可否。アプリ→レコード→項目の3段。
+     * 戻り値は持ち主のレコード（保存前の pending は null）。
+     */
+    private function authorizeRecordFile(FlowRecordFile $file, $user): ?FlowRecord
+    {
+        // pending（保存前）は本人だけ。保存済みはレコードの権限で判断する。
+        if ($file->status === FlowRecordFile::STATUS_PENDING) {
+            abort_unless((int) $file->uploaded_by === (int) $user->id, 403);
+
+            return null;
+        }
+
+        abort_unless($file->flow_record_id, 404);
+        $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($file->flow_record_id);
+        $definition = $record->definition;
+
+        abort_unless($this->flowService->recordPermissions($user, $record, $definition)['view'], 403);
+        if ($file->flow_field_id) {
+            $fieldPerms = $this->flowService->fieldPermissions($user, $definition, $record);
+            abort_unless($fieldPerms[$file->flow_field_id]['view'] ?? true, 403);
+        }
+
+        return $record;
+    }
+
+    /**
+     * Office形式（xlsx/docx/pptx…）を表示するための、署名付きの一時URLを返す。
+     *
+     * これらは Microsoft の Office Online（view.officeapps.live.com）が描画するため、**向こうの
+     * サーバーがログインなしで取得できるURL**が必要になる。既存の仕組み
+     * `/cdn_external/{user_id}/{file_key}/{パス}` は使わない——あれはユーザーIDと8文字の鍵さえあれば
+     * storage 配下の任意のパスを配ってしまい、ファイル項目に権限を付けた意味が無くなる。
+     *
+     * 代わりに、ここで閲覧権限を確かめてから、そのファイル1件だけを指す期限付きの署名URLを出す。
+     * 署名はURL全体（ファイルIDと期限を含む）に掛かるので、別のファイルに向け直せない。
+     */
+    public function recordFileViewerUrl(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate(['id' => 'required|integer']);
+
+        $file = FlowRecordFile::findOrFail($data['id']);
+        $this->authorizeRecordFile($file, $user);
+        abort_if($file->status === FlowRecordFile::STATUS_MISSING, 404, 'ファイルの実体が見つかりません。');
+
+        return response()->json([
+            // Office Online は即座に取得するので、短く切って構わない
+            'url' => URL::temporarySignedRoute('flow.file.external', now()->addMinutes(10), ['fileId' => $file->id]),
         ]);
+    }
+
+    /**
+     * 署名付きURLでの配信。セッションが無い相手（Office Online）向けの唯一の出口。
+     *
+     * 権限は署名を発行した時点で確認済みで、この署名は1ファイル・10分に限定されている。
+     * `signed` ミドルウェアが改ざんと期限切れを弾く。
+     */
+    public function serveRecordFileExternal($fileId)
+    {
+        $file = FlowRecordFile::findOrFail($fileId);
+
+        return $this->streamRecordFile($file, false);
+    }
+
+    private function streamRecordFile(FlowRecordFile $file, bool $download)
+    {
+        abort_if($file->status === FlowRecordFile::STATUS_MISSING, 404, 'ファイルの実体が見つかりません。');
+        abort_unless($file->disk_path && Storage::disk('local')->exists($file->disk_path), 404);
+
+        $absolute = storage_path('app/'.$file->disk_path);
+
+        return $download
+            ? response()->download($absolute, $file->name)
+            : response()->file($absolute);
+    }
+
+    /** 保存前に取り消されたファイルを捨てる（画面で×を押した分）。 */
+    public function discardRecordFile(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate(['id' => 'required|integer']);
+
+        $file = FlowRecordFile::find($data['id']);
+        // 自分がアップロードした pending だけ。保存済みのファイルはレコードの保存で外す。
+        if ($file && $file->status === FlowRecordFile::STATUS_PENDING && (int) $file->uploaded_by === (int) $user->id) {
+            app(FlowFileService::class)->discardPending($file);
+        }
 
         return response()->noContent();
     }
@@ -1239,9 +1614,23 @@ class FlowController extends Controller
             abort_unless($this->flowService->recordPermissions($user, $record, $definition)['view'], 403);
         }
 
+        // 参照の「表示」に要るもの。IDだけ渡された画面は、番号も名前も知らないまま
+        // 「#undefined」を出すことになる（関連レコードの＋追加から来た場合がこれ）。
+        $refInfo = ['id' => $record->id, 'number' => (int) $record->record_number, 'label' => null];
+        if ($refFieldId = $request->input('ref_field')) {
+            $refField = FlowField::find($refFieldId);
+            if ($refField
+                && $refField->input_type === 'reference'
+                && (int) ($refField->validation['target_definition_id'] ?? 0) === (int) $definition->id) {
+                $refInfo['label'] = $this->flowService->referenceLabel(
+                    $record, $definition, $refField->validation['label_field'] ?? null
+                );
+            }
+        }
+
         $wantKeys = array_values(array_filter(array_map('trim', explode(',', (string) $request->input('fields', '')))));
         if (! $wantKeys) {
-            return response()->json(['values' => (object) []]);
+            return response()->json(['values' => (object) [], 'reference' => $refInfo]);
         }
 
         $fields = $definition->fields;
@@ -1259,7 +1648,7 @@ class FlowController extends Controller
             $out[$key] = $vals[(string) $f->id] ?? null;
         }
 
-        return response()->json(['values' => $out]);
+        return response()->json(['values' => $out, 'reference' => $refInfo]);
     }
 
     /* ---- system reference sources (built-in masters, e.g. offices) ---------------------------------
@@ -1282,8 +1671,17 @@ class FlowController extends Controller
         return response()->json([
             'id' => $source,
             'name' => $s['label'],
+            // Columns are text pseudo-fields unless one declares otherwise. A column CAN declare
+            // 'password': the inspector's copy rule is strict same-type for non-scalars, so such a
+            // column will only offer encrypted destinations — that is how 口座番号 is prevented from
+            // being mapped into an ordinary text field and landing in flow_record_values in clear.
             'fields' => collect($s['columns'])
-                ->map(fn ($c) => ['key' => $c['key'], 'label' => $c['label'], 'input_type' => 'short', 'result_type' => null])
+                ->map(fn ($c) => [
+                    'key' => $c['key'],
+                    'label' => $c['label'],
+                    'input_type' => $c['input_type'] ?? 'short',
+                    'result_type' => null,
+                ])
                 ->values(),
         ]);
     }
@@ -1298,10 +1696,13 @@ class FlowController extends Controller
         $labelKey = (string) $request->input('label_field', '') ?: $s['label_column'];
         $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
 
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        /** @var Builder $query */
         $query = $s['model']::query();
         if (isset($s['filter'])) {
             ($s['filter'])($query);
+        }
+        if (isset($s['with'])) {
+            ($s['with'])($query);
         }
         if ($q !== '') {
             $query->where(function ($w) use ($s, $q) {
@@ -1333,17 +1734,35 @@ class FlowController extends Controller
             return response()->json(['values' => (object) []]);
         }
 
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        /** @var Builder $query */
         $query = $s['model']::query();
         if (isset($s['filter'])) {
             ($s['filter'])($query);
+        }
+        if (isset($s['with'])) {
+            ($s['with'])($query);
         }
         $row = $query->whereKey($id)->first();
         if (! $row) {
             return response()->json(['values' => (object) []]);
         }
 
-        $allowed = collect($s['columns'])->pluck('key')->flip();
+        /*
+         * Secret-typed columns are NEVER served here.
+         *
+         * This endpoint is generic and deliberately cheap: it takes a source key and a row id and has
+         * no app/record/field permission context at all. That is fine for 営業所名 or 役職, and became a
+         * hole the moment a column resolved to a decrypted 口座番号 — any authenticated client could
+         * have read anyone's account number with one GET.
+         *
+         * The client never needs it: for a destination the user may write, the value must be visible to
+         * them anyway (so it is not a secret), and for one they may not, applyMasterAutoFill resolves it
+         * server-side during the save. Same rule readFieldValue already enforces for stored secrets.
+         */
+        $allowed = collect($s['columns'])
+            ->reject(fn ($c) => FlowService::isSecret($c['input_type'] ?? 'short'))
+            ->pluck('key')
+            ->flip();
         $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
 
         $out = [];
@@ -1411,7 +1830,7 @@ class FlowController extends Controller
 
         try {
             $plain = $this->flowService->revealSecret($record, $field);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+        } catch (DecryptException $e) {
             // surfaced, not swallowed: a key mismatch must not masquerade as "no password set"
             report($e);
 
@@ -1430,18 +1849,39 @@ class FlowController extends Controller
     /* ---- flow notifications (per-app bell badge + popup) --------------------------------------- */
 
     /** The bell popup: latest events for this user on this app + their notification prefs. */
-    public function getFlowNotifications($definitionId)
+    /** One page of the bell menu. */
+    private const NOTIFICATIONS_PER_PAGE = 15;
+
+    /**
+     * The bell popup's events, newest first, one page at a time.
+     *
+     * Paged on the id rather than an offset: notifications arrive while the menu is sitting open, and
+     * every new row would shift an offset window down by one, so もっと見る would re-show rows the user
+     * had already scrolled past. An id cursor is anchored to what they have actually seen.
+     *
+     * This replaced a flat limit(30) with no way to ask for more — older notifications existed but
+     * were simply unreachable, and nothing on screen said the list had been cut off.
+     */
+    public function getFlowNotifications(Request $request, $definitionId)
     {
         $user = $this->active_user();
         $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
         abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
 
-        $events = FlowNotification::where('user_id', $user->id)
+        $before = $request->integer('before') ?: null;
+
+        $rows = FlowNotification::where('user_id', $user->id)
             ->where('flow_definition_id', $definition->id)
+            ->when($before, fn ($q) => $q->where('id', '<', $before))
             ->with(['actor', 'record:id,record_number'])
             ->orderByDesc('id')
-            ->limit(30)
-            ->get()
+            // one past the page: its presence is the has_more answer, without a second COUNT query
+            ->limit(self::NOTIFICATIONS_PER_PAGE + 1)
+            ->get();
+
+        $hasMore = $rows->count() > self::NOTIFICATIONS_PER_PAGE;
+
+        $events = $rows->take(self::NOTIFICATIONS_PER_PAGE)
             ->map(fn ($n) => [
                 'id' => $n->id,
                 'type' => $n->type,
@@ -1450,12 +1890,27 @@ class FlowController extends Controller
                 'meta' => $n->meta,
                 'read' => $n->read_at !== null,
                 'created_at' => $n->created_at,
-            ]);
+            ])
+            ->values();
 
         return response()->json([
             'events' => $events,
+            'has_more' => $hasMore,
             'prefs' => $this->flowNotifications->prefsFor($user, (int) $definition->id),
         ]);
+    }
+
+    /** すべて既読 button in the bell popup → clear every unread event for this user on this app. */
+    public function markAllFlowNotificationsRead(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'flow_definition_id' => 'required|integer|exists:flow_definitions,id',
+        ]);
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($data['flow_definition_id']);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        return response()->json(['ok' => true, 'read' => $this->flowNotifications->markAllRead($user, $definition)]);
     }
 
     /** Per-user per-app notification opt-in/out (the toggles inside the bell popup). */
@@ -1487,12 +1942,34 @@ class FlowController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null, ?User $forUser = null): array
+    /**
+     * $def turns on 'editable_field_ids' — the per-record intersection of record-edit, field
+     * permissions and the current status's field rules. Without it the front-end can only guess at
+     * editability from the field definition, so it renders an input for a field the server will
+     * refuse to write and the value is silently discarded on save.
+     */
+    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null, ?User $forUser = null, ?FlowDefinition $def = null): array
     {
+        $values = $this->flowService->recordValues($record, $fields);
+
+        // Field-level 閲覧 is applied HERE, after the formulas have been computed from the full set —
+        // stripping first would change what a formula says instead of who may read it. Until this
+        // existed the payload carried every value regardless of the field's 閲覧 rows, so a field
+        // restricted to one person was delivered to (and displayed for) every record viewer.
+        $unviewable = $def !== null && $forUser !== null
+            ? $this->flowService->unviewableFieldIds($forUser, $def, $record)
+            : [];
+        foreach ($unviewable as $fid) {
+            unset($values[(string) $fid]);
+        }
+
         return [
             'id' => $record->id,
             'record_number' => $record->record_number,
-            'values' => $this->flowService->recordValues($record, $fields),
+            'values' => $values,
+            // the front-end renders 閲覧権限がありません for these rather than an empty field, so "hidden"
+            // never reads as "nobody filled it in"
+            'unviewable_field_ids' => $def !== null && $forUser !== null ? $unviewable : null,
             'created_by' => $record->created_by,
             'creator' => $record->createdByUser,
             'current_status_id' => $record->current_status_id,
@@ -1507,11 +1984,16 @@ class FlowController extends Controller
             // 要対応 marker (red dot on the list's status pill): an action on the record's
             // current status explicitly names this user — same strict rule as the portal counter
             'pending_action' => $forUser !== null && $this->flowService->hasExplicitPendingAction($forUser, $record),
+            // which of this record's fields THIS user may actually write (null = not resolved here)
+            'editable_field_ids' => $def !== null && $forUser !== null
+                ? $this->flowService->editableFieldIdsForRecord($forUser, $record, $def, $can)
+                : null,
         ];
     }
 
     private const RECORD_DETAIL_WITH = [
-        'definition.fields', 'definition.statuses', 'definition.appPermissions', 'definition.recordPermissionSets', 'definition.statusActions', 'definition.tools',
+        'definition.fields', 'definition.statuses.fieldRules', 'definition.appPermissions', 'definition.recordPermissionSets',
+        'definition.statusActions', 'definition.tools', 'definition.fieldPermissions',
         'currentStatus', 'values', 'createdByUser', 'logs.user',
     ];
 
@@ -1562,9 +2044,7 @@ class FlowController extends Controller
             'can' => $this->flowService->canPressAction($user, $record, $a),
         ])->values();
 
-        // prev/next record numbers for the header nav arrows. Apps without record-level
-        // permission sets: adjacent number in one indexed query. With sets: walk outward
-        // to the first viewable neighbor (bounded — beyond that the arrow just disables).
+        // prev/next record numbers for the header nav arrows.
         $neighbor = function (bool $forward) use ($def, $record, $user) {
             $q = FlowRecord::where('flow_definition_id', $def->id);
             $forward
@@ -1598,15 +2078,85 @@ class FlowController extends Controller
         return response()->json([
             'definition' => $def->makeHidden(['appPermissions', 'recordPermissionSets']),
             'permissions' => $this->flowService->effectiveAppPermissions($user, $def),
-            'record' => $this->serializeRecord($record, $def->fields, null, $user),
+            'record' => $this->serializeRecord($record, $def->fields, $recordPerms, $user, $def),
             'can' => $recordPerms,
             'status_actions' => $actions,
+            // カスタムボタン（コード側の処理を呼ぶボタン）。押せる人にだけ返る。
+            'custom_actions' => $this->flowRecordActions->actionsFor($user, $record),
             'logs' => $logs,
             'mentionable_users' => $this->flowService->mentionableUsers($record, $def),
             // unread comment events for THIS user on this record → comment-tab badge
             'unread_comments' => $this->flowNotifications->unreadCommentCount($user, $record),
-            'nav' => ['prev' => $neighbor(false), 'next' => $neighbor(true)],
+            'nav' => $this->recordNeighbors($def, $record, $user, $neighbor),
         ]);
+    }
+
+    /**
+     * 上下の矢印が指すレコード番号。
+     *
+     * **一覧と同じ並び・同じ絞り込みで隣を探す。** 番号の前後をそのまま辿ると、ビューで絞った
+     * 一覧から開いたときに、一覧に出ていないレコードへ飛んでしまう（画面上の「次」と一致しない）。
+     * 絞り込みと並び順は、レコードのURLに乗って渡ってくる一覧の状態（view_id/sort_field/
+     * sort_dir/filters）から組み直す。指定が無いときも、一覧と同じく既定のビューを使う。
+     *
+     * 番号順に落とすのは、SQLで同じ一覧を作れない場合だけ：
+     *   - 行ごとの権限があるアプリ（一覧を画面側で組んでいる）
+     *   - 数式項目で絞る／並べるビュー（数式は値を保存していないのでSQLで扱えない）
+     *   - 対象が極端に多いアプリ（並び順の全件を持つのが割に合わない）
+     *
+     * @param  callable(bool): ?int  $adjacent  番号で隣を探す従来の方法
+     * @return array{prev: ?int, next: ?int}
+     */
+    private function recordNeighbors(FlowDefinition $def, FlowRecord $record, $user, callable $adjacent): array
+    {
+        $byNumber = fn () => ['prev' => $adjacent(false), 'next' => $adjacent(true)];
+
+        if ($def->recordPermissionSets->isNotEmpty()) {
+            return $byNumber();
+        }
+
+        $request = request();
+        $views = $def->relationLoaded('views') ? $def->views : $def->views()->get();
+        $view = $views->firstWhere('id', (int) $request->input('view_id'))
+            ?? $views->firstWhere('is_default', true) ?? $views->first();
+
+        $filters = is_array($view?->filters) ? $view->filters : [];
+        $logic = $view?->filter_logic === 'or' ? 'or' : 'and';
+        $sort = $request->filled('sort_field')
+            ? [['field' => $request->input('sort_field'), 'direction' => $request->input('sort_dir') === 'desc' ? 'desc' : 'asc']]
+            : (is_array($view?->sort) ? $view->sort : []);
+        $adhoc = $this->decodeAdhocFilter($request);
+
+        $fields = $def->fields;
+        $isFormulaRef = fn ($ref) => is_numeric($ref)
+            && optional($fields->firstWhere('id', (int) $ref))->input_type === 'formula';
+        $usesFormula = collect($filters)->contains(fn ($f) => $isFormulaRef($f['field'] ?? null))
+            || collect($sort)->contains(fn ($s) => $isFormulaRef($s['field'] ?? null))
+            || collect($adhoc['conditions'] ?? [])->contains(fn ($f) => $isFormulaRef($f['field'] ?? null));
+        if ($usesFormula) {
+            return $byNumber();
+        }
+
+        $query = $this->flowService->recordListQuery(
+            $def, $filters, (string) $request->input('search', ''), $adhoc, $logic
+        );
+        if ((clone $query)->count() > self::NAV_MAX_RECORDS) {
+            return $byNumber();
+        }
+        $this->flowService->applyRecordSort($query, $sort, $def);
+
+        $numbers = $query->pluck('flow_records.record_number')->all();
+        $i = array_search($record->record_number, $numbers, true);
+        if ($i === false) {
+            // 今の絞り込みに入っていないレコードを直接開いた場合。隣が無いのが正しい。
+            return ['prev' => null, 'next' => null];
+        }
+
+        // 画面の「一つ下」＝一覧で下の行。番号の大小ではなく並び順で決める。
+        return [
+            'prev' => $numbers[$i + 1] ?? null,
+            'next' => $i > 0 ? $numbers[$i - 1] : null,
+        ];
     }
 
     public function storeAppRecord(Request $request)
@@ -1635,6 +2185,11 @@ class FlowController extends Controller
             }
         }
 
+        // same server-side auto-fill as the update path, so a creator without 編集 on the destination
+        // still gets it populated (and cannot dictate what lands there)
+        [$data['values'], $autoFilled] = $this->flowService->applyMasterAutoFill($definition, $data['values'] ?? [], $allowed);
+        $allowed = array_values(array_unique(array_merge($allowed, $autoFilled)));
+
         $checkFields = $definition->fields->filter(fn ($f) => in_array((int) $f->id, $allowed, true));
         $errors = $this->flowService->validateValues($checkFields, $data['values'] ?? []);
         if (! empty($errors)) {
@@ -1661,6 +2216,10 @@ class FlowController extends Controller
 
         // badge event: everyone who can view the app hears about the new record (per prefs)
         $this->notifySafely(fn () => $this->flowNotifications->notifyNewRecord($definition, $record, $user));
+        // the initial status may already name someone — the first step of a flow should not be the
+        // one step nobody is told about
+        $this->notifySafely(fn () => $this->flowNotifications->syncPendingAction($record, $user));
+
 
         return response()->json($this->serializeRecord($record, $definition->fields));
     }
@@ -1678,9 +2237,16 @@ class FlowController extends Controller
             'currentStatus', 'values',
         ])->findOrFail($data['id']);
         $def = $record->definition;
-        abort_unless($this->flowService->recordPermissions($user, $record, $def)['edit'], 403);
+        $recordPerms = $this->flowService->recordPermissions($user, $record, $def);
+        abort_unless($recordPerms['edit'], 403);
 
-        $allowed = $this->flowService->editableFieldIdsForRecord($user, $record, $def);
+        $allowed = $this->flowService->editableFieldIdsForRecord($user, $record, $def, $recordPerms);
+
+        // ユーザー/プロジェクト auto-fill for destinations this user may NOT write: resolved server-side
+        // from the master, and the client's value for them discarded. Without this the value showed in
+        // the form and was dropped here, because the writer has no 編集 on the destination.
+        [$data['values'], $autoFilled] = $this->flowService->applyMasterAutoFill($def, $data['values'], $allowed);
+        $allowed = array_values(array_unique(array_merge($allowed, $autoFilled)));
 
         $old = $this->flowService->recordValues($record, $def->fields);
         $merged = $old;
@@ -1698,8 +2264,12 @@ class FlowController extends Controller
         $record->save();
         $this->flowService->syncFieldValues($record, $def->fields, $data['values'], $allowed);
 
-        // Diff old→new per field (raw values; the front-end formats by field type) for 変更履歴.
+        // A ユーザー field can BE the 押せる人 ('field' subject), so editing the record can hand the
+        // duty to someone else — re-resolve. syncPendingAction keeps existing recipients' read state.
         $record->load('values');
+        $this->notifySafely(fn () => $this->flowNotifications->syncPendingAction($record, $user));
+
+        // Diff old→new per field (raw values; the front-end formats by field type) for 変更履歴.
         $new = $this->flowService->recordValues($record, $def->fields);
         $changes = [];
         foreach ($def->fields as $f) {
@@ -1731,7 +2301,8 @@ class FlowController extends Controller
 
         $record->load(['values', 'currentStatus', 'createdByUser']);
 
-        return response()->json($this->serializeRecord($record, $def->fields));
+
+        return response()->json($this->serializeRecord($record, $def->fields, $recordPerms, $user, $def));
     }
 
     public function deleteAppRecord(Request $request)
@@ -1741,6 +2312,9 @@ class FlowController extends Controller
         $record = FlowRecord::with(['definition.appPermissions', 'definition.recordPermissionSets', 'values', 'currentStatus'])
             ->findOrFail($data['id']);
         abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['delete'], 403);
+        $this->notifySafely(fn () => $this->flowNotifications->withdrawPendingAction($record));
+        // 添付の実体も落とす（以前は value だけ消してファイルはディスクに残り続けていた）
+        app(FlowFileService::class)->deleteForRecord($record);
         $record->values()->delete();
         $record->delete();
 
@@ -1769,10 +2343,73 @@ class FlowController extends Controller
 
         // badge event: the record's creator hears their record moved (per prefs)
         $this->notifySafely(fn () => $this->flowNotifications->notifyStatusChange($record, $user, $fromName, $toName));
+        // the duty moves with the record: whoever was named on the old status is released, whoever is
+        // named on the new one is told. syncPendingAction does both.
+        $this->notifySafely(fn () => $this->flowNotifications->syncPendingAction($record, $user));
 
         $record->load(self::RECORD_DETAIL_WITH);
 
         return $this->respondWithRecordDetail($record);
+    }
+
+    /**
+     * 関連レコードの中身。レコード詳細の「関連レコード」ブロックが1つずつ取りに来る。
+     *
+     * 行ごとの権限は子アプリの規則で見る（見えないレコードは件数にも入らない）。
+     */
+    public function relatedRecords($fieldId, $recordId)
+    {
+        $user = $this->active_user();
+        $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($recordId);
+        abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['view'], 403);
+
+        $field = $record->definition->fields->firstWhere('id', (int) $fieldId);
+        abort_unless($field && $field->input_type === 'related', 404);
+
+        return response()->json(app(FlowRelatedService::class)->listFor($user, $record, $field));
+    }
+
+    /**
+     * 設定画面用：このアプリを指しているルックアップ項目の一覧。
+     *
+     * 「値の一致で結ぶ」のではなく、既にある関係から選ばせるための材料。ここに出てこない
+     * 組み合わせは設定できない＝壊れた関連レコードを作れない。
+     */
+    public function relatedCandidates($definitionId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        $out = [];
+        $others = FlowDefinition::with('fields')->where('id', '!=', $definition->id)->get();
+
+        foreach ($others as $child) {
+            if (! $this->flowService->effectiveAppPermissions($user, $child)['view']) {
+                continue;
+            }
+            $links = $child->fields
+                ->where('input_type', 'reference')
+                ->filter(fn ($f) => (int) ($f->validation['target_definition_id'] ?? 0) === (int) $definition->id)
+                ->values();
+
+            if ($links->isEmpty()) {
+                continue;
+            }
+
+            $out[] = [
+                'definition_id' => $child->id,
+                'definition_name' => $child->name,
+                'link_fields' => $links->map(fn ($f) => ['id' => $f->id, 'label' => $f->label])->values()->all(),
+                // 一覧に出せる項目（列と合計の選択肢）
+                'fields' => $child->fields
+                    ->reject(fn ($f) => FlowService::isLayoutType($f->input_type) || FlowService::isSecret($f->input_type))
+                    ->map(fn ($f) => ['id' => $f->id, 'label' => $f->label, 'input_type' => $f->input_type])
+                    ->values()->all(),
+            ];
+        }
+
+        return response()->json(['candidates' => $out]);
     }
 
     /** Keep only a safe inline <svg> (strip scripts, event handlers, foreignObject, javascript: hrefs). */
@@ -1910,6 +2547,8 @@ class FlowController extends Controller
      *  - scope: 'all' (default — the view's columns, table field included as a kintone-style
      *    multi-row block if present) | 'table' (only one chosen Table field's rows, merged across
      *    every record in range, with a leading ID + New-record-flag column for traceability)
+     *    | 'no_table' (the view's columns with Table fields dropped, so every record is exactly one
+     *    row — 'all' emits one row per subtable row, which is awkward to pivot on)
      *  - table_field_id: required when scope=table
      *
      * Export range (fields/filter/sort) follows the currently open view, UNLESS the caller passes
@@ -1936,7 +2575,7 @@ class FlowController extends Controller
         // the live records view — see the class doc above)
         $filtersForQuery = $adhocFilter ? [] : (is_array($view?->filters) ? $view->filters : []);
 
-        $query = $this->flowService->recordListQuery($definition, $filtersForQuery, '', $adhocFilter);
+        $query = $this->flowService->recordListQuery($definition, $filtersForQuery, '', $adhocFilter, $view?->filter_logic === 'or' ? 'or' : 'and');
         $this->flowService->applyRecordSort($query, $sort, $definition);
         $records = $query->with(['values', 'currentStatus:id,name'])->get();
 
@@ -1944,7 +2583,7 @@ class FlowController extends Controller
             $records = $records->filter(fn ($r) => $this->flowService->recordPermissions($user, $r, $definition)['view'])->values();
         }
 
-        $scope = $request->input('scope') === 'table' ? 'table' : 'all';
+        $scope = in_array($request->input('scope'), ['table', 'no_table'], true) ? $request->input('scope') : 'all';
         $encoding = $request->input('encoding') === 'sjis' ? 'sjis' : 'utf8';
 
         if ($scope === 'table') {
@@ -1953,6 +2592,14 @@ class FlowController extends Controller
             [$headers, $rows] = $this->buildTableOnlyExportRows($definition, $tableField, $records);
         } else {
             $columns = $this->flowService->resolveExportColumns($definition, $view, $hasStatus);
+            if ($scope === 'no_table') {
+                // dropping the Table columns is all it takes: the row builder already emits a single
+                // row per record when no table column is present, so no separate code path is needed
+                $columns = array_values(array_filter(
+                    $columns,
+                    fn ($c) => $c['system'] || ($c['field']->input_type ?? null) !== 'table'
+                ));
+            }
             [$headers, $rows] = $this->buildAllFieldsExportRows($definition, $columns, $records);
         }
 
@@ -2062,7 +2709,7 @@ class FlowController extends Controller
                 $flag = $ri === 0 ? '*' : '';
                 $rowScalars = $ri === 0 ? $scalarValues : array_fill(0, count($scalarValues), '');
                 $rowTableVals = array_map(
-                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null),
+                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null, $c['input_type'] ?? null),
                     $subCols,
                 );
                 $rows[] = array_merge([$flag], $rowScalars, $rowTableVals);
@@ -2085,7 +2732,7 @@ class FlowController extends Controller
             };
         }
 
-        return $this->csvValue($vals[(string) $col['field']->id] ?? null);
+        return $this->csvValue($vals[(string) $col['field']->id] ?? null, $col['field']->input_type);
     }
 
     /**
@@ -2113,7 +2760,7 @@ class FlowController extends Controller
                 $flag = $ri === 0 ? '*' : '';
                 $id = $ri === 0 ? (string) $rec->record_number : '';
                 $rowVals = array_map(
-                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null),
+                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null, $c['input_type'] ?? null),
                     $subCols,
                 );
                 $rows[] = array_merge([$flag, $id], $rowVals);
@@ -2439,6 +3086,7 @@ class FlowController extends Controller
             if ($target === '__created_at__' || $target === '__updated_at__') {
                 $slot = $target === '__created_at__' ? 'created_at' : 'updated_at';
                 $system[$slot] ??= $header; // first column mapped to a slot wins
+
                 continue;
             }
 
@@ -2627,7 +3275,7 @@ class FlowController extends Controller
     private function parsableDateTime(string $v): bool
     {
         try {
-            \Carbon\Carbon::parse($v);
+            Carbon::parse($v);
 
             return true;
         } catch (\Throwable) {
@@ -2635,8 +3283,17 @@ class FlowController extends Controller
         }
     }
 
-    private function csvValue($v): string
+    /**
+     * One CSV cell. $inputType is what turns a stored key into the value a person reads: ユーザー and
+     * プロジェクト hold ids, 参照 holds a {id, number, label} snapshot — exported verbatim those came out as
+     * "487", the project's id, and "1159, 東京工業株式会社, 2". The same resolution the record screen and
+     * formulas use (FlowService::displayValue), so the file matches what the app shows. Passing no type
+     * leaves the value alone.
+     */
+    private function csvValue($v, ?string $inputType = null): string
     {
+        $v = $this->flowService->displayValue($inputType, $v);
+
         if (is_array($v)) {
             return implode(', ', array_map(fn ($x) => is_array($x) ? (string) ($x['name'] ?? '') : (string) $x, $v));
         }
@@ -2852,18 +3509,31 @@ class FlowController extends Controller
             'updated_by' => $user->id,
         ]);
         foreach ($headerToField as $header => $field) {
-            $this->flowService->saveFieldValue($record, $field, $rep[$header] ?? null);
+            // ユーザー/プロジェクト columns arrive as names (that is what the export writes) — turn them
+            // back into ids before saving, or the cell would silently import as empty / 0.
+            $cell = $this->flowService->valueFromDisplay($field->input_type, $rep[$header] ?? null);
+            $this->flowService->saveFieldValue($record, $field, $cell);
         }
 
         // Sub-table: one line per group row, keyed by sub-column. Fully-empty lines are dropped.
         if ($tablePlan) {
+            // Sub-column types come off the resolved Table field: a ユーザー/プロジェクト column inside an
+            // existing table needs the same name→id pass as a top-level one. (Columns the import
+            // creates are only ever plain types — see IMPORT_NEW_TYPES — so this only ever matters
+            // when importing into a table that was built in the app.)
+            $subTypes = [];
+            foreach (($tablePlan['field']->validation['columns'] ?? []) as $c) {
+                if (! empty($c['key'])) {
+                    $subTypes[$c['key']] = $c['input_type'] ?? null;
+                }
+            }
             $tableRows = [];
             foreach ($groupRows as $r) {
                 $cells = [];
                 $empty = true;
                 foreach ($tablePlan['subColumns'] as $sc) {
                     $v = $r[$sc['header']] ?? null;
-                    $cells[$sc['key']] = $v;
+                    $cells[$sc['key']] = $this->flowService->valueFromDisplay($subTypes[$sc['key']] ?? null, $v);
                     if (trim((string) $v) !== '') {
                         $empty = false;
                     }
@@ -2884,7 +3554,7 @@ class FlowController extends Controller
                 continue;
             }
             try {
-                $stamps[$slot] = \Carbon\Carbon::parse($val)->toDateTimeString();
+                $stamps[$slot] = Carbon::parse($val)->toDateTimeString();
             } catch (\Throwable) {
             }
         }

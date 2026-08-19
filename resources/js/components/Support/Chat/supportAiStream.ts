@@ -17,7 +17,7 @@ export async function streamSupportAiMessage(
         .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
         ?.content
 
-    const response = await fetch('/support/ai-test/messages/stream', {
+    const response = await fetch('/support/ai/messages/stream', {
         method: 'POST',
         credentials: 'same-origin',
         signal,

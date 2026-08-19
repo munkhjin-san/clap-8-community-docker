@@ -11,10 +11,10 @@
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
 
     @if (app()->environment('production'))
-        <link rel="icon" href="/dark2.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
-        <link rel="icon" href="/light2.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+        <link rel="icon" href="/dark3.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+        <link rel="icon" href="/light3.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
     @else
-        <link rel="icon" href="/dev2.svg" type="image/svg+xml">
+        <link rel="icon" href="/dev3.svg" type="image/svg+xml">
     @endif
 
     <link rel="manifest" href="/manifest.json">
@@ -43,15 +43,11 @@
         if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             artwork: [
-            { src: '/v7/512.png', sizes: '512x512', type: 'image/png' },
+            { src: '/v9/512.png', sizes: '512x512', type: 'image/png' },
             ],
         });
         }
     </script>
-    <script
-        src="https://cdn.platform.openai.com/deployments/chatkit/chatkit.js"
-        async
-    ></script>
 </head>
 <body style="height:100%;position:fixed;overflow:hidden">
     <div id="app" style="height:100%;width:100%;" data-user-id="{{ Auth::id() }}">

@@ -1,6 +1,7 @@
 <?php
 
 // app/Infrastructure/Kintone/KintoneClient.php
+
 namespace App\Infrastructure\Kintone;
 
 use GuzzleHttp\Client;
@@ -16,11 +17,11 @@ class KintoneClient
         $user = config('app.kintone_user_name');
         $pass = config('app.kintone_password');
 
-        $this->authHeader = base64_encode($user . ':' . $pass);
+        $this->authHeader = base64_encode($user.':'.$pass);
     }
 
     /**
-     * @param array<int, string> $fields
+     * @param  array<int, string>  $fields
      * @return array<int, array<string, mixed>>
      */
     public function getAllRecords(string|int $appId, string $query = '', array $fields = [], int $limit = 500): array
@@ -30,7 +31,7 @@ class KintoneClient
         $limit = min(max($limit, 1), 500);
 
         do {
-            $pageQuery = trim($query . ' limit ' . $limit . ' offset ' . $offset);
+            $pageQuery = trim($query.' limit '.$limit.' offset '.$offset);
             $page = $this->getRecords($appId, $pageQuery, $fields);
             $records = array_merge($records, $page);
             $offset += $limit;
@@ -42,16 +43,16 @@ class KintoneClient
     public function getRecords(string|int $appId, string $query, array $fields): array
     {
         $queryString = http_build_query([
-            'app'        => $appId,
-            'query'      => $query,
-            'fields'     => $fields,       // arrays are fine; will become fields[0]=...
+            'app' => $appId,
+            'query' => $query,
+            'fields' => $fields,       // arrays are fine; will become fields[0]=...
         ]);
         try {
             $resp = $this->http->get("records.json?{$queryString}", [
                 'headers' => $this->headers(),
                 'timeout' => 15,
             ]);
-            $data = json_decode((string)$resp->getBody(), true);
+            $data = json_decode((string) $resp->getBody(), true);
 
             return $data['records'] ?? [];
         } catch (ClientException $e) {
@@ -61,14 +62,15 @@ class KintoneClient
             throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
         }
     }
+
     public function getRecord(string|int $appId, string|int $recordId, array $fields = []): array
     {
         $params = [
             'app' => $appId,
-            'id'  => $recordId,
+            'id' => $recordId,
         ];
 
-        if (!empty($fields)) {
+        if (! empty($fields)) {
             $params['fields'] = $fields;
         }
 
@@ -124,6 +126,62 @@ class KintoneClient
         }
     }
 
+    /**
+     * フォームのレイアウト。
+     *
+     * fields.json には出てこない情報がここにしかない：どの項目が同じ行に並ぶか、グループの入れ子、
+     * そしてラベル・罫線・スペースの装飾（kintoneはこれらを項目として持たず、レイアウト上の要素
+     * としてしか持たない）。フォームを見た目どおりに移すにはこちらが必要。
+     *
+     * @return array<int, array<string, mixed>> レイアウト行の並び
+     */
+    public function getFormLayout(string|int $appId): array
+    {
+        $queryString = http_build_query(['app' => $appId]);
+
+        try {
+            $resp = $this->http->get("app/form/layout.json?{$queryString}", [
+                'headers' => $this->headers(),
+                'timeout' => 15,
+            ]);
+
+            $data = json_decode((string) $resp->getBody(), true) ?? [];
+
+            return $data['layout'] ?? [];
+        } catch (ClientException $e) {
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
+        }
+    }
+
+    /**
+     * 一覧（ビュー）の設定。表示する項目・絞り込み条件・並び順が入っている。
+     *
+     * @return array<string, array<string, mixed>> ビュー名 => 設定
+     */
+    public function getViews(string|int $appId): array
+    {
+        $queryString = http_build_query(['app' => $appId]);
+
+        try {
+            $resp = $this->http->get("app/views.json?{$queryString}", [
+                'headers' => $this->headers(),
+                'timeout' => 15,
+            ]);
+
+            $data = json_decode((string) $resp->getBody(), true) ?? [];
+
+            return $data['views'] ?? [];
+        } catch (ClientException $e) {
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
+        }
+    }
+
     public function getProcessManagement(string|int $appId): array
     {
         $queryString = http_build_query(['app' => $appId]);
@@ -146,13 +204,13 @@ class KintoneClient
     public function putRecord(string|int $appId, string|int $recordId, array $record): array
     {
         $payload = [
-            'app'    => (string) $appId,
-            'id'     => (string) $recordId,
+            'app' => (string) $appId,
+            'id' => (string) $recordId,
             'record' => $record,
         ];
-       
+
         try {
-            $resp = $this->http->put("record.json", [
+            $resp = $this->http->put('record.json', [
                 'headers' => $this->headers(),
                 'json' => $payload,
                 'timeout' => 15,
@@ -167,15 +225,16 @@ class KintoneClient
             throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
         }
     }
+
     public function postRecord(string|int $appId, array $record): array
     {
         $payload = [
-            'app'    => (string) $appId,
+            'app' => (string) $appId,
             'record' => $record,
         ];
 
         try {
-            $resp = $this->http->post("record.json", [
+            $resp = $this->http->post('record.json', [
                 'headers' => $this->headers(),
                 'json' => $payload,
                 'timeout' => 15,
@@ -190,11 +249,42 @@ class KintoneClient
             throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
         }
     }
-    public function getComments(string|int $appId, string|int $recordId): array
+
+    /**
+     * レコードのコメント。
+     *
+     * kintoneは1回に10件までしか返さない。指定しないと既定の10件で打ち切られ、
+     * それ以上付いているレコードのコメントが黙って落ちる。ここで最後まで辿る。
+     *
+     * @param  string  $order  'asc' で古い順（読み返す順に並ぶ）
+     */
+    public function getComments(string|int $appId, string|int $recordId, string $order = 'asc'): array
+    {
+        $all = [];
+        $offset = 0;
+        $limit = 10;   // kintone側の上限
+
+        while (true) {
+            $page = $this->getCommentPage($appId, $recordId, $order, $offset, $limit);
+            $all = array_merge($all, $page);
+            if (count($page) < $limit) {
+                return $all;
+            }
+            $offset += $limit;
+            if ($offset > 1000) {   // 想定外に多い場合の歯止め
+                return $all;
+            }
+        }
+    }
+
+    private function getCommentPage(string|int $appId, string|int $recordId, string $order, int $offset, int $limit): array
     {
         $queryString = http_build_query([
             'app' => $appId,
-            'record'  => $recordId,
+            'record' => $recordId,
+            'order' => $order === 'desc' ? 'desc' : 'asc',
+            'offset' => $offset,
+            'limit' => $limit,
         ]);
 
         try {
@@ -213,6 +303,7 @@ class KintoneClient
             throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
         }
     }
+
     public function getFiles(string $fileKey): ResponseInterface
     {
         $queryString = http_build_query([
@@ -222,7 +313,11 @@ class KintoneClient
         try {
             $resp = $this->http->get("file.json?{$queryString}", [
                 'headers' => $this->headers('*/*'),
-                'timeout' => 15,
+                // 添付は数十MBになることがある。15秒だと大きいファイルだけが必ず落ちる
+                // （92MBの契約書が64MBまで受け取ったところで打ち切られていた）。
+                'timeout' => 300,
+                // 全く進まなくなった場合はここで見切る
+                'connect_timeout' => 15,
             ]);
 
             return $resp;

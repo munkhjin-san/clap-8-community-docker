@@ -56,6 +56,6 @@ const save = async () => {
 
 <style scoped>
 .fic-crop { position: relative; height: 300px; border: 1px solid var(--calendarBorder); border-radius: 8px; overflow: hidden; }
-.fic-hint { font-size: 12px; color: gray; margin-top: 8px; }
+.fic-hint { font-size: 11.5px; color: gray; margin-top: 8px; line-height: 1.8; line-break: strict; }
 .fic-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
 </style>

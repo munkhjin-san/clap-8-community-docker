@@ -204,10 +204,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new CheckUserEvaluation())->dailyAt('01:00');
 
         $schedule->command('posts:close-expired')->dailyAt('02:00');
+        // カスタムアプリ：未保存のまま残った添付ファイルの掃除（保存済みには触らない）
+        $schedule->command('flow:purge-pending-files')->dailyAt('03:50');
         $schedule->command('app:sync-public-holidays')->monthlyOn(1, '01:00');
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
+        // $schedule->command('goals:freeze')->dailyAt('02:30');
         $schedule->command('goals:report-outcome-incidents')->weeklyOn(3, '08:00')->withoutOverlapping()->appendOutputTo(storage_path('logs/incidents/outcome-goal-incidents.log'));
         $schedule->command('refresh:expire')->monthlyOn(2, '08:00');
         $schedule->command('paid-leave:grant')->dailyAt('02:00');
@@ -216,6 +219,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(1, '08:00');
         $schedule->command('contact-batches:poll')->everyFifteenMinutes();
+        // freeeのリフレッシュトークンは更新のたびに90日延びる。使われていなくても毎日温めて連鎖を切らさない。
+        $schedule->command('freee:refresh-tokens')->dailyAt('03:40')->withoutOverlapping();
         $schedule->command('app:seal-audit-daily-digest')->dailyAt('03:00')->appendOutputTo(storage_path('logs/timecard-audit-seal.log'));
         $schedule->command('app:verify-timecard-audit-integrity --require-digest --date='.now()->subDay()->toDateString())->dailyAt('04:00')->appendOutputTo(storage_path('logs/timecard-audit-integrity.log'));
         $schedule->command('app:approve-daily-report')->dailyAt('04:00');

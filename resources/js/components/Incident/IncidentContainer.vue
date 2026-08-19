@@ -258,7 +258,7 @@
                         <td>種別</td>
                         <td>対象者</td>
                         <td>プロジェクト</td>
-                        <td>却下理由</td>
+                        <td>非該当理由</td>
                         <td>決定者</td>
                         <td>決定日</td>
                     </tr>
@@ -269,7 +269,7 @@
                             <td><div class="inner-col"><span class="mobile">種別</span><span class="candidate-type-tag">{{ candidateLabel(candidate) }}</span></div></td>
                             <td><div class="inner-col"><span class="mobile">対象者</span><UserPanel v-if="candidate.subject" :user="(candidate.subject as any)" with-name size="20" disable-instant/><span v-else>不明</span></div></td>
                             <td class="max-w-[180px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">プロジェクト</span><p class="truncate">{{ candidate.project?.name || '-' }}</p></div></td>
-                            <td><div class="inner-col"><span class="mobile">却下理由</span><p class="whitespace-pre-wrap">{{ candidate.decision_reason || '-' }}</p></div></td>
+                            <td><div class="inner-col"><span class="mobile">非該当理由</span><p class="whitespace-pre-wrap">{{ candidate.decision_reason || '-' }}</p></div></td>
                             <td><div class="inner-col"><span class="mobile">決定者</span><UserPanel v-if="candidate.decided_by_user" :user="(candidate.decided_by_user as any)" with-name size="20" disable-instant/><span v-else>-</span></div></td>
                             <td><div class="inner-col"><span class="mobile">決定日</span><p class="text-[gray] text-[12px]">{{ fmtDateTime(candidate.decided_at) }}</p></div></td>
                         </tr>
@@ -398,7 +398,7 @@ const incidentOptions = ref<IncidentFilterOptions>({
 const tabs = [
     {value: 'report', label: '報告'},
     {value: 'pending', label: '未対応'},
-    {value: 'dismissed', label: '却下履歴'}
+    {value: 'dismissed', label: '非該当履歴'}
 ]
 const selectedTab = ref<string>('report')
 const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)

@@ -1,7 +1,7 @@
 <template>
     <div class="flex flex-col gap-[14px] max-w-[900px]">
         <p class="text-[12px] text-gray-500">
-            条件に一致するレコードに対して、閲覧・編集・削除できる対象を指定します。上のセットから順に判定され、最初に一致したセットが適用されます。どのセットにも一致しないレコードはアプリ権限に従います。
+            条件に一致するレコードに対して、閲覧・編集・削除できる対象を指定します。上のセットから順に判定され、最初に一致したセットが適用されます（どのセットにも一致しないレコードはアプリ権限に従います）。セット内の対象は指定が細かいほうが優先されます（全員 ＜ 役職 ＜ 個人指定）。
         </p>
 
         <div v-for="(set, si) in def.recordPermissions" :key="si" class="flow-card">
@@ -94,7 +94,8 @@
                             </span>{{ p.l }}
                         </span>
                     </div>
-                    <button class="flow-ghost-btn ml-auto" :disabled="grantAddDisabled(si)" @click="addGrant(si)">＋ 追加</button>
+                    <span v-if="grantPending(si)" class="perm-unadded ml-auto">未追加</span>
+                    <button class="flow-ghost-btn" :class="{ 'is-pending': grantPending(si), 'ml-auto': !grantPending(si) }" :disabled="grantAddDisabled(si)" @click="addGrant(si)">＋ 追加</button>
                 </div>
             </div>
         </div>
@@ -111,9 +112,10 @@ import MemberSelector from '@/components/Form/MemberSelector.vue'
 import ItemSelector from '@/components/Form/ItemSelector.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
 import { subjectLabelFor } from '@/utils/flowSubject'
+import { useFlowDraft } from '@/composables/flowDrafts'
 import type { BuilderDefinition, RecordPermConditionRow, RecordPermGrantRow, FlowOptionUser, FlowOptionPosition } from '@/types/flow'
 
-const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[]; positions: FlowOptionPosition[] }>()
+const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[]; positions: FlowOptionPosition[]; reveal?: () => void }>()
 
 const conditionFields = computed(() => props.def.fields.filter((f) => f.input_type !== 'heading' && f.input_type !== 'formula'))
 const condFieldOptions = computed(() => conditionFields.value.filter((f) => f.id != null).map((f) => ({ value: f.id as number, label: f.label })))
@@ -133,6 +135,15 @@ const gType = (si: number) => grantType[si] ?? 'user'
 // Per-set multi-select picks + a shared view/edit/delete template (bulk-add, like app-level).
 const grantUserPicks = reactive<Record<number, any[]>>({})
 const grantPosPicks = reactive<Record<number, number[]>>({})
+
+/** Picks staged against a permission set but not committed by ＋追加 (see FlowFieldPermEditor). */
+const grantPending = (si: number) => (grantUserPicks[si]?.length ?? 0) > 0 || (grantPosPicks[si]?.length ?? 0) > 0
+useFlowDraft({
+    pending: () => (props.def.recordPermissions ?? []).some((_set, si: number) => grantPending(si)),
+    label: 'レコードごとの権限',
+    tab: 'permission',
+    reveal: () => props.reveal?.(),
+})
 const grantFlags = reactive<Record<number, { can_view: boolean; can_edit: boolean; can_delete: boolean }>>({})
 const flagsFor = (si: number) => {
     if (!grantFlags[si]) grantFlags[si] = { can_view: true, can_edit: false, can_delete: false }
@@ -213,4 +224,7 @@ const addGrant = (si: number) => {
 .rec-sel, .cond-val { max-width: 420px; box-sizing: border-box !important; }
 .rec-sel :deep(.item-selector-shell), .cond-val :deep(.item-selector-shell) { border: 1px solid var(--formBorder) !important; border-radius: 6px !important; box-sizing: border-box !important; }
 .rec-sel :deep(.one-selector .v-field__input), .cond-val :deep(.one-selector .v-field__input) { min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
+/* staged-but-not-added: visible here, and the builder refuses to save past it */
+.perm-unadded { font-size: 11px; color: #e2574c; }
+.flow-ghost-btn.is-pending { border-color: #e2574c; color: #e2574c; }
 </style>

@@ -6,22 +6,30 @@ use App\Models\FlowAuditLog;
 use App\Models\FlowDefinition;
 use App\Models\FlowField;
 use App\Models\FlowRecord;
-use App\Models\FlowRecordAssignee;
 use App\Models\FlowRecordValue;
 use App\Models\FlowStatus;
 use App\Models\FlowStatusAction;
 use App\Models\FlowView;
+use App\Models\ProjectRecord;
 use App\Models\User;
+use App\Support\FlowDynamicDate;
+use App\Support\FlowSystemSources;
+use App\Support\FlowUserResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 
 class FlowService
 {
-    /** Layout/decoration field types that hold no record value. */
-    public const LAYOUT_TYPES = ['heading', 'label', 'spacer', 'divider'];
+    /**
+     * Field types that hold no record value.
+     *
+     * 「関連レコード」(related) belongs here even though it shows data: it displays OTHER records —
+     * the ones pointing at this one through a ルックアップ field — so this record stores nothing for
+     * it. Listing it here is what keeps it out of saves, formulas, CSV export, search, view columns
+     * and validation without a single special case in any of them.
+     */
+    public const LAYOUT_TYPES = ['heading', 'label', 'spacer', 'divider', 'related'];
 
     public static function isLayoutType(?string $type): bool
     {
@@ -46,95 +54,6 @@ class FlowService
      | Permissions
      |---------------------------------------------------------------- */
 
-    /** Admins, 上長 (position_id < 6) and PM (position_id == 6) can build & manage flows. */
-    public function canManageFlows(User $user): bool
-    {
-        return $user->isBoss() || $user->isPM() || $user->isAdmin();
-    }
-
-    public function canCreateRecord(User $user, FlowDefinition $definition): bool
-    {
-        if (! $definition->is_active) {
-            return false;
-        }
-
-        if ($this->canManageFlows($user) || $definition->created_by === $user->id) {
-            return true;
-        }
-
-        if ($definition->visibility === 'all_staff') {
-            return true;
-        }
-
-        return $this->sharesForUser($definition, $user)
-            ->contains(fn ($share) => $share->access_level === 'use');
-    }
-
-    public function canViewRecord(User $user, FlowRecord $record): bool
-    {
-        if ($this->canManageFlows($user) || $record->created_by === $user->id) {
-            return true;
-        }
-
-        if ($this->isAssignee($record, $user, false)) {
-            return true;
-        }
-
-        $definition = $record->relationLoaded('definition')
-            ? $record->definition
-            : $record->definition()->with('shares')->first();
-
-        if (! $definition) {
-            return false;
-        }
-
-        if ($definition->visibility === 'all_staff') {
-            return true;
-        }
-
-        return $this->sharesForUser($definition, $user)->isNotEmpty();
-    }
-
-    /** May act (advance / send back) on the record's current status. */
-    public function canActOnRecord(User $user, FlowRecord $record): bool
-    {
-        if ($this->isCompleted($record)) {
-            return false;
-        }
-
-        if ($this->canManageFlows($user)) {
-            return true;
-        }
-
-        return $this->isAssignee($record, $user, true);
-    }
-
-    private function sharesForUser(FlowDefinition $definition, User $user)
-    {
-        $shares = $definition->relationLoaded('shares')
-            ? $definition->shares
-            : $definition->shares()->get();
-
-        return $shares->filter(function ($share) use ($user) {
-            return ($share->user_id && $share->user_id === $user->id)
-                || ($share->position_id && $share->position_id === $user->position_id);
-        });
-    }
-
-    /** $currentOnly = only assignees of the record's current status who haven't completed. */
-    public function isAssignee(FlowRecord $record, User $user, bool $currentOnly): bool
-    {
-        $query = FlowRecordAssignee::query()
-            ->where('flow_record_id', $record->id)
-            ->where('user_id', $user->id);
-
-        if ($currentOnly) {
-            $query->where('flow_status_id', $record->current_status_id)
-                ->whereNull('completed_at');
-        }
-
-        return $query->exists();
-    }
 
     /* ----------------------------------------------------------------
      | Status helpers
@@ -178,19 +97,36 @@ class FlowService
     /** Can this user press this action? (any eligible subject matches, or app-manage as a safety net) */
     public function canPressAction(User $user, FlowRecord $record, FlowStatusAction $action): bool
     {
+        return $this->matchesAnySubject($user, $record, $action->eligible);
+    }
+
+    /**
+     * Shared 押せる人 test for a subject list ([{subject_type, subject_id}]) on a record.
+     * Status-flow buttons and カスタムボタン (flow_app_tools tool_type=action) both use it, so the
+     * two answer the same question the same way — the builder configures one vocabulary.
+     */
+    public function matchesAnySubject(User $user, FlowRecord $record, ?array $eligible): bool
+    {
         $def = $record->definition;
-        foreach (($action->eligible ?? []) as $subj) {
+        foreach (($eligible ?? []) as $subj) {
             $type = $subj['subject_type'] ?? null;
             if ($type && $this->matchesSubject($type, $subj['subject_id'] ?? null, $user, $def, $record)) {
                 return true;
             }
         }
-        // Nobody configured → treat as open to anyone who can edit the record; plus managers always.
-        if (empty($action->eligible)) {
+        // Nobody configured → open to anyone who can edit the record (matches the builder's
+        // 「未設定 = 編集権限を持つ全員が押せます」 hint).
+        if (empty($eligible)) {
             return $this->recordPermissions($user, $record, $def)['edit'];
         }
 
-        return $this->effectiveAppPermissions($user, $def)['manage'];
+        // Configured but no subject matched → NOT pressable. 管理 deliberately grants no override
+        // here: once someone has said who may press a button, that list is the whole answer, or
+        // "承認は部長だけ" would silently mean "部長とアプリ管理者だけ". An app manager who needs to
+        // unstick a record edits the action's 押せる人 instead — a change that lands in the audit log
+        // rather than a silent press. (This also keeps 対応待ち honest: hasExplicitPendingAction has
+        // never counted the manage override, so the counter and the button now agree.)
+        return false;
     }
 
     /** True if the user can act on the record's current status (drives 自分待ち). */
@@ -210,10 +146,17 @@ class FlowService
      * (user / position / field / project-role subject). Strict counterpart of
      * hasPendingAction: 'everyone', empty eligible and the manage safety net don't
      * count — a duty needs the user's name on it. Drives the 対応待ち counter.
+     *
+     * Actions with 通知バッジを表示する turned off are skipped entirely: they remain pressable by the
+     * same people, they just stop being anybody's outstanding task.
      */
     public function hasExplicitPendingAction(User $user, FlowRecord $record): bool
     {
         foreach ($this->statusActionsFor($record) as $action) {
+            // 通知バッジを表示する = off → this action chases nobody (it stays pressable)
+            if (! $action->notify) {
+                continue;
+            }
             foreach (($action->eligible ?? []) as $subj) {
                 $type = $subj['subject_type'] ?? null;
                 if ($type && $type !== 'everyone'
@@ -241,7 +184,7 @@ class FlowService
         // record scan entirely (this runs on every portal load, once per status-flow app)
         $isExplicit = fn ($s) => ($s['subject_type'] ?? null) && $s['subject_type'] !== 'everyone';
         $actions = $definition->statusActions->filter(
-            fn ($a) => collect($a->eligible ?? [])->contains($isExplicit)
+            fn ($a) => $a->notify && collect($a->eligible ?? [])->contains($isExplicit)
         );
         $statusIds = $actions->pluck('flow_status_id')->unique()->values();
         if ($statusIds->isEmpty()) {
@@ -309,130 +252,13 @@ class FlowService
         $this->logStatusChange($record, $user, 'status', $from, $to, $action->label);
     }
 
-    public function nextStatus(FlowRecord $record): ?FlowStatus
-    {
-        $statuses = $this->orderedStatuses($record->definition);
-        $index = $statuses->search(fn ($s) => $s->id === $record->current_status_id);
-
-        return $index === false ? null : $statuses->get($index + 1);
-    }
-
-    public function previousStatus(FlowRecord $record): ?FlowStatus
-    {
-        $statuses = $this->orderedStatuses($record->definition);
-        $index = $statuses->search(fn ($s) => $s->id === $record->current_status_id);
-
-        return ($index === false || $index === 0) ? null : $statuses->get($index - 1);
-    }
-
-    public function isCompleted(FlowRecord $record): bool
-    {
-        $status = $record->relationLoaded('currentStatus') ? $record->currentStatus : $record->currentStatus()->first();
-
-        return $status && $status->is_locked === 'end';
-    }
-
     /* ----------------------------------------------------------------
      | Assignee snapshot (resolved when a record enters a status)
      |---------------------------------------------------------------- */
 
-    public function resolveAssigneeUserIds(FlowStatus $status, FlowRecord $record): array
-    {
-        switch ($status->assignment_type) {
-            case 'user':
-                return $status->assignment_target_id ? [(int) $status->assignment_target_id] : [];
-            case 'position':
-                if (! $status->assignment_target_id) {
-                    return [];
-                }
-
-                return User::query()
-                    ->where('position_id', $status->assignment_target_id)
-                    ->where('retire', 0)
-                    ->pluck('id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all();
-            case 'creator':
-            default:
-                return $record->created_by ? [(int) $record->created_by] : [];
-        }
-    }
-
-    public function snapshotAssignees(FlowRecord $record, FlowStatus $status): void
-    {
-        $userIds = $this->resolveAssigneeUserIds($status, $record);
-        $now = now();
-        $source = $status->assignment_type;
-        $sourceId = $status->assignment_target_id;
-
-        foreach (array_unique($userIds) as $userId) {
-            FlowRecordAssignee::updateOrCreate(
-                [
-                    'flow_record_id' => $record->id,
-                    'flow_status_id' => $status->id,
-                    'user_id' => $userId,
-                ],
-                [
-                    'source' => $source,
-                    'source_id' => $sourceId,
-                    'completed_at' => null,
-                ]
-            );
-        }
-    }
-
-    public function completeAssignees(FlowRecord $record, int $statusId): void
-    {
-        FlowRecordAssignee::query()
-            ->where('flow_record_id', $record->id)
-            ->where('flow_status_id', $statusId)
-            ->whereNull('completed_at')
-            ->update(['completed_at' => now()]);
-    }
-
     /* ----------------------------------------------------------------
      | Transitions
      |---------------------------------------------------------------- */
-
-    public function advance(FlowRecord $record, User $user, ?string $comment = null): FlowStatus
-    {
-        $next = $this->nextStatus($record);
-        abort_if(! $next, 422, '次のステータスがありません。');
-
-        DB::transaction(function () use ($record, $next, $user, $comment) {
-            $from = $record->currentStatus;
-            $this->completeAssignees($record, $record->current_status_id);
-            $record->update(['current_status_id' => $next->id]);
-            $this->snapshotAssignees($record, $next);
-            $this->logStatusChange($record, $user, 'advanced', $from?->name, $next->name, $comment);
-            $this->markRecordComplete($record, $next);
-        });
-
-        return $next;
-    }
-
-    public function sendBack(FlowRecord $record, User $user, string $reason): FlowStatus
-    {
-        $previous = $this->previousStatus($record);
-        abort_if(! $previous, 422, '差し戻し先のステータスがありません。');
-
-        DB::transaction(function () use ($record, $previous, $user, $reason) {
-            $from = $record->currentStatus;
-            $this->completeAssignees($record, $record->current_status_id);
-            $record->update(['current_status_id' => $previous->id]);
-            $this->snapshotAssignees($record, $previous);
-            $this->logStatusChange($record, $user, 'returned', $from?->name, $previous->name, $reason);
-        });
-
-        return $previous;
-    }
-
-    private function markRecordComplete(FlowRecord $record, FlowStatus $status): void
-    {
-        if ($status->is_locked === 'end') {
-            $this->completeAssignees($record, $status->id);
-        }
-    }
 
     private function logStatusChange(FlowRecord $record, User $user, string $action, ?string $old, ?string $new, ?string $note): void
     {
@@ -572,20 +398,6 @@ class FlowService
      | Dashboard — records awaiting this user's action
      |---------------------------------------------------------------- */
 
-    public function waitingForUserQuery(User $user)
-    {
-        return FlowRecord::query()
-            ->whereExists(function ($sub) use ($user) {
-                $sub->select(DB::raw(1))
-                    ->from('flow_record_assignees')
-                    ->whereColumn('flow_record_assignees.flow_record_id', 'flow_records.id')
-                    ->whereColumn('flow_record_assignees.flow_status_id', 'flow_records.current_status_id')
-                    ->where('flow_record_assignees.user_id', $user->id)
-                    ->whereNull('flow_record_assignees.completed_at');
-            })
-            ->with(['definition:id,name', 'currentStatus:id,name,flow_definition_id']);
-    }
-
     /* ----------------------------------------------------------------
      | Record creation (enters the start status)
      |---------------------------------------------------------------- */
@@ -683,22 +495,22 @@ class FlowService
 
     /**
      * Base query: definition scope + view filters + ad-hoc filter + keyword search (no ordering).
+     * $filterLogic: how the view's own conditions combine ('and'|'or').
      * $adhocFilter (optional): ['logic' => 'and'|'or', 'conditions' => [same shape as $filters]] —
-     * the search bar's quick filter. Unlike the view's own filters (always AND), its conditions
-     * combine via the chosen logic, applied as one extra AND-ed group alongside everything else.
+     * the search bar's quick filter, applied as one extra AND-ed group alongside everything else.
+     * So an OR view filtered by an OR ad-hoc reads as (a OR b) AND (c OR d), and each group stays
+     * self-contained rather than the two OR-ing into each other.
      */
-    public function recordListQuery(FlowDefinition $definition, array $filters, string $search, ?array $adhocFilter = null)
+    public function recordListQuery(FlowDefinition $definition, array $filters, string $search, ?array $adhocFilter = null, string $filterLogic = 'and')
     {
         $fieldsById = ($definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get())->keyBy('id');
         // Qualify the column — a sort on the $status column left-joins flow_statuses,
         // which also has a flow_definition_id (otherwise "ambiguous column" in SQL).
         $q = FlowRecord::where('flow_records.flow_definition_id', $definition->id);
 
-        foreach ($filters as $f) {
-            $this->applyFilterToQuery($q, $f, $fieldsById);
-        }
+        $this->applyConditionGroup($q, $filters, $filterLogic, $fieldsById);
         if ($adhocFilter) {
-            $this->applyAdhocFilterToQuery($q, $adhocFilter, $fieldsById);
+            $this->applyConditionGroup($q, $adhocFilter['conditions'] ?? [], $adhocFilter['logic'] ?? 'and', $fieldsById);
         }
 
         $kw = trim($search);
@@ -767,19 +579,22 @@ class FlowService
     }
 
     /**
-     * Ad-hoc filter (search bar's quick filter): its conditions combine via a single chosen
-     * AND/OR, applied as one grouped clause so it AND-composes cleanly with the view's own
-     * (always-AND) filters and the keyword search built elsewhere in recordListQuery().
+     * One list of conditions combined by a single AND/OR, wrapped in its own grouped clause.
+     *
+     * The wrapping is what makes OR safe: without it an orWhere would escape the group and OR
+     * itself against the definition scope and keyword search, matching records from other apps.
+     * Used for both a view's saved filters and the search bar's ad-hoc filter, so the two read
+     * identically.
      */
-    private function applyAdhocFilterToQuery($q, array $adhoc, $fieldsById): void
+    private function applyConditionGroup($q, $conditions, string $logic, $fieldsById): void
     {
-        $conditions = is_array($adhoc['conditions'] ?? null) ? $adhoc['conditions'] : [];
+        $conditions = is_array($conditions) ? array_values($conditions) : [];
         if (! $conditions) {
             return;
         }
-        $isOr = ($adhoc['logic'] ?? 'and') === 'or';
+        $isOr = $logic === 'or';
         $q->where(function ($outer) use ($conditions, $fieldsById, $isOr) {
-            foreach (array_values($conditions) as $i => $f) {
+            foreach ($conditions as $i => $f) {
                 $method = ($isOr && $i > 0) ? 'orWhere' : 'where';
                 $outer->$method(function ($sub) use ($f, $fieldsById) {
                     $this->applyFilterToQuery($sub, $f, $fieldsById);
@@ -797,6 +612,11 @@ class FlowService
 
         if (in_array($ref, ['$record_number', '$created_at', '$updated_at'], true)) {
             $col = $ref === '$record_number' ? 'record_number' : ($ref === '$created_at' ? 'created_at' : 'updated_at');
+            if ($col !== 'record_number' && FlowDynamicDate::isDynamic($first)) {
+                $this->applyDynamicDateOp($q, $col, $op, FlowDynamicDate::resolve($first, true));
+
+                return;
+            }
             $this->applyScalarOp($q, $col, $op, $first);
 
             return;
@@ -807,6 +627,11 @@ class FlowService
                 $q->whereNull('current_status_id');
             } elseif ($op === 'not_empty') {
                 $q->whereNotNull('current_status_id');
+            } elseif (in_array($op, ['includes_any', 'equals'], true) && count($vals) > 1) {
+                // 「いずれかの状態」。先頭だけ見ると、3状態を指定した一覧が1状態分しか出ない。
+                $q->whereHas('currentStatus', fn ($s) => $s->whereIn('name', $vals));
+            } elseif ($op === 'not_equals' && count($vals) > 1) {
+                $q->whereDoesntHave('currentStatus', fn ($s) => $s->whereIn('name', $vals));
             } else {
                 $q->whereHas('currentStatus', fn ($s) => $this->applyScalarOp($s, 'name', $op, $first));
             }
@@ -821,21 +646,68 @@ class FlowService
         $col = $this->valueColumnFor($field->input_type);
         $fid = (int) $field->id;
 
-        if ($op === 'is_empty') {
-            $q->whereDoesntHave('values', fn ($v) => $v->where('flow_field_id', $fid)->whereNotNull($col)->where($col, '!=', ''));
-        } elseif ($op === 'not_empty') {
-            $q->whereHas('values', fn ($v) => $v->where('flow_field_id', $fid)->whereNotNull($col)->where($col, '!=', ''));
+        if ($op === 'is_empty' || $op === 'not_empty') {
+            // 「値がある」の判定。JSON列は空でも `[]` が入っていて NULL でも空文字でもないので、
+            // 長さを見ないと未選択のチェックボックスが「値あり」に化ける
+            // （チェックが付いていないレコードを出す一覧が0件になる）。
+            $hasValue = fn ($v) => $v->where('flow_field_id', $fid)
+                ->whereNotNull($col)
+                ->where($col, '!=', '')
+                ->when($col === 'value_json', fn ($x) => $x->whereRaw("JSON_LENGTH({$col}) > 0"));
+
+            $op === 'is_empty' ? $q->whereDoesntHave('values', $hasValue) : $q->whereHas('values', $hasValue);
         } elseif ($op === 'includes_any') {
-            $q->whereHas('values', function ($v) use ($fid, $col, $vals) {
-                $v->where('flow_field_id', $fid)->where(function ($w) use ($col, $vals) {
+            // includes_any spans two storage shapes: a JSON array (checkbox option labels, user/member
+            // ids) and a plain scalar (select/radio in value_text). For the JSON case, match on
+            // JSON_CONTAINS rather than a LIKE for '"val"' — ids are stored as JSON *numbers*
+            // (`[604]`, no quotes), so the quoted LIKE matched option labels but silently missed
+            // every user/member id, i.e. filtering by user never returned anything.
+            $isJson = $col === 'value_json';
+            $q->whereHas('values', function ($v) use ($fid, $col, $vals, $isJson) {
+                $v->where('flow_field_id', $fid)->where(function ($w) use ($col, $vals, $isJson) {
                     foreach ($vals as $val) {
-                        $w->orWhere($col, 'like', '%"'.$val.'"%')->orWhere($col, $val);
+                        if (! $isJson) {
+                            $w->orWhere($col, $val);
+
+                            continue;
+                        }
+                        $w->orWhereRaw("JSON_CONTAINS({$col}, ?)", [json_encode((string) $val)]);
+                        if (is_numeric($val)) {
+                            $w->orWhereRaw("JSON_CONTAINS({$col}, ?)", [json_encode((int) $val)]);
+                        }
                     }
                 });
             });
+        } elseif (in_array($field->input_type, ['date', 'datetime'], true) && FlowDynamicDate::isDynamic($first)) {
+            $range = FlowDynamicDate::resolve($first, $field->input_type === 'datetime');
+            $q->whereHas('values', fn ($v) => $this->applyDynamicDateOp($v->where('flow_field_id', $fid), $col, $op, $range));
         } else {
             $q->whereHas('values', fn ($v) => $this->applyScalarOp($v->where('flow_field_id', $fid), $col, $op, $first));
         }
+    }
+
+    /**
+     * Comparison against a resolved dynamic-date [start, end] range.
+     *
+     * A period is a span, so the operators read against its edges: "以上 今月" means from the 1st
+     * onwards, while "より大きい 今月" means strictly after the month ends. equals = falls anywhere
+     * inside it, which is what 「今月」 means in a filter.
+     */
+    private function applyDynamicDateOp($q, string $col, string $op, ?array $range)
+    {
+        if (! $range) {
+            return $q;
+        }
+        [$start, $end] = $range;
+
+        return match ($op) {
+            'not_equals' => $q->where(fn ($w) => $w->whereNotBetween($col, [$start, $end])->orWhereNull($col)),
+            'gt' => $q->where($col, '>', $end),
+            'gte' => $q->where($col, '>=', $start),
+            'lt' => $q->where($col, '<', $start),
+            'lte' => $q->where($col, '<=', $end),
+            default => $q->whereBetween($col, [$start, $end]),
+        };
     }
 
     private function applyScalarOp($q, string $col, string $op, $first)
@@ -852,31 +724,6 @@ class FlowService
         };
     }
 
-    public function createRecord(FlowDefinition $definition, User $user, array $values): FlowRecord
-    {
-        $start = $this->startStatus($definition);
-        abort_if(! $start, 422, 'このフローには開始ステータスがありません。');
-
-        return DB::transaction(function () use ($definition, $user, $values, $start) {
-            $record = FlowRecord::create([
-                'flow_definition_id' => $definition->id,
-                'record_number' => $this->nextRecordNumber($definition),
-                'current_status_id' => $start->id,
-                'created_by' => $user->id,
-            ]);
-
-            $fields = $definition->fields;
-            $allowed = $this->editableFieldIds($start, $fields);
-            $changes = $this->writeValues($record, $values, $fields, $allowed);
-
-            $this->snapshotAssignees($record, $start);
-            $this->logStatusChange($record, $user, 'created', null, $start->name, null);
-            $this->logValueChanges($record, $user, $changes);
-
-            return $record;
-        });
-    }
-
     /* ----------------------------------------------------------------
      | App-runtime value read/write — typed EAV across all field types
      |---------------------------------------------------------------- */
@@ -891,8 +738,9 @@ class FlowService
             'flow_record_id' => $record->id,
             'flow_field_id' => $field->id,
         ]);
-        // Capture the previous file list before we null it, so persistFileField can delete removed files.
-        $oldFiles = $field->input_type === 'file' ? ($value->value_json ?? []) : [];
+        // Capture the previous value before we null it, so removed files can be deleted. Tables need
+        // it too: a file column inside a subtable is a file field in every way that matters.
+        $oldFiles = in_array($field->input_type, ['file', 'table'], true) ? ($value->value_json ?? []) : [];
         $value->fill([
             'value_text' => null, 'value_numeric' => null, 'value_date' => null,
             'value_datetime' => null, 'value_boolean' => null, 'value_json' => null,
@@ -933,7 +781,7 @@ class FlowService
                 $value->value_json = $this->arrayValue($raw);
                 break;
             case 'file':
-                $value->value_json = $this->persistFileField($record, $this->arrayValue($raw), $oldFiles);
+                $value->value_json = $this->files()->syncFieldFiles($record, $field, $this->arrayValue($raw), $oldFiles);
                 break;
             case 'user':
             case 'member':
@@ -942,10 +790,16 @@ class FlowService
                 $value->value_numeric = count($ids) === 1 ? $ids[0] : null;
                 break;
             case 'table':
-                $value->value_json = $this->tableValue($raw, $field);
+                // File columns inside a subtable go through the same attach path as a top-level file
+                // field. Before this they went through none of it: the upload stayed in temp_upload/
+                // and RemoveFile('temp') deleted it after 7 days.
+                $value->value_json = $this->files()->syncTableFiles(
+                    $record, $field, $this->tableValue($raw, $field), $oldFiles
+                );
                 break;
             case 'reference':
-                $ref = $this->referenceValue($raw);
+                // value_numeric に相手のレコードIDが入るのが、関連レコード（裏引き）の索引になる
+                $ref = $this->referenceValue($raw, $field);
                 $value->value_json = $ref;
                 $value->value_numeric = $ref['id'] ?? null;
                 break;
@@ -963,56 +817,35 @@ class FlowService
     }
 
     /**
-     * Move newly-uploaded temp files (from /attach_upload_api) into the record's permanent
-     * folder, keep already-stored ones, and delete files that were removed. Returns the
-     * value_json list with a stable `url` per file.
+     * File handling lives in its own service (ledger table + sharded storage + permissions).
+     * Resolved lazily so FlowService keeps its no-argument constructor — it is built by hand in
+     * a few places and in tests.
      */
-    private function persistFileField(FlowRecord $record, array $incoming, array $old): array
+    private function files(): FlowFileService
     {
-        $dir = "flow_record_files/{$record->id}";
-        $kept = [];
-        $keptIds = [];
+        return app(FlowFileService::class);
+    }
 
-        foreach ($incoming as $f) {
-            if (! is_array($f) || empty($f['id'])) {
+    /** Same url/status decoration as a top-level file field, for file columns inside a subtable. */
+    private function decorateTableFiles(FlowField $field, array $rows): array
+    {
+        $columns = $this->files()->fileColumnKeys($field);
+        if ($columns === []) {
+            return $rows;
+        }
+
+        foreach ($rows as $i => $row) {
+            if (! is_array($row)) {
                 continue;
             }
-            $id = (int) $f['id'];
-            $ext = (string) ($f['extension'] ?? '');
-            $userId = (int) ($f['user_id'] ?? $record->created_by);
-            $destRel = "{$dir}/{$id}_{$userId}.{$ext}";
-
-            if (empty($f['stored'])) {
-                $srcRel = "temp_upload/{$id}.{$ext}";
-                if (Storage::disk('local')->exists($srcRel)) {
-                    File::isDirectory(storage_path("app/{$dir}")) or File::makeDirectory(storage_path("app/{$dir}"), 0755, true, true);
-                    Storage::disk('local')->move($srcRel, $destRel);
+            foreach ($columns as $key) {
+                if (is_array($row[$key] ?? null)) {
+                    $rows[$i][$key] = $this->files()->decorate($row[$key]);
                 }
             }
-
-            $kept[] = [
-                'id' => $id,
-                'name' => (string) ($f['name'] ?? "{$id}.{$ext}"),
-                'extension' => $ext,
-                'mime_type' => $f['mime_type'] ?? null,
-                'size' => $f['size'] ?? null,
-                'user_id' => $userId,
-                'stored' => true,
-                'url' => "/cdn/{$destRel}",
-            ];
-            $keptIds[] = $id;
         }
 
-        // Physically remove files that were dropped from the field.
-        foreach ($old as $f) {
-            if (is_array($f) && ! empty($f['id']) && ! in_array((int) $f['id'], $keptIds, true)) {
-                $ext = (string) ($f['extension'] ?? '');
-                $userId = (int) ($f['user_id'] ?? 0);
-                Storage::disk('local')->delete("{$dir}/{$f['id']}_{$userId}.{$ext}");
-            }
-        }
-
-        return $kept;
+        return $rows;
     }
 
     public function readFieldValue(?FlowRecordValue $value, FlowField $field): mixed
@@ -1031,7 +864,11 @@ class FlowService
             'date' => $value->value_date?->toDateString(),
             'datetime' => $value->value_datetime?->format('Y-m-d\TH:i'),
             'toggle' => (bool) $value->value_boolean,
-            'checkbox', 'file', 'user', 'member', 'table' => $value->value_json ?: [],
+            // files carry no url in storage — it is built here, so changing the storage layout
+            // never means rewriting record data
+            'file' => $this->files()->decorate($value->value_json ?: []),
+            'table' => $this->decorateTableFiles($field, $value->value_json ?: []),
+            'checkbox', 'user', 'member' => $value->value_json ?: [],
             'reference' => $value->value_json ?: null,
             'project' => $value->value_numeric === null ? null : (int) $value->value_numeric,
             default => $value->value_text,
@@ -1111,7 +948,10 @@ class FlowService
                     if (! $ck) {
                         continue;
                     }
-                    $cell = $row[$ck] ?? null;
+                    // through displayValue for the same reason top-level fields are: a プロジェクト
+                    // or ユーザー column stores an id, so a calc column reading it printed "173" instead
+                    // of the project's name.
+                    $cell = $this->displayValue($c['input_type'] ?? null, $row[$ck] ?? null);
                     $rowContext[$ck] = $cell;
                     if (! empty($c['label'])) {
                         $rowContext[$c['label']] = $cell;
@@ -1157,13 +997,188 @@ class FlowService
             if (self::isLayoutType($field->input_type)) {
                 continue;
             }
-            $v = $values[(string) $field->id] ?? null;
+            $v = $this->displayValue($field->input_type, $values[(string) $field->id] ?? null);
             $context[(string) $field->id] = $v;
             $context[$field->key] = $v;
             $context[$field->label] = $v;
+
+            // 列参照 [テーブル.金額] を解決できるようにする。行の中に別名を足すのではなく、平坦な
+            // エントリとして持たせる：行に足すと1セルが2回数えられ、表全体の SUM が倍になる
+            // （実測で 25,600 が 51,200 になった）。
+            if ($field->input_type === 'table') {
+                $this->addTableColumnRefs($context, $field, $v);
+            }
         }
 
         return $context;
+    }
+
+    /**
+     * `テーブル.列` で1列だけ取り出せるように、平坦な参照を context に足す。
+     *
+     * 評価側は識別子をまず context のキーとして引くので、"テーブル.金額" というキーがあればそれで
+     * 解決する。行の中に別名を入れる方法もあるが、それだと1セルが列キーと列ラベルの2回数えられ、
+     * 表全体の SUM が倍になる。
+     *
+     * キー・ラベルの4通りを登録するのは、既存の式が列キー（c1 等）で書かれている一方、これから
+     * ピッカーが挿入するのはラベル形式だから。既に埋まっているキーは上書きしない。
+     */
+    private function addTableColumnRefs(array &$context, $field, $rows): void
+    {
+        $columns = is_array($field->validation['columns'] ?? null) ? $field->validation['columns'] : [];
+        if (! is_array($rows) || ! $columns) {
+            return;
+        }
+
+        foreach ($columns as $c) {
+            $key = $c['key'] ?? null;
+            if ($key === null) {
+                continue;
+            }
+            $label = ($c['label'] ?? '') !== '' ? $c['label'] : $key;
+            $values = array_map(fn ($r) => is_array($r) ? ($r[$key] ?? null) : null, $rows);
+
+            foreach ([$field->key, $field->label] as $tableRef) {
+                if ($tableRef === null || $tableRef === '') {
+                    continue;
+                }
+                foreach ([$key, $label] as $colRef) {
+                    $ref = $tableRef.'.'.$colRef;
+                    if (! array_key_exists($ref, $context)) {
+                        $context[$ref] = $values;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * What a person should see for a field whose stored value is a key rather than something readable.
+     * Used by the formula engine (a formula reads names, not ids) and by the CSV export (same reason —
+     * a spreadsheet column of "487" tells the reader nothing).
+     *
+     * ユーザー and プロジェクト store ids, 参照 stores a {id, number, label} snapshot and ファイル a list of
+     * file objects. Feeding those out verbatim produced "487" for a person, the project's id
+     * for a project, and "1159, 東京工業株式会社, 2" for a reference — castFormulaResult() flattens an
+     * array by imploding it, so even the label came out buried in punctuation.
+     *
+     * Takes the input type rather than a field: テーブル columns are plain arrays out of the parent
+     * field's validation JSON, never field objects, and they need this same treatment — a calc column
+     * (or an exported sub-table column) reading a プロジェクト column beside it was printing the raw id.
+     *
+     * Arrays stay arrays (the caller joins them) so a multi-user field still reads as a list.
+     *
+     * Trade-off worth knowing: a formula comparing a user field against a numeric id — [担当] == 487 —
+     * compares against the name now. Nobody can read an id off the screen to write such a formula in
+     * the first place, and the same expression against a name is the one people can actually author.
+     */
+    public function displayValue(?string $inputType, mixed $v): mixed
+    {
+        switch ($inputType) {
+            case 'user':
+            case 'member':
+                $names = $this->userNameMap();
+
+                return array_values(array_map(
+                    fn ($id) => $names[(int) $id] ?? '#'.$id,
+                    array_filter($this->arrayValue($v), fn ($x) => is_numeric($x))
+                ));
+            case 'project':
+                if ($v === null || $v === '' || ! is_numeric($v)) {
+                    return $v;
+                }
+
+                return $this->projectNameMap()[(int) $v] ?? '#'.$v;
+            case 'reference':
+                // the picked record's label rides along in the stored snapshot — no lookup needed
+                return is_array($v) ? ($v['label'] ?? ($v['number'] ?? null)) : $v;
+            case 'file':
+                return array_values(array_map(
+                    fn ($f) => is_array($f) ? (string) ($f['name'] ?? '') : (string) $f,
+                    $this->arrayValue($v)
+                ));
+            default:
+                return $v;
+        }
+    }
+
+    /**
+     * id => name, loaded at most once per request and only if a formula context actually needs it.
+     * Retired people are included on purpose: a record can legitimately still name one, and dropping
+     * them would silently turn an old record's formula into "#487".
+     */
+    private ?array $userNames = null;
+
+    private ?array $projectNames = null;
+
+    private function userNameMap(): array
+    {
+        return $this->userNames ??= User::query()->pluck('name', 'id')->map(fn ($n) => (string) $n)->all();
+    }
+
+    private function projectNameMap(): array
+    {
+        return $this->projectNames ??= ProjectRecord::query()->pluck('name', 'id')->map(fn ($n) => (string) $n)->all();
+    }
+
+    /**
+     * The inverse of displayValue() for the id-holding types, so a CSV cell written by the export
+     * ("山田 太郎, 佐藤 花子" / a project's name) imports back as ids. Without this, exporting names and
+     * re-uploading the same file would blank every ユーザー column and write 0 into every プロジェクト one.
+     *
+     * A cell may equally hold ids ("487, 512") or the "#487" placeholder the export writes for a
+     * person who is no longer in the users table — both come back as that id, so files written before
+     * the export switched to names, or by hand, import exactly as they did.
+     *
+     * Matching ignores the space between 姓 and 名 (FlowUserResolver's rule — CSVs round-tripped
+     * through Excel and other systems disagree about it). A name shared by two people can't be told
+     * apart from a name alone, so the lowest id wins; the alternative — dropping the cell — loses data
+     * the uploader can't see was lost.
+     *
+     * Types other than ユーザー/メンバー/プロジェクト pass straight through: saveFieldValue's own coercion
+     * already reads the text form the export produced.
+     */
+    public function valueFromDisplay(?string $inputType, mixed $raw): mixed
+    {
+        if (! in_array($inputType, ['user', 'member', 'project'], true) || ! is_string($raw)) {
+            return $raw;
+        }
+
+        $parts = [];
+        foreach (preg_split('/[,、]/u', $raw) ?: [] as $piece) {
+            $piece = ltrim(trim($piece), '#');
+            if ($piece !== '') {
+                $parts[] = $piece;
+            }
+        }
+
+        if ($inputType === 'project') {
+            $id = isset($parts[0]) ? $this->idFromNameCell($parts[0], $this->projectNameMap()) : null;
+
+            return $id === null ? '' : $id;   // '' → saveFieldValue clears the cell
+        }
+
+        return array_values(array_filter(array_map(
+            fn ($p) => $this->idFromNameCell($p, $this->userNameMap()),
+            $parts
+        ), fn ($id) => $id !== null));
+    }
+
+    /** One cell of a name-or-id list → the id it means, or null when no such name exists. */
+    private function idFromNameCell(string $cell, array $idToName): ?int
+    {
+        if (is_numeric($cell)) {
+            return (int) $cell;
+        }
+        $needle = FlowUserResolver::normalize($cell);
+        $hits = [];
+        foreach ($idToName as $id => $name) {
+            if (FlowUserResolver::normalize($name) === $needle) {
+                $hits[] = (int) $id;
+            }
+        }
+
+        return $hits ? min($hits) : null;
     }
 
     public function castFormulaResult(mixed $value, string $type): mixed
@@ -1232,17 +1247,58 @@ class FlowService
     }
 
     /** Reference field: snapshot the picked target record as {id, number, label}. */
-    private function referenceValue($raw): ?array
+    /**
+     * ルックアップの保存値。番号とラベルは**サーバーで引き直す**。
+     *
+     * 以前は画面が送ってきた number/label をそのまま入れていたので、IDだけを送るクライアント
+     * （関連レコードの「＋追加」など）では `#undefined` のまま保存され、古いラベルや偽のラベルも
+     * そのまま残った。表示名の出しかた（label_field）はサーバーが知っているので、ここで作る。
+     */
+    private function referenceValue($raw, ?FlowField $field = null): ?array
     {
         if (! is_array($raw) || empty($raw['id'])) {
             return null;
         }
+        $id = (int) $raw['id'];
 
+        $targetId = (int) ($field->validation['target_definition_id'] ?? 0);
+        if ($targetId > 0) {
+            $target = FlowDefinition::with('fields')->find($targetId);
+            $record = $target ? FlowRecord::where('flow_definition_id', $targetId)->find($id) : null;
+            if ($record) {
+                return [
+                    'id' => $id,
+                    'number' => (int) $record->record_number,
+                    'label' => $this->referenceLabel($record, $target, $field->validation['label_field'] ?? null),
+                ];
+            }
+        }
+
+        // 参照先が引けない（システムソース参照など）ときは、送られてきた値をそのまま使う
         return [
-            'id' => (int) $raw['id'],
+            'id' => $id,
             'number' => isset($raw['number']) ? (int) $raw['number'] : null,
             'label' => isset($raw['label']) ? (string) $raw['label'] : '',
         ];
+    }
+
+    /** ルックアップの表示名。label_field が無い／空なら「#レコード番号」。 */
+    /** 参照の表示名。保存時も画面の先埋めも同じここを通す（食い違わせないため）。 */
+    public function referenceLabel(FlowRecord $record, FlowDefinition $target, ?string $labelFieldKey): string
+    {
+        $labelField = filled($labelFieldKey) ? $target->fields->firstWhere('key', $labelFieldKey) : null;
+        if ($labelField && ! self::isSecret($labelField->input_type)) {
+            $vals = $this->recordValues($record, $target->fields);
+            $raw = $vals[(string) $labelField->id] ?? null;
+            $label = is_array($raw)
+                ? implode(' / ', array_map(fn ($x) => is_scalar($x) ? (string) $x : '', $raw))
+                : (is_scalar($raw) ? (string) $raw : '');
+            if (trim($label) !== '') {
+                return $label;
+            }
+        }
+
+        return '#'.$record->record_number;
     }
 
     /** Coerce a single table cell for JSON storage, matching the column's input type. */
@@ -1253,6 +1309,8 @@ class FlowService
             'toggle' => $this->booleanValue($raw),
             'checkbox', 'file' => $this->arrayValue($raw),
             'user', 'member' => $this->userIdArrayValue($raw),
+            // テーブル内のルックアップ列は列定義（配列）しか無いため、番号とラベルは画面の値を使う。
+            // トップレベルのルックアップだけがサーバーで引き直される。
             'reference' => $this->referenceValue($raw),
             default => ($raw === null || $raw === '') ? null : (is_scalar($raw) ? (string) $raw : $raw),
         };
@@ -1546,7 +1604,15 @@ class FlowService
 
         return match ($type) {
             'everyone' => true,
-            'creator' => $def->created_by !== null && (int) $def->created_by === (int) $user->id,
+            // 作成者 means the creator of the thing being judged. With a record in context
+            // (status actions, record permissions, field permissions) that is the person who
+            // SUBMITTED the record — 申請者 — which is what the builder's 作成者 checkbox promises,
+            // and what its neighbour 作成者のPM already resolves against. Without a record we are
+            // evaluating app-level permissions, where 作成者 correctly means whoever built the app
+            // (this is the subject seedAppPermissions writes for the creator row).
+            'creator' => $record !== null
+                ? ($record->created_by !== null && (int) $record->created_by === (int) $user->id)
+                : ($def->created_by !== null && (int) $def->created_by === (int) $user->id),
             'user' => (int) $subjectId === (int) $user->id,
             'position' => $user->position_id !== null && (int) $subjectId === (int) $user->position_id,
             'project_member' => $projectId !== null && $this->isProjectMember($projectId, $user),
@@ -1569,20 +1635,81 @@ class FlowService
         return is_array($json) ? array_map('intval', $json) : [];
     }
 
-    /** App-level: first-match-wins over flow_app_permissions; returns the 7 flags. */
-    public function effectiveAppPermissions(User $user, FlowDefinition $def): array
-    {
-        $perms = array_fill_keys(self::APP_PERMS, false);
+    /**
+     * How specific a subject is. The most specific tier that matches a user decides their
+     * permissions outright; broader tiers are then ignored for that person.
+     *
+     * 全員 < 役職・ロール < 個人指定. Anything unrecognised counts as a role rather than an
+     * individual, so a subject type added later cannot silently outrank someone's own row.
+     */
+    private const SUBJECT_RANK = [
+        'everyone' => 0,
+        // roles: a group of people, however small
+        'position' => 1,
+        'project_member' => 1,
+        'project_manager' => 1,
+        'project_director' => 1,
+        'creator_project_manager' => 1,
+        'field_project_manager' => 1,
+        // individuals: this person, by name or by being named in the record
+        'creator' => 2,
+        'user' => 2,
+        'field' => 2,
+    ];
 
-        $rows = $def->relationLoaded('appPermissions') ? $def->appPermissions : $def->appPermissions()->get();
+    /**
+     * Resolve subject-scoped permission rows for one user: the most specific matching tier wins,
+     * and rows inside that tier are unioned.
+     *
+     * Shared by all three layers (app / record-set grants / field) so that "who gets what" reads the
+     * same everywhere — an individual entry overrides a role entry, which overrides 全員.
+     *
+     * @param  string[]  $flags  the can_* suffixes to resolve
+     * @return array<string, bool>
+     */
+    private function resolveSubjectRows($rows, array $flags, User $user, FlowDefinition $def, ?FlowRecord $record = null): array
+    {
+        $out = array_fill_keys($flags, false);
+        $bestRank = -1;
+        $winning = [];
+
         foreach ($rows as $row) {
-            if ($this->matchesSubject($row->subject_type, $row->subject_id, $user, $def)) {
-                foreach (self::APP_PERMS as $p) {
-                    $perms[$p] = (bool) $row->{'can_'.$p};
-                }
-                break;
+            if (! $this->matchesSubject($row->subject_type, $row->subject_id, $user, $def, $record)) {
+                continue;
+            }
+            $rank = self::SUBJECT_RANK[$row->subject_type] ?? 1;
+            if ($rank > $bestRank) {
+                $bestRank = $rank;
+                $winning = [$row];
+            } elseif ($rank === $bestRank) {
+                $winning[] = $row;
             }
         }
+        foreach ($winning as $row) {
+            foreach ($flags as $f) {
+                $out[$f] = $out[$f] || (bool) $row->{'can_'.$f};
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * App-level: the most specific matching tier wins — 個人指定 over 役職 over 全員.
+     *
+     * Row order used to decide this, which made the same two rows mean different things depending on
+     * an ordering whose effect was invisible. Specificity is both order-independent and the way
+     * people already read these tables: "everyone gets this, except this role, except this person".
+     *
+     * Rows within the winning tier are unioned, so two matching role rows still combine — it is only
+     * across tiers that the narrower one takes over. A consequence worth knowing: an individual row
+     * REPLACES the person's 役職 row rather than adding to it, so an unchecked box on their own row
+     * removes an ability their 役職 would have given them. The builder flags exactly that case.
+     */
+    public function effectiveAppPermissions(User $user, FlowDefinition $def): array
+    {
+        $rows = $def->relationLoaded('appPermissions') ? $def->appPermissions : $def->appPermissions()->get();
+        $perms = $this->resolveSubjectRows($rows, self::APP_PERMS, $user, $def);
 
         // Safety: the app creator never loses control of their own app (lockout guard).
         // Note: this is per-app (the creator of THIS app), not a global role — app-level
@@ -1621,14 +1748,10 @@ class FlowService
             return $base; // unmatched record → app-level fallback
         }
 
-        $rl = ['view' => false, 'edit' => false, 'delete' => false];
-        foreach (($matched->relationLoaded('grants') ? $matched->grants : $matched->grants()->get()) as $g) {
-            if ($this->matchesSubject($g->subject_type, $g->subject_id, $user, $def, $record)) {
-                $rl['view'] = $rl['view'] || $g->can_view;
-                $rl['edit'] = $rl['edit'] || $g->can_edit;
-                $rl['delete'] = $rl['delete'] || $g->can_delete;
-            }
-        }
+        // which SET applies is still decided by record conditions in order (above); WHO gets what
+        // inside it follows the same subject hierarchy as everywhere else
+        $grants = $matched->relationLoaded('grants') ? $matched->grants : $matched->grants()->get();
+        $rl = $this->resolveSubjectRows($grants, ['view', 'edit', 'delete'], $user, $def, $record);
 
         return [
             'view' => $app['view'] && $rl['view'],
@@ -1696,14 +1819,7 @@ class FlowService
 
                 continue;
             }
-            $fp = ['view' => false, 'edit' => false];
-            foreach ($frows as $r) {
-                if ($this->matchesSubject($r->subject_type, $r->subject_id, $user, $def, $record)) {
-                    $fp['view'] = $fp['view'] || $r->can_view;
-                    $fp['edit'] = $fp['edit'] || $r->can_edit;
-                }
-            }
-            $out[$f->id] = $fp;
+            $out[$f->id] = $this->resolveSubjectRows($frows, ['view', 'edit'], $user, $def, $record);
         }
 
         return $out;
@@ -1750,27 +1866,661 @@ class FlowService
         return ($cipher === null || $cipher === '') ? null : app(AccountVault::class)->decrypt($cipher);
     }
 
-    /** Field ids the user may edit on a record now: record.edit ∩ field-perm edit ∩ status-rule editable. */
-    public function editableFieldIdsForRecord(User $user, FlowRecord $record, FlowDefinition $def): array
+    /** The ユーザー/プロジェクト master a field's picker reads from, or null if it is not such a field. */
+    private static function autoFillSourceKey(FlowField $f): ?string
     {
-        if (! $this->recordPermissions($user, $record, $def)['edit']) {
+        return match ($f->input_type) {
+            'project' => 'project',
+            'user', 'member' => 'user',
+            default => null,
+        };
+    }
+
+    /** Field ids that are the destination of some ユーザー/プロジェクト auto-fill mapping. */
+    public function autoFillDestinationIds(FlowDefinition $def): array
+    {
+        $fields = $def->relationLoaded('fields') ? $def->fields : $def->fields()->get();
+        $byKey = $fields->keyBy('key');
+        $out = [];
+
+        foreach ($fields as $f) {
+            if (self::autoFillSourceKey($f) === null) {
+                continue;
+            }
+            foreach ((array) ($f->validation['field_mappings'] ?? []) as $m) {
+                $dest = $byKey->get($m['to'] ?? '');
+                if ($dest) {
+                    $out[(int) $dest->id] = true;
+                }
+            }
+        }
+
+        return array_keys($out);
+    }
+
+    /**
+     * Fill ユーザー/プロジェクト auto-fill destinations that this user is NOT allowed to write.
+     *
+     * Why the server does this at all: the destinations are real fields, so they obey field permissions
+     * — which meant that in the intended setup (anyone may pick a person, only one team may read 役職)
+     * the value visibly appeared in the form and was then dropped on insert, because the writer had no
+     * 編集 on it. Worse than not working: the form showed a value that silently vanished.
+     *
+     * Why not simply let the client write it: then "this is an auto-fill" becomes a claim the client
+     * makes, and anyone could put arbitrary text into a restricted field with a crafted request. The
+     * field permission would be advisory. So for a destination the user cannot write, the value is
+     * resolved HERE from the master and whatever the client sent for it is discarded.
+     *
+     * Destinations the user CAN write are left alone on purpose: the client already filled them live
+     * and the user is allowed to correct them, which is the behaviour that makes auto-fill pleasant.
+     *
+     * Returns [$values, $extraWritableIds] — the caller must union those ids into its writable set,
+     * since by definition they are fields the normal permission check just refused.
+     */
+    public function applyMasterAutoFill(FlowDefinition $def, array $values, array $writable): array
+    {
+        $fields = $def->relationLoaded('fields') ? $def->fields : $def->fields()->get();
+        $byKey = $fields->keyBy('key');
+        $extra = [];
+
+        foreach ($fields as $src) {
+            $sourceKey = self::autoFillSourceKey($src);
+            $mappings = (array) ($src->validation['field_mappings'] ?? []);
+            // the picker itself must be writable by this user: the fill is a consequence of them
+            // setting it, not a way to reach fields on a record they cannot touch
+            if ($sourceKey === null || ! $mappings || ! in_array((int) $src->id, $writable, true)) {
+                continue;
+            }
+
+            $raw = $values[(string) $src->id] ?? null;
+            $ids = array_values(array_filter(is_array($raw) ? $raw : [$raw], fn ($x) => $x !== null && $x !== ''));
+            // >1 selected has no single master row to copy from — same rule the client applies
+            $id = count($ids) === 1 ? $ids[0] : null;
+            $attrs = $id !== null ? $this->masterAttributes($sourceKey, $id, array_column($mappings, 'from')) : [];
+
+            foreach ($mappings as $m) {
+                $dest = $byKey->get($m['to'] ?? '');
+                if (! $dest) {
+                    continue;
+                }
+                $secretDest = self::isSecret($dest->input_type);
+
+                // Writable and not a secret → the client already filled it live and the user may have
+                // corrected it, so leave it alone.
+                if (! $secretDest && in_array((int) $dest->id, $writable, true)) {
+                    continue;
+                }
+
+                /*
+                 * A secret destination is ALWAYS filled here, writable or not.
+                 *
+                 * The client cannot fill it even when the user is allowed to edit it:
+                 * /flow_system_record refuses to serve secret columns (it has no permission context,
+                 * so serving a decrypted 口座番号 there would hand it to any authenticated caller).
+                 * With the client unable and the server declining because the field "is writable",
+                 * nothing filled it at all — which is exactly what happened.
+                 *
+                 * A value the user typed themselves still wins. The echoed-back boolean marker
+                 * ("a value is stored") is NOT a typed value, so re-picking the person legitimately
+                 * refreshes the snapshot.
+                 */
+                if ($secretDest) {
+                    $submitted = $values[(string) $dest->id] ?? null;
+                    $typed = (is_string($submitted) || is_numeric($submitted)) && trim((string) $submitted) !== '';
+                    if ($typed) {
+                        continue;
+                    }
+                }
+                $resolved = $attrs[$m['from'] ?? ''] ?? null;
+                // Cleared picker (or an ambiguous multi-select) blanks the copy, matching 参照.
+                // A secret needs the explicit clear marker: for those, a blank means "keep what is
+                // stored", so writing null would silently leave the old 口座番号 on the record after
+                // the person it belonged to was removed.
+                $values[(string) $dest->id] = ($resolved === null || $resolved === '') && self::isSecret($dest->input_type)
+                    ? ['clear' => true]
+                    : $resolved;
+                $extra[] = (int) $dest->id;
+            }
+        }
+
+        return [$values, array_values(array_unique($extra))];
+    }
+
+    /** Allowlisted master attributes for one row, straight from the FlowSystemSources spec. */
+    private function masterAttributes(string $sourceKey, $id, array $wantKeys): array
+    {
+        $spec = FlowSystemSources::get($sourceKey);
+        if (! $spec) {
+            return [];
+        }
+        $query = $spec['model']::query();
+        if (isset($spec['filter'])) {
+            ($spec['filter'])($query);
+        }
+        $row = $query->whereKey($id)->first();
+        if (! $row) {
+            return [];
+        }
+        $allowed = collect($spec['columns'])->pluck('key')->flip();
+        $resolve = $spec['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
+        $out = [];
+        foreach (array_unique($wantKeys) as $k) {
+            if ($allowed->has($k)) {
+                $out[$k] = $resolve($row, $k);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Field ids whose VALUE this user may not see.
+     *
+     * fieldPermissions() has always resolved a per-field `view`, and search / CSV export / PDF have
+     * always honoured it — but the record payload did not: serializeRecord() sent recordValues() in
+     * full, so a field restricted to one person was still delivered to, and rendered for, everyone who
+     * could open the record. Computing the permission and then not applying it is worse than not
+     * having it, because the builder UI promises it works.
+     *
+     * Callers strip these keys AFTER recordValues() has run, never before: formulas are computed from
+     * the other values, so hiding an input first would change what the formula says rather than who
+     * can read it. A formula's own view permission is what governs the formula.
+     */
+    public function unviewableFieldIds(User $user, FlowDefinition $def, ?FlowRecord $record = null): array
+    {
+        $fp = $this->fieldPermissions($user, $def, $record);
+
+        return array_values(array_map('intval', array_keys(array_filter(
+            $fp,
+            fn ($p) => ($p['view'] ?? true) !== true
+        ))));
+    }
+
+    /** Field ids the user may edit on a record now: record.edit ∩ field-perm edit ∩ status-rule editable. */
+    /**
+     * $recordPerms lets a caller that already resolved recordPermissions() pass it in — the record
+     * list resolves it per row, and re-deriving it here would double that work on every row.
+     */
+    public function editableFieldIdsForRecord(User $user, FlowRecord $record, FlowDefinition $def, ?array $recordPerms = null): array
+    {
+        $perms = $recordPerms ?? $this->recordPermissions($user, $record, $def);
+        if (! ($perms['edit'] ?? false)) {
             return [];
         }
         $fp = $this->fieldPermissions($user, $def, $record);
         $status = $record->relationLoaded('currentStatus') ? $record->currentStatus : $record->currentStatus()->first();
         $fields = $def->relationLoaded('fields') ? $def->fields : $def->fields()->get();
 
+        // Resolve the status's rules ONCE. ruleForField() re-reads them per call, and when the
+        // record's currentStatus was loaded without its fieldRules that is a query per field —
+        // which the record list multiplies by every row.
+        $rules = $status ? $this->statusFieldRules($status) : [];
+
         $ids = [];
         foreach ($fields as $f) {
             if ($f->input_type === 'formula' || self::isLayoutType($f->input_type)) {
                 continue;
             }
-            $statusOk = $status ? ($this->ruleForField($status, $f->id) === 'edit') : true;
+            $statusOk = ! $status || (($rules[$f->id] ?? 'edit') === 'edit');
             if (($fp[$f->id]['edit'] ?? true) && $statusOk) {
                 $ids[] = (int) $f->id;
             }
         }
 
         return $ids;
+    }
+
+    /* ================================================================
+     | Cross-app record search (kintone-style「レコードから検索」)
+     |================================================================ */
+
+    /**
+     * Search stored record values across every app the user may view.
+     *
+     * Two stages on purpose. SQL narrows to candidate value rows with a coarse LIKE (plus id
+     * matches for people/projects, whose names live in other tables); PHP then decides what
+     * actually matched. The split exists because a raw LIKE over value_json would hit JSON *keys*
+     * as well as values — searching a column key like "c1" would return every subtable row — and
+     * because the per-record and per-field permission checks can only run in PHP anyway.
+     *
+     * Excluded by design: password fields (matching ciphertext is meaningless and would let
+     * someone confirm a guessed value) and formula fields (never persisted, so nothing to match).
+     */
+    public function searchRecordsAcrossApps(User $user, string $kw, int $page = 1, int $perPage = 20, int $candidateCap = 4000): array
+    {
+        $kw = trim($kw);
+        $empty = ['hits' => [], 'total' => 0, 'page' => 1, 'per_page' => $perPage, 'truncated' => false];
+        if ($kw === '') {
+            return $empty;
+        }
+
+        $defs = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets', 'fieldPermissions'])
+            ->get()
+            ->filter(fn ($d) => $this->effectiveAppPermissions($user, $d)['view']);
+        if ($defs->isEmpty()) {
+            return $empty;
+        }
+
+        // field-permission verdicts are per (app, user) and reused for every hit in that app
+        $defsById = $defs->keyBy('id');
+        $fieldPerms = [];
+        $searchable = [];   // field id => field, across all eligible apps
+        foreach ($defs as $def) {
+            $fieldPerms[$def->id] = $this->fieldPermissions($user, $def);
+            foreach ($def->fields as $f) {
+                if (self::isSecret($f->input_type) || self::isLayoutType($f->input_type) || $f->input_type === 'formula') {
+                    continue;
+                }
+                $searchable[$f->id] = $f;
+            }
+        }
+        if (! $searchable) {
+            return $empty;
+        }
+
+        $like = '%'.mb_strtolower($kw).'%';
+        // people and projects are stored as ids, so "田中" has to become an id list before SQL can match
+        $userIds = User::whereRaw('LOWER(name) LIKE ?', [$like])->pluck('id')->map(fn ($i) => (int) $i)->all();
+        $projectIds = DB::table('project_records')->whereRaw('LOWER(name) LIKE ?', [$like])
+            ->pluck('id')->map(fn ($i) => (int) $i)->all();
+
+        $rows = FlowRecordValue::query()
+            ->whereIn('flow_field_id', array_keys($searchable))
+            ->where(function ($w) use ($like, $userIds, $projectIds) {
+                $w->whereRaw('LOWER(value_text) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(value_numeric AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(CAST(value_json AS CHAR)) LIKE ?', [$like])
+                    ->orWhereRaw("DATE_FORMAT(value_date, '%Y-%m-%d') LIKE ?", [$like])
+                    ->orWhereRaw("DATE_FORMAT(value_datetime, '%Y-%m-%d %H:%i') LIKE ?", [$like]);
+                foreach ($userIds as $id) {
+                    $w->orWhereRaw('JSON_CONTAINS(value_json, ?)', [json_encode($id)]);
+                }
+                if ($projectIds) {
+                    $w->orWhereIn('value_numeric', $projectIds);
+                }
+            })
+            ->orderByDesc('id')
+            ->limit($candidateCap + 1)
+            ->get();
+
+        $truncated = $rows->count() > $candidateCap;
+        if ($truncated) {
+            $rows = $rows->take($candidateCap);
+        }
+
+        // record ids also match on their own number (「#12」 style lookups)
+        $recordIds = $rows->pluck('flow_record_id')->unique()->all();
+        $records = FlowRecord::whereIn('id', $recordIds)->get()->keyBy('id');
+
+        $names = $this->searchNameMaps($userIds, $projectIds, $kw);
+
+        $hits = [];
+        foreach ($rows as $row) {
+            $record = $records->get($row->flow_record_id);
+            $field = $searchable[$row->flow_field_id] ?? null;
+            if (! $record || ! $field || (int) $record->flow_definition_id !== (int) $field->flow_definition_id) {
+                continue;
+            }
+            $def = $defsById->get($record->flow_definition_id);
+            if (! $def) {
+                continue;
+            }
+            // a hit on a field the user cannot view must be dropped, not merely hidden — field
+            // permissions default to allow-all, so this only bites on apps that configure them
+            if (($fieldPerms[$def->id][$field->id]['view'] ?? true) !== true) {
+                continue;
+            }
+            $matched = $this->matchedValueFor($field, $row, $kw, $names);
+            if ($matched === null) {
+                continue;
+            }
+            $hits[] = [
+                'definition_id' => (int) $def->id,
+                'definition_name' => $def->name,
+                'record_id' => (int) $record->id,
+                'record_number' => (int) $record->record_number,
+                'field_label' => $matched['label'],
+                'value' => $matched['value'],
+                'updated_at' => optional($record->updated_at)->toIso8601String(),
+                '_sort' => optional($record->updated_at)->getTimestamp() ?? 0,
+            ];
+        }
+
+        // record-level permission sets can only be judged per record in PHP, so they are applied
+        // after matching (and before pagination, or the page counts would lie)
+        $hits = $this->filterHitsByRecordPermission($user, $hits, $defsById, $records);
+
+        usort($hits, fn ($a, $b) => $b['_sort'] <=> $a['_sort'] ?: $b['record_number'] <=> $a['record_number']);
+        $total = count($hits);
+        // array_map, not `foreach ($slice as &$h)`: that leaves $h bound to the last element, and the
+        // plain `foreach ($slice as $h)` below then writes through it on every pass — which silently
+        // replaced the last hit of every page with a copy of the one before it.
+        $slice = array_map(function ($h) {
+            unset($h['_sort']);
+
+            return $h;
+        }, array_slice($hits, ($page - 1) * $perPage, $perPage));
+
+        // app identity (name + icon) is sent once per app rather than repeated on every hit — the
+        // modal can't source it locally because search spans apps outside the portal's project scope
+        $apps = [];
+        foreach ($slice as $h) {
+            $id = $h['definition_id'];
+            if (isset($apps[$id])) {
+                continue;
+            }
+            $def = $defsById->get($id);
+            $apps[$id] = [
+                'id' => (int) $id,
+                'name' => $def->name ?? '',
+                'icon_svg' => $def->icon_svg ?? null,
+                'icon_image' => $def->icon_image ?? null,
+                'color_id' => $def->color_id ?? null,
+            ];
+        }
+
+        return [
+            'hits' => array_values($slice),
+            'apps' => $apps,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'truncated' => $truncated,
+        ];
+    }
+
+    /** id => name lookups for the field types that store ids (people, projects). */
+    private function searchNameMaps(array $userIds, array $projectIds, string $kw): array
+    {
+        return [
+            'kw' => mb_strtolower($kw),
+            'users' => User::whereIn('id', $userIds)->pluck('name', 'id')->all(),
+            'projects' => DB::table('project_records')->whereIn('id', $projectIds)->pluck('name', 'id')->all(),
+        ];
+    }
+
+    /** Drop hits whose record the user may not view (apps with record-level permission sets). */
+    private function filterHitsByRecordPermission(User $user, array $hits, $defsById, $records): array
+    {
+        $verdict = [];   // record id => bool
+
+        return array_values(array_filter($hits, function ($h) use ($user, $defsById, $records, &$verdict) {
+            $def = $defsById->get($h['definition_id']);
+            if (! $def || $def->recordPermissionSets->isEmpty()) {
+                return true;
+            }
+            $rid = $h['record_id'];
+            if (! array_key_exists($rid, $verdict)) {
+                $rec = $records->get($rid);
+                $verdict[$rid] = $rec ? (bool) $this->recordPermissions($user, $rec, $def)['view'] : false;
+            }
+
+            return $verdict[$rid];
+        }));
+    }
+
+    /**
+     * What in this value row actually matched, as {label, value} — or null if nothing did.
+     * The SQL prefilter is deliberately loose (a JSON LIKE also hits keys), so this is where a
+     * candidate becomes a real hit.
+     */
+    private function matchedValueFor(FlowField $field, FlowRecordValue $row, string $kw, array $names): ?array
+    {
+        $needle = mb_strtolower($kw);
+        $hit = fn ($value, $suffix = '') => ['label' => $field->label.$suffix, 'value' => (string) $value];
+        $contains = fn ($hay) => $hay !== null && $hay !== '' && str_contains(mb_strtolower((string) $hay), $needle);
+
+        switch ($field->input_type) {
+            case 'number':
+                return $contains($row->value_numeric) || $contains(rtrim(rtrim((string) $row->value_numeric, '0'), '.'))
+                    ? $hit(rtrim(rtrim((string) $row->value_numeric, '0'), '.')) : null;
+            case 'project':
+                $id = $row->value_numeric === null ? null : (int) $row->value_numeric;
+                $name = $id !== null ? ($names['projects'][$id] ?? null) : null;
+
+                return $name !== null ? $hit($name) : null;
+            case 'user':
+            case 'member':
+                $ids = is_array($row->value_json) ? $row->value_json : [];
+                $matchedNames = [];
+                foreach ($ids as $id) {
+                    if (isset($names['users'][(int) $id])) {
+                        $matchedNames[] = $names['users'][(int) $id];
+                    }
+                }
+
+                return $matchedNames ? $hit(implode('、', $matchedNames)) : null;
+            case 'checkbox':
+                $picked = array_values(array_filter(is_array($row->value_json) ? $row->value_json : [], $contains));
+
+                return $picked ? $hit(implode('、', $picked)) : null;
+            case 'reference':
+                $label = is_array($row->value_json) ? ($row->value_json['label'] ?? null) : null;
+
+                return $contains($label) ? $hit($label) : null;
+            case 'date':
+                $s = optional($row->value_date)->toDateString();
+
+                return $contains($s) ? $hit($s) : null;
+            case 'datetime':
+                $s = optional($row->value_datetime)->format('Y-m-d H:i');
+
+                return $contains($s) ? $hit($s) : null;
+            case 'table':
+                return $this->matchedTableCell($field, $row, $needle, $names);
+            case 'toggle':
+            case 'file':
+                return null;   // オン/オフ and attachments carry no searchable text
+            default:
+                return $contains($row->value_text) ? $hit($row->value_text) : null;
+        }
+    }
+
+    /** First matching cell inside a subtable, labelled 「テーブル名 > 列名（N行目）」. */
+    private function matchedTableCell(FlowField $field, FlowRecordValue $row, string $needle, array $names): ?array
+    {
+        $rows = is_array($row->value_json) ? $row->value_json : [];
+        $columns = collect($field->validation['columns'] ?? [])->keyBy('key');
+
+        foreach (array_values($rows) as $i => $r) {
+            if (! is_array($r)) {
+                continue;
+            }
+            foreach ($r as $key => $cell) {
+                $col = $columns->get($key);
+                if (! $col || self::isSecret($col['input_type'] ?? null) || ($col['input_type'] ?? null) === 'formula') {
+                    continue;
+                }
+                $text = $this->flattenCellText($cell, $names);
+                if ($text !== '' && str_contains(mb_strtolower($text), $needle)) {
+                    return [
+                        'label' => $field->label.' › '.($col['label'] ?? $key).'（'.($i + 1).'行目）',
+                        'value' => $text,
+                    ];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** Subtable cells are raw JSON — flatten to searchable text (resolving people/projects). */
+    private function flattenCellText($cell, array $names): string
+    {
+        if ($cell === null || is_bool($cell)) {
+            return '';
+        }
+        if (is_scalar($cell)) {
+            // a bare id may be a person or a project; surface the name so it is matchable
+            $asInt = (int) $cell;
+            if ((string) $asInt === (string) $cell) {
+                foreach (['users', 'projects'] as $k) {
+                    if (isset($names[$k][$asInt])) {
+                        return (string) $names[$k][$asInt];
+                    }
+                }
+            }
+
+            return (string) $cell;
+        }
+        if (is_array($cell)) {
+            if (isset($cell['label'])) {
+                return (string) $cell['label'];   // reference cell
+            }
+            $parts = [];
+            foreach ($cell as $v) {
+                $t = $this->flattenCellText($v, $names);
+                if ($t !== '') {
+                    $parts[] = $t;
+                }
+            }
+
+            return implode('、', $parts);
+        }
+
+        return '';
+    }
+
+    /* ================================================================
+     | Slots — free areas above/below the record table. Only 集計 so far.
+     |================================================================ */
+
+    /**
+     * Compute a slot's aggregates over an entire record set.
+     *
+     * Deliberately not SQL. Two of the three allowed sources cannot be aggregated by the database:
+     * 計算 fields hold no stored value (they are evaluated on read) and subtable columns live inside
+     * a JSON blob. So the caller hands over every record matching the active view/filter and this
+     * walks them — which also means the numbers always agree with the list the user is looking at.
+     *
+     * $records must already be permission-filtered by the caller: a SUM over rows the user may not
+     * open would leak their contents in aggregate. Field-level permission is applied here, since
+     * that is per item rather than per record.
+     */
+    public function computeSlotAggregates(FlowDefinition $definition, $records, User $user, array $slots, bool $withValues = true): array
+    {
+        if (! $slots) {
+            return [];
+        }
+        $fields = $definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get();
+        $fieldsById = $fields->keyBy('id');
+        $fieldPerms = $this->fieldPermissions($user, $definition);
+
+        // recordValues() evaluates 計算 fields, so do it once per record and share across every item
+        $valuesByRecord = [];
+        if ($withValues) {
+            foreach ($records as $rec) {
+                $valuesByRecord[$rec->id] = $this->recordValues($rec, $fields);
+            }
+        }
+
+        $out = [];
+        foreach ($slots as $slot) {
+            $config = is_array($slot->config) ? $slot->config : [];
+            $items = [];
+            foreach (($config['items'] ?? []) as $item) {
+                $resolved = $this->resolveSlotSource($item['source'] ?? '', $fieldsById);
+                if (! $resolved) {
+                    continue;
+                }
+                // a hidden field's total is still information about that field — drop the item
+                if (($fieldPerms[$resolved['field']->id]['view'] ?? true) !== true) {
+                    continue;
+                }
+                $fn = in_array($item['fn'] ?? '', ['sum', 'avg', 'max', 'min'], true) ? $item['fn'] : 'sum';
+                // client mode: the front end holds every visible record and narrows it further with
+                // its own search/ad-hoc filter, so a value computed here would describe a different
+                // set than the list shows. Ship the resolved item and let it do the arithmetic.
+                $numbers = $withValues ? $this->slotNumbers($resolved, $valuesByRecord) : [];
+                $items[] = [
+                    'source' => $item['source'],
+                    'fn' => $fn,
+                    'label' => $item['label'] ?: $resolved['label'].' の '.self::SLOT_FN_LABELS[$fn],
+                    // display-only: the affixes wrap the rendered number, never the arithmetic
+                    'prefix' => (string) ($item['prefix'] ?? ''),
+                    'suffix' => (string) ($item['suffix'] ?? ''),
+                    'value' => $withValues ? $this->applySlotFn($fn, $numbers) : null,
+                    'count' => $withValues ? count($numbers) : null,
+                    'computed' => $withValues,
+                ];
+            }
+            $out[] = [
+                'id' => (int) $slot->id,
+                'name' => $slot->name,
+                'position' => ($config['position'] ?? 'bottom') === 'top' ? 'top' : 'bottom',
+                'items' => $items,
+            ];
+        }
+
+        return $out;
+    }
+
+    private const SLOT_FN_LABELS = ['sum' => '合計', 'avg' => '平均', 'max' => '最大', 'min' => '最小'];
+
+    /** "<fieldId>" => a 数値/計算 field; "<tableFieldId>:<colKey>" => a number column inside a テーブル. */
+    private function resolveSlotSource(string $source, $fieldsById): ?array
+    {
+        if ($source === '') {
+            return null;
+        }
+        if (! str_contains($source, ':')) {
+            $field = $fieldsById->get((int) $source);
+            if (! $field || ! in_array($field->input_type, ['number', 'formula'], true)) {
+                return null;
+            }
+
+            return ['kind' => 'field', 'field' => $field, 'label' => $field->label];
+        }
+
+        [$tableId, $colKey] = explode(':', $source, 2);
+        $field = $fieldsById->get((int) $tableId);
+        if (! $field || $field->input_type !== 'table') {
+            return null;
+        }
+        $col = collect($field->validation['columns'] ?? [])->firstWhere('key', $colKey);
+        if (! $col || ! in_array($col['input_type'] ?? '', ['number', 'formula'], true)) {
+            return null;
+        }
+
+        return ['kind' => 'column', 'field' => $field, 'column' => $colKey, 'label' => $field->label.' › '.($col['label'] ?? $colKey)];
+    }
+
+    /** Every numeric value the source contributes across the record set (blanks skipped, not zeroed). */
+    private function slotNumbers(array $resolved, array $valuesByRecord): array
+    {
+        $numbers = [];
+        foreach ($valuesByRecord as $vals) {
+            $raw = $vals[(string) $resolved['field']->id] ?? null;
+            if ($resolved['kind'] === 'field') {
+                if (is_numeric($raw)) {
+                    $numbers[] = (float) $raw;
+                }
+
+                continue;
+            }
+            foreach (is_array($raw) ? $raw : [] as $row) {
+                $cell = is_array($row) ? ($row[$resolved['column']] ?? null) : null;
+                if (is_numeric($cell)) {
+                    $numbers[] = (float) $cell;
+                }
+            }
+        }
+
+        return $numbers;
+    }
+
+    /** null for an empty set — a 平均 of nothing is not 0, and neither is a 最大. */
+    private function applySlotFn(string $fn, array $numbers): ?float
+    {
+        if (! $numbers) {
+            return $fn === 'sum' ? 0.0 : null;
+        }
+
+        return match ($fn) {
+            'avg' => array_sum($numbers) / count($numbers),
+            'max' => max($numbers),
+            'min' => min($numbers),
+            default => array_sum($numbers),
+        };
     }
 }

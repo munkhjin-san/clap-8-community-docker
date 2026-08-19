@@ -17,7 +17,7 @@
         <template #default>
             <div v-if="!fullscreen" class="m-5 space-y-6">
                 <div v-if="data.data.officer_approval_waiting.length">
-                    <div class="text-[14px] font-bold mb-3">承認待ち（{{ data.data.officer_approval_waiting.length }}）</div>
+                    <div class="text-[14px] mb-3">承認待ち（{{ data.data.officer_approval_waiting.length }}）</div>
                     <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                         <ExpansionPanelItem
                             selected-class="selected-panel-item"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CustomForm;
 use App\Models\LessonAnswer;
 use App\Models\LessonPersonalMaterial;
+use App\Models\LessonPledgeSignature;
 use App\Models\LessonSummary;
 use App\Models\LessonSummaryAnswer;
 use App\Models\LessonSummaryQuestion;
@@ -129,6 +130,21 @@ class LessonController extends Controller
                 ]);
             }
         }
+        // 誓約書: a document is mandatory while the toggle is on, and turning it
+        // off clears the file. Only touched when the client sends the keys, so
+        // other callers can't wipe an existing pledge by omitting them.
+        if (array_key_exists('pledge', $params)) {
+            $params['pledge'] = ! empty($params['pledge']);
+            if ($params['pledge'] && blank($params['pledge_file_path'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'pledge_file_path' => '誓約書のPDFをアップロードしてください。',
+                ]);
+            }
+            if (! $params['pledge']) {
+                $params['pledge_file_path'] = null;
+            }
+        }
+
         $theme = LessonTheme::updateOrCreate(['id' => $id], $params);
         $theme->accessMembers()->sync($allowed_positions);
         $theme->categories()->sync($categoryIds);
@@ -594,6 +610,110 @@ class LessonController extends Controller
         return response()->json(['deleted' => true]);
     }
 
+    /**
+     * Admin: remove one learner's data for a theme. Case-study themes have no
+     * portfolio, so per-attempt deletion cannot reach them; this clears every
+     * table the theme's progress is derived from (and every attempt at once on
+     * portfolio themes).
+     */
+    public function delete_admin_theme_progress(Request $request, LessonTheme $theme, \App\Models\User $user)
+    {
+        $actor = $this->active_user();
+        abort_unless(optional($actor)->isAdmin(), 403);
+
+        $userId = (int) $user->id;
+
+        // All versions of the theme's materials: the learner may hold answers on
+        // retired ones, and those still count as their data.
+        $materialIds = LessonMaterial::where('lesson_theme_id', $theme->id)->pluck('id');
+        $examIds = \App\Models\LessonExam::where('lesson_theme_id', $theme->id)
+            ->orWhereIn('lesson_material_id', $materialIds)
+            ->pluck('id');
+        $portfolios = LessonPortfolio::where('lesson_theme_id', $theme->id)
+            ->where('user_id', $userId)
+            ->get();
+        $signature = LessonPledgeSignature::where('lesson_theme_id', $theme->id)
+            ->where('user_id', $userId)
+            ->first();
+
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $theme, $userId, $actor, $request, $materialIds, $examIds, $portfolios, $signature
+        ) {
+            $attemptIds = \App\Models\LessonExamAttempt::whereIn('lesson_exam_id', $examIds)
+                ->where('user_id', $userId)
+                ->pluck('id');
+            \App\Models\LessonExamAnswer::whereIn('lesson_exam_attempt_id', $attemptIds)->delete();
+            \App\Models\LessonExamAttempt::whereIn('id', $attemptIds)->delete();
+
+            $summaryIds = LessonSummary::whereIn('lesson_material_id', $materialIds)->pluck('id');
+            LessonSummaryAnswer::whereIn('lesson_summary_id', $summaryIds)
+                ->where('user_id', $userId)
+                ->delete();
+
+            LessonAnswer::whereIn('material_id', $materialIds)->where('user_id', $userId)->delete();
+            LessonSection::where('user_id', $userId)
+                ->where(function ($query) use ($materialIds, $portfolios) {
+                    $query->whereIn('material_id', $materialIds)
+                        ->orWhereIn('portfolio_id', $portfolios->pluck('id'));
+                })
+                ->delete();
+            LessonPersonalMaterial::where('lesson_theme_id', $theme->id)->where('user_id', $userId)->delete();
+            LessonForm::where('lesson_theme_id', $theme->id)->where('user_id', $userId)->delete();
+
+            // チェックリスト answers live on the theme's custom form.
+            if ($theme->custom_form_id) {
+                $surveys = \App\Models\SurveyAnswer::with('block_answers')
+                    ->where('custom_form_id', $theme->custom_form_id)
+                    ->where('user_id', $userId)
+                    ->get();
+
+                foreach ($surveys as $survey) {
+                    $survey->block_answers->each(fn ($blockAnswer) => $blockAnswer->element_answers()->delete());
+                    $survey->block_answers()->delete();
+                    $survey->delete();
+                }
+            }
+
+            foreach ($portfolios as $portfolio) {
+                \App\Models\LessonPortfolioDeletionLog::create([
+                    'lesson_portfolio_id' => $portfolio->id,
+                    'lesson_theme_id' => $portfolio->lesson_theme_id,
+                    'owner_user_id' => $portfolio->user_id,
+                    'deleted_by' => (int) $actor->id,
+                    'attempt_no' => $portfolio->attempt_no,
+                    'status' => $portfolio->status,
+                    'reason' => $request->reason,
+                    'snapshot' => [
+                        'public_title' => $portfolio->public_title,
+                        'public_content' => $portfolio->public_content,
+                        'portfolio_title' => $portfolio->portfolio_title,
+                        'content' => $portfolio->content,
+                        'positive_feedback' => $portfolio->positive_feedback,
+                        'negative_feedback' => $portfolio->negative_feedback,
+                        'noticed' => $portfolio->noticed,
+                        'salary_issue_id' => $portfolio->salary_issue_id,
+                    ],
+                ]);
+
+                if ($portfolio->salary_issue_id) {
+                    \App\Models\SalaryIssue::where('id', $portfolio->salary_issue_id)->delete();
+                }
+
+                $portfolio->delete();
+            }
+
+            $signature?->delete();
+        });
+
+        // Outside the transaction: the stored copy is only unreachable once the
+        // signature row is really gone.
+        if ($signature?->file_path) {
+            Storage::disk('local')->delete($signature->file_path);
+        }
+
+        return response()->json(['deleted' => true]);
+    }
+
     public function get_lesson_portfolio(Request $request){
         $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->lesson_theme_id)
         ->where('user_id', Auth::id())
@@ -793,6 +913,13 @@ class LessonController extends Controller
             $sectionExams = $this->learningParticipantProgressService->portfolioSectionExams((int) $theme->id);
             $payload['section_exams'] = $sectionExams['section_exams'];
             $payload['section_exam_results'] = $sectionExams['results'];
+            // 誓約書: portfolio rows are built from portfolios (not the progress
+            // map), so hand the signatures over separately for the admin links.
+            $payload['pledge_signatures'] = $this->enabledFlag($theme->pledge) && filled($theme->pledge_file_path)
+                ? LessonPledgeSignature::where('lesson_theme_id', $theme->id)
+                    ->get(['id', 'user_id', 'signed_at'])
+                    ->keyBy('user_id')
+                : [];
         }
 
         return response()->json($payload);
@@ -935,9 +1062,15 @@ class LessonController extends Controller
             $goal,
             $learnerProfile
         );
+        // Title-slide values come from known data, not the model.
+        $selectedTheme = (string) ($theme->title ?? '');
+        $goalTitle = $goal && filled($goal->title ?? null)
+            ? (string) $goal->title
+            : ($goal && filled($goal->outcome_goal ?? null) ? (string) $goal->outcome_goal : $selectedTheme);
+
         $defaultInstructions = $goal
-            ? 'これまでの学習履歴・ポートフォリオと、挑戦する成果目標をもとに、昇給課題に挑む学習者向けの個人専用研修資料を日本語で作成してください。成果目標の達成に必要な知識・考え方・行動を補完する構成にし、過去の内容の重複は避けること。末尾にグループディスカッション用のテーマを3つ提示してください。'
-            : 'これまでの学習履歴とポートフォリオをもとに、再学習者向けの個人専用研修資料を日本語で作成してください。復習ではなく、最新の考え方で自分の整理を見直す構成にし、過去の内容の重複は避けること。末尾にグループディスカッション用のテーマを3つ提示してください。';
+            ? 'これまでの学習履歴・ポートフォリオと、挑戦する成果目標をもとに、昇給課題に挑む学習者向けの個別研修資料の内容を日本語で作成してください。成果目標の達成に必要な知識・考え方・行動を補完し、過去の内容の単純な繰り返しは避けてください。'
+            : 'これまでの学習履歴とポートフォリオをもとに、再学習者向けの個別研修資料の内容を日本語で作成してください。復習ではなく、最新の考え方で自分の整理を見直す内容にし、過去の内容の単純な繰り返しは避けてください。';
         $settings = ($config && is_array($config->settings)) ? $config->settings : [];
         $model = ($config?->model) ?: config('services.learning_presentation.model', 'gpt-5.6-sol');
         $settings = $this->personalMaterialPresentationService->compatibleRequestSettings(
@@ -947,51 +1080,37 @@ class LessonController extends Controller
         $textSettings = is_array($settings['text'] ?? null) ? $settings['text'] : [];
         unset($textSettings['format']);
         unset($settings['text']);
-        $presentationAccentColor = $this->personalMaterialPresentationService->randomAccentColor();
-        $requiredContentContract = <<<'PROMPT'
- Mandatory content contract:
- - 完成した資料の最後のsceneは、グループディスカッション用テーマ専用の<section id="group-discussion" class="scene">にする。
- - #group-discussion内に、次の構造を持つ<article class="discussion-theme">をちょうど3つ置く。省略、統合、追加は禁止。
- - 3つのarticleにはdata-theme-number="1"、"2"、"3"を順番に付ける。
- - 各articleには、<h3>テーマN：具体的なテーマ名</h3>、テーマの狙いを説明する<p>、話し合う問いを示す<p class="discussion-question">を必ず含める。
- - 3つは互いに異なる観点を扱い、入力された研修テーマ、学習履歴、成果目標の具体的な内容に接続する。
- - 視覚表現のために、この必須内容を短縮、置換、装飾テキスト化してはならない。
- - HTMLを返す直前に、#group-discussion直下または子孫の.discussion-themeがちょうど3つあり、連番、見出し、問いが揃っていることを確認し、不足があれば修正する。
+
+        // The layout is a fixed template; the model only supplies structured
+        // content, validated by the json_schema below.
+        $contentContract = <<<'PROMPT'
+ 出力は、固定スライドテンプレートに流し込むための構造化データ（指定のJSONスキーマ）だけです。HTMLやデザイン、装飾は生成しません。
+
+ sections は固定の見出しを持ち、それぞれ次の観点で「内容だけ」を作ります（見出し自体は出力しません）:
+ - section1: このテーマを今回の成果目標にどう活かせるか
+ - section2: 成果目標達成に向けて本人が理解すべき考え方
+ - section3: 過去の自分から見える強み
+ - section4: 逆に注意すべき点
+ - section5: 達成に向けて意識したい具体的な行動
+
+ 各 section:
+ - body: 左側に置く箇条書き（2〜4項目、具体的で簡潔に）。
+ - summary: 下部に置く1文の補足。不要なら null。
+ - figure: 右側の図解。type を内容に合わせて選ぶ:
+   - "flow": 段階・順序・因果を順に示す。items を順番に並べる（label と、必要なら detail）。
+   - "list": 並列の要点・強み・注意点を並べる。items（label と、必要なら detail）。
+   - "concept": 中心の考え方を1つ示す。title に見出し、note に短い説明。関連する流れがあれば items に短いラベルを並べる。
+   - figure.title: 図解の見出し。不要なら null。
+
+ discussion:
+ - intro: 3つから1つを選ぶよう促す1文。
+ - theme1/theme2/theme3: name（テーマ名）、talk_script（本人の話し言葉。省略しない）、landing（着地の方向。省略しない）。
+
+ 制約:
+ - 入力にない事実・個人情報・数値は作らない。
+ - 成果目標が入力にない場合は、成果目標に関する表現を今回のテーマの狙いに読み替える。
 PROMPT;
-        $htmlPresentationInstructions = <<<PROMPT
- Role: あなたは、学習体験を設計する日本語エディトリアルデザイナー兼インフォメーションデザイナーです。
 
- Goal: 入力された学習履歴と目標を、読むほど理解が深まる、独創的な縦スクロール型HTML研修体験にしてください。
- オフィス文書や箇条書き資料ではなく、デザイン誌の特集ページや上質なインタラクティブ記事のように構成してください。
-
- Success criteria:
- - 完全な自己完結型HTMLドキュメントを1つだけ返す。説明、Markdown、JSON、コードフェンスは返さない。
- - <main class="story">直下に6〜9個の<section class="scene">を置き、1つの連続したページとして自然な縦スクロールで読めるようにする。
- - 横スクロール、scroll snap、固定スライド高、矢印ナビゲーション、ページ送りは使用しない。
- - 最初の画面だけでテーマと学習者固有の課題が印象的に伝わる。
- - 各sceneは異なる役割と視覚構成を持ち、同じカードや箇条書きレイアウトを反復しない。
- - 少なくとも3つの内容を、文章ではなくインラインSVGまたはCSSによる図解にする。
-   例: 関係図、プロセス、タイムライン、比較、優先順位、ロードマップ、フィードバックループ。
- - 大きなタイポグラフィ、非対称グリッド、重なり、番号、余白、黒い面を意図的に組み合わせ、視覚的なリズムを作る。
- - 最後のグループディスカッションsceneに、学習者が次に取る行動も示す。
- - 入力の具体的な文脈とニュアンスを保ち、経験の再解釈、課題との接続、実践方法まで深める。
-
- Visual system:
- - 今回の唯一の有彩色は{$presentationAccentColor}。:rootに--accentとして定義する。
- - --accentは強調面、図形、ラベルに限定し、ページやscene全面の背景には使わない。
- - 白、オフホワイト、黒、グレーを主役にし、淡いアクセントと強い黒のコントラストで見せる。
- - 本文を小さく詰め込まない。長文は編集し、視覚構造へ変換する。
- - 細い左線、薄い枠、同じ角丸カード、同じ影を繰り返すだけのデザインは禁止。
- - 見出し上部などにeyebrow（短い補助ラベル）を置く場合は、英語を使用せず、内容に即した自然な日本語にする。
-
- Constraints:
- - <html lang="ja">、<head>、<title>、<style>、<body>、表紙の<h1>を含める。
- - 見出し、段落、リスト、blockquoteを意味に応じて使用し、Markdown版へ変換可能な意味的HTMLにする。
- - インラインSVGはviewBoxを持たせ、外部参照を使わない。装飾SVGにはaria-hidden="true"を付ける。
- - 図解の意味は近接する見出し、段落、または<figcaption>にも残し、テキスト版でも文脈を失わないようにする。
- - JavaScript、外部URL、外部フォント、外部画像、フォーム要素は使用しない。
- - 入力にない事実、個人情報、数値は作らない。
-PROMPT;
         $package = array_merge($settings, [
             'model' => $model,
             'max_output_tokens' => (int) (
@@ -999,46 +1118,24 @@ PROMPT;
                 ?? config('services.learning_presentation.max_output_tokens', 20000)
             ),
             'instructions' => (($config?->instructions) ?: $defaultInstructions)
-                ."\n\n入力にない事実や個人情報を作らないでください。\n\n"
-                .$requiredContentContract."\n\n"
-                .$htmlPresentationInstructions,
+                ."\n\n".$contentContract,
             'input' => $input,
         ]);
-        if ($textSettings !== []) {
-            $package['text'] = $textSettings;
-        }
+        $package['text'] = array_merge($textSettings, [
+            'format' => $this->personalMaterialPresentationService->slideDeckSchema(),
+        ]);
 
         $client = OpenAI::client($apiKey);
         $presentationService = $this->personalMaterialPresentationService;
         $response = $client->responses()->create($package);
-        $content = trim((string) $response->outputText);
+        $data = json_decode(trim((string) $response->outputText), true);
 
-        try {
-            $presentation = $presentationService->parseHtmlResponse($content);
-        } catch (RuntimeException $exception) {
-            $repairPackage = $package;
-            $repairPackage['instructions'] = $package['instructions']
-                ."\n\nRepair requirement:\n"
-                .'前回のHTMLは必須契約の検証に失敗しました。検証エラー: '
-                .$exception->getMessage()
-                ."\n既存の内容とデザイン品質をできる限り保ちながら、"
-                .'必須構造を満たす完全なHTMLドキュメントとして修正してください。'
-                .'説明、Markdown、コードフェンスは返さないでください。';
-            $repairPackage['input'] = $input
-                ."\n\n修正対象の前回HTML:\n"
-                .$content;
-            $repairResponse = $client->responses()->create($repairPackage);
-            $content = trim((string) $repairResponse->outputText);
-            $presentation = $presentationService->parseHtmlResponse($content);
+        if (! is_array($data)) {
+            throw new RuntimeException('OpenAIから有効な研修資料データを取得できませんでした。');
         }
 
-        $markdown = $presentationService->toMarkdown($presentation);
-        $existingMaterial = LessonPersonalMaterial::query()
-            ->where('lesson_theme_id', $theme->id)
-            ->where('user_id', $userId)
-            ->where('config_key', $configKey)
-            ->first();
-        $previousPresentationPath = $existingMaterial?->presentation_path;
+        $spec = $presentationService->buildSlideDeckSpec($data, $selectedTheme, $goalTitle);
+        $markdown = $presentationService->toMarkdown($spec);
 
         $personalMaterial = LessonPersonalMaterial::updateOrCreate(
             [
@@ -1049,9 +1146,7 @@ PROMPT;
             [
                 'lesson_theme_ai_config_id' => $config?->id,
                 'content' => $markdown,
-                'presentation_spec' => $presentation,
-                'presentation_theme' => $presentationAccentColor,
-                'presentation_path' => null,
+                'presentation_spec' => $spec,
                 'understand' => null,
                 'important_point' => null,
                 'source_snapshot' => [
@@ -1062,16 +1157,82 @@ PROMPT;
             ]
         );
 
-        if ($previousPresentationPath) {
-            Storage::disk('local')->delete($previousPresentationPath);
-        }
-
         return response()->json($personalMaterial->fresh());
+    }
+
+    private function enabledFlag($value): bool
+    {
+        return $value === true || (int) $value === 1;
     }
 
     private function repeaterConfigKey(int $attemptId): string
     {
         return 'repeater_attempt_'.$attemptId;
+    }
+
+    /**
+     * 誓約書: store the learner's signed copy of the pledge PDF. The client burns
+     * the signature into the document (same approach as the chat サイン依頼 flow)
+     * and uploads the finished file here.
+     */
+    public function sign_lesson_pledge(Request $request, LessonTheme $theme)
+    {
+        $userId = (int) Auth::id();
+        $this->authorizeLearnerThemeAccess($theme, $userId);
+
+        abort_unless(
+            $this->enabledFlag($theme->pledge) && filled($theme->pledge_file_path),
+            404,
+            'このテーマには誓約書がありません。'
+        );
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf', 'max:51200'],
+        ]);
+
+        $directory = 'lesson_pledges/'.$theme->id;
+        $fileName = $userId.'_'.uniqid().'.pdf';
+
+        $signature = LessonPledgeSignature::query()
+            ->where('lesson_theme_id', $theme->id)
+            ->where('user_id', $userId)
+            ->first();
+        $previousPath = $signature?->file_path;
+
+        Storage::disk('local')->putFileAs($directory, $request->file('file'), $fileName);
+
+        $signature = LessonPledgeSignature::updateOrCreate(
+            [
+                'lesson_theme_id' => $theme->id,
+                'user_id' => $userId,
+            ],
+            [
+                'file_path' => $directory.'/'.$fileName,
+                'signed_at' => now(),
+            ]
+        );
+
+        // Re-signing replaces the old copy.
+        if ($previousPath && $previousPath !== $signature->file_path) {
+            Storage::disk('local')->delete($previousPath);
+        }
+
+        return response()->json($signature->fresh());
+    }
+
+    /**
+     * Serve a signed 誓約書. Only its owner (or an admin) may download it.
+     */
+    public function download_lesson_pledge(LessonPledgeSignature $signature)
+    {
+        $userId = (int) Auth::id();
+        $actor = $this->active_user();
+        $isOwner = (int) $signature->user_id === $userId;
+
+        abort_unless($isOwner || optional($actor)->isAdmin(), 403);
+        abort_unless(Storage::disk('local')->exists($signature->file_path), 404);
+
+        return response()->file(Storage::disk('local')->path($signature->file_path));
     }
 
     public function save_personal_material_feedback(Request $request, LessonTheme $theme)
@@ -1118,35 +1279,6 @@ PROMPT;
         }
 
         return response()->json($personalMaterial->fresh());
-    }
-
-    public function download_personal_material_presentation(
-        LessonTheme $theme,
-        LessonPersonalMaterial $personalMaterial
-    ) {
-        $userId = (int) Auth::id();
-        $this->authorizeLearnerThemeAccess($theme, $userId);
-
-        abort_unless(
-            (int) $personalMaterial->lesson_theme_id === (int) $theme->id
-            && (int) $personalMaterial->user_id === $userId,
-            404
-        );
-        abort_if(
-            blank($personalMaterial->presentation_path)
-            || ! Storage::disk('local')->exists($personalMaterial->presentation_path),
-            404,
-            'プレゼンテーションファイルがありません。'
-        );
-
-        $themeTitle = str_replace(["\r", "\n", '/', '\\'], '-', $theme->title ?: '個人専用研修資料');
-        $filename = $themeTitle.'-個人専用研修資料.pptx';
-
-        return response()->download(
-            Storage::disk('local')->path($personalMaterial->presentation_path),
-            $filename,
-            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation']
-        );
     }
 
     private function authorizeLearnerThemeAccess(LessonTheme $theme, int $userId): void

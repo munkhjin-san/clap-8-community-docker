@@ -122,6 +122,8 @@ class SyncOpenAiRegulationPages implements ShouldQueue
             'ready' => $store->ready,
         ]);
 
+        $syncService->pruneOrphanedMarkdownCopies();
+
         Log::info("SyncOpenAiRegulationPages: sync complete. Store [{$store->id}], files [{$files->count()}], pages [".count($generatedPages).']');
     }
 

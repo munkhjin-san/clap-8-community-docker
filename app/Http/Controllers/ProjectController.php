@@ -20,6 +20,7 @@ use App\Models\ProjectGoal;
 use App\Models\taskRecord;
 use App\Models\User;
 use App\Models\ProjectFinanceComment;
+use App\Models\ProjectCommentRemind;
 use App\Models\ProjectFinanceLastRead;
 use App\Models\ProjectCase;
 use App\Models\messageFile;
@@ -35,6 +36,7 @@ use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
 use App\Models\ProjectRecordReadState;
 use App\Models\ProjectKintoneContractUpdateNotification;
+use App\Models\PartnerRecord;
 use App\Models\ProjectAssignRecord;
 use App\Services\Contracts\CachedContractExtractionService;
 use App\Services\MentionAndNotify;
@@ -167,6 +169,8 @@ class ProjectController extends Controller
             'director',
             'contract',
             'projectType',
+            // 取引先マスタ。JSON列の partners（パートナー企業）とは別物。
+            'partnerRecords:id,name,freee_partner_id',
             'specs.files',
             'memberRoles',
             'checkitems.check_user',
@@ -858,6 +862,18 @@ class ProjectController extends Controller
         $manager = collect($params['manager'])->pluck('id')->toArray();
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
+
+        // 取引先マスタとの紐付け。キーが送られてこないときは触らない
+        // （項目を持たない画面から保存したときに、既存の紐付けを消さないため）。
+        if (array_key_exists('partner_record_ids', $params)) {
+            $partnerIds = collect($params['partner_record_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+            $project->partnerRecords()->sync($partnerIds);
+        }
 
         $isNew = !$existingProject;
         $newStatus = $filteredParams['status'];
@@ -3359,6 +3375,51 @@ class ProjectController extends Controller
         ->with('requests')->get();
         return response()->json($target_assets);
     }
+    /**
+     * 取引先マスタの選択肢。プロジェクト作成画面の紐付け用。
+     * 管理画面の一覧（/admin/partners）と違い管理者に限定しない代わりに、
+     * 返すのは選択に必要な最小限（id・名称）だけにしている。
+     */
+    public function partner_record_options(Request $request)
+    {
+        $keyword = trim((string) $request->input('keyword', ''));
+        $selected = collect($request->input('selected', []))->map(fn ($id) => (int) $id)->filter();
+
+        $options = PartnerRecord::query()
+            ->select('id', 'name', 'available')
+            ->search($keyword !== '' ? $keyword : null)
+            ->where('available', true)
+            // 管理画面の一覧と同じく登録が新しい順。50件で打ち切るので、
+            // 名前順にすると最近登録した取引先が候補に出てこない。
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get();
+
+        // 選択済みは検索語や使用可否に関わらず必ず返す（表示が消えてしまうため）。
+        if ($selected->isNotEmpty()) {
+            $missing = PartnerRecord::query()
+                ->select('id', 'name', 'available')
+                ->whereIn('id', $selected->all())
+                ->whereNotIn('id', $options->pluck('id')->all())
+                ->get();
+            $options = $options->concat($missing);
+        }
+
+        return response()->json(['partners' => $options->values()]);
+    }
+
+    /**
+     * 取引先1件の詳細。プロジェクト詳細から参照するための読み取り専用。
+     * 編集・削除・freee連携は管理画面（/admin/partners）側にしか無い。
+     */
+    public function partner_record_detail(PartnerRecord $partner)
+    {
+        return response()->json([
+            'partner' => $partner->load('projects:id,name'),
+        ]);
+    }
+
     public function get_partners_tags(Request $request){
         $keyword = $request->key;
         $super = $request->super;
@@ -3944,7 +4005,7 @@ class ProjectController extends Controller
                     }
 
 
-                } else if ($profitData) {
+                } else if ($profitData && empty($actualSettlementData)) {
                     // $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
                     // $totalExpense = (int)  $profitData['販売管理費合計'] + (int) $profitData['間接費配賦'] + (int) $profitData['業績連動賞与積立金'];
                     $settlementFromProfit = [
@@ -4384,7 +4445,7 @@ class ProjectController extends Controller
 
         }
         // load author for UI if you want
-        $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply']);
+        $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply', 'remindUsers']);
 
         return response()->json($comment, 201);
     }
@@ -4397,7 +4458,7 @@ class ProjectController extends Controller
 
         $comment = ProjectFinanceComment::where('project_record_id', $data['project_record_id'])
                 ->where('period', $data['period'])
-                ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply'])
+                ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply', 'remindUsers'])
                 ->get();
 
         return response()->json($comment);
@@ -4657,7 +4718,35 @@ class ProjectController extends Controller
 
         return response()->json($comment->fresh()->load('checkedUsers'));
     }
+    public function project_comment_remind(Request $request)
+    {
+        $active_user = $this->active_user();
 
+        $data = $request->validate([
+            'id'   => ['required', 'integer'],
+            'kind' => ['required', 'string', 'in:finance,resource'],
+        ]);
+
+        $comment = $data['kind'] === 'finance'
+            ? ProjectFinanceComment::findOrFail($data['id'])
+            : ProjectResourceComment::findOrFail($data['id']);
+
+        $remind = ProjectCommentRemind::firstOrNew([
+            'comment_type' => $comment->getMorphClass(),
+            'comment_id'   => $comment->id,
+            'user_id'      => $active_user->id,
+        ]);
+
+        $remind->reminded = $remind->exists ? ! $remind->reminded : true;
+        $remind->save();
+
+        return response()->json([
+            'reminded' => (bool) $remind->reminded,
+            'data'     => $comment->fresh()->load($data['kind'] === 'finance'
+                ? ['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply', 'remindUsers']
+                : ['author:id,name,icon_path,icon_bg', 'remindUsers']),
+        ]);
+    }
     public function project_resource_comment(Request $req) {
         $user = Auth::user();
         $data = $req->validate([

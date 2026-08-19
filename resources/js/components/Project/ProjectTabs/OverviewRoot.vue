@@ -1,6 +1,6 @@
 <template>
-    <div class="h-full">
-        <div class="sub-tab-container p-5 bg-[var(--background-color)]" v-if="['project-overview-detail', 'project-overview-checkitems', 'project-overview-apply'].includes(route.name as string)">
+    <div class="h-full overflow-y-auto">
+        <div class="sub-tab-container p-5 bg-[var(--background-color)] pb-0" v-if="['project-overview-detail', 'project-overview-checkitems', 'project-overview-apply'].includes(route.name as string)">
             <router-link :to="{name: 'project-overview-detail'}" :class="{'selected-sub-tab': route.name === 'project-overview-detail'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline flex items-center gap-1">
                 詳細
                 <span v-if="checkItemConfirmBadge && overviewConfirm"
@@ -45,6 +45,7 @@
 </template>
 <script setup lang="ts">
 import { useProject } from '@/composables/project';
+import { User } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
 import { computed } from 'vue';
@@ -52,6 +53,7 @@ import { useRoute } from 'vue-router';
 const route = useRoute()
 const props = defineProps<{
     hasPrivilage: boolean
+    userList: User[]
 }>()
 const { isManager, projectReportCheckBadge, checkItemConfirmBadge, selectedProject } = useProject()
 const auth = useAuthUserStore()

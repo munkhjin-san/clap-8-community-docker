@@ -7,28 +7,21 @@
         @close="emit('close')"
     >
         <template #title>
-            <strong class="learning-presentation__title">{{ presentation.title }}</strong>
+            <strong class="learning-presentation__title">個別研修資料｜{{ presentation.selected_theme }}</strong>
         </template>
         <template #menu>
             <TTSPlayer
                 v-if="presentationText"
-                :key="presentation.title"
+                :key="presentation.goal_title"
                 :text="presentationText"
             />
         </template>
         <template #content>
             <div class="learning-presentation__content">
-                <iframe
-                    class="learning-presentation__frame"
-                    :srcdoc="safePresentationHtml"
-                    :title="presentation.title"
-                    sandbox=""
-                    referrerpolicy="no-referrer"
-                ></iframe>
-                <footer
-                    v-if="discussionThemes.length === 3"
-                    class="learning-presentation__discussion-selector"
-                >
+                <div class="learning-presentation__frame">
+                    <SlideDeck :spec="presentation" />
+                </div>
+                <footer v-if="selectable" class="learning-presentation__discussion-selector">
                     <p class="learning-presentation__discussion-prompt">
                         <strong>ディスカッション</strong>テーマを選択してください
                     </p>
@@ -38,7 +31,7 @@
                             :key="theme.number"
                             type="button"
                             class="learning-presentation__discussion-button"
-                            @click="selectDiscussionTheme(theme.text)"
+                            @click="selectDiscussionTheme(theme)"
                         >
                             テーマ{{ theme.number }}
                         </button>
@@ -51,173 +44,74 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import DOMPurify from 'dompurify'
 import Modal from '@/components/Global/Modal.vue'
 import TTSPlayer from '@/components/Global/TTSPlayer.vue'
-import type { LearningHtmlPresentationSpec } from '@/types/learning'
+import SlideDeck from '@/components/Learning/shared/SlideDeck.vue'
+import type { LearningDiscussionTheme, LearningSlideDeckSpec } from '@/types/learning'
 
-const props = defineProps<{
-    presentation: LearningHtmlPresentationSpec
-    accentColor?: string | null
-}>()
+const props = withDefaults(defineProps<{
+    presentation: LearningSlideDeckSpec
+    // Only the active-learning stage lets the learner pick a discussion theme.
+    // Read-only views (completed, or the group-discussion reference) hide it.
+    selectable?: boolean
+}>(), {
+    selectable: true,
+})
 
 const emit = defineEmits<{
     close: []
     selectDiscussionTheme: [content: string]
 }>()
 
-const sanitizedPresentationHtml = computed(() => {
-    return DOMPurify.sanitize(props.presentation.html, {
-        WHOLE_DOCUMENT: true,
-        ADD_TAGS: ['style'],
-        FORBID_TAGS: [
-            'script',
-            'iframe',
-            'object',
-            'embed',
-            'link',
-            'meta',
-            'base',
-            'form',
-            'input',
-            'button',
-            'textarea',
-            'select',
-            'img',
-            'video',
-            'audio',
-            'canvas',
-            'math',
-            'foreignObject',
-        ],
-        FORBID_ATTR: [
-            'src',
-            'srcset',
-            'href',
-            'action',
-            'formaction',
-            'poster',
-        ],
-    })
-})
+const SECTION_TITLES = [
+    'このテーマを今回の成果目標にどう活かせるか',
+    '成果目標達成に向けて本人が理解すべき考え方',
+    '過去の自分から見える強み',
+    '逆に注意すべき点',
+    '達成に向けて意識したい具体的な行動',
+]
 
-// Spoken text for the TTS menu. There is no dedicated plain-text field on the
-// presentation spec, so we strip the sanitized HTML down to its readable body
-// text (dropping style/script) for the reader.
+const discussionThemes = computed(() => [
+    { number: 1, theme: props.presentation.discussion.theme1 },
+    { number: 2, theme: props.presentation.discussion.theme2 },
+    { number: 3, theme: props.presentation.discussion.theme3 },
+])
+
+// Flatten the structured deck into readable speech text for the TTS menu.
 const presentationText = computed(() => {
-    const document = new DOMParser().parseFromString(
-        sanitizedPresentationHtml.value,
-        'text/html',
-    )
+    const s = props.presentation
+    const lines: string[] = [
+        '個別研修資料',
+        `選択テーマ ${s.selected_theme}`,
+        `「${s.goal_title}」を達成するために`,
+    ]
 
-    document.querySelectorAll('style, script, noscript').forEach(element => element.remove())
-
-    const container = document.body ?? document.documentElement
-    container.querySelectorAll('br').forEach(element => element.replaceWith('\n'))
-    container
-        .querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, blockquote, section')
-        .forEach(element => element.append('\n'))
-
-    return (container.textContent ?? '')
-        .replace(/\u00a0/g, ' ')
-        .replace(/[ \t]+\n/g, '\n')
-        .replace(/\n[ \t]+/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-})
-
-const discussionThemes = computed(() => {
-    const document = new DOMParser().parseFromString(
-        sanitizedPresentationHtml.value,
-        'text/html',
-    )
-
-    return [1, 2, 3].flatMap((number) => {
-        const theme = document.querySelector(
-            `#group-discussion .discussion-theme[data-theme-number="${number}"]`,
-        )
-        if (!theme) return []
-
-        const textContainer = theme.cloneNode(true) as HTMLElement
-        textContainer.querySelectorAll('br').forEach(element => element.replaceWith('\n'))
-        textContainer
-            .querySelectorAll('h1, h2, h3, h4, p, li, blockquote')
-            .forEach(element => element.append('\n'))
-
-        const text = (textContainer.textContent ?? '')
-            .replace(/\u00a0/g, ' ')
-            .replace(/[ \t]+\n/g, '\n')
-            .replace(/\n[ \t]+/g, '\n')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim()
-
-        return text ? [{ number, text }] : []
+    const sectionKeys = ['section1', 'section2', 'section3', 'section4', 'section5'] as const
+    sectionKeys.forEach((key, i) => {
+        const sec = s.sections[key]
+        lines.push('', SECTION_TITLES[i])
+        sec.body.forEach(b => lines.push(b))
+        if (sec.figure.title) lines.push(sec.figure.title)
+        sec.figure.items.forEach(it => lines.push(it.detail ? `${it.label}。${it.detail}` : it.label))
+        if (sec.figure.note) lines.push(sec.figure.note)
+        if (sec.summary) lines.push(sec.summary)
     })
+
+    lines.push('', 'グループディスカッションテーマ')
+    if (s.discussion.intro) lines.push(s.discussion.intro)
+    discussionThemes.value.forEach(({ theme }) => {
+        lines.push(theme.name, `話し言葉。${theme.talk_script}`, `着地の方向。${theme.landing}`)
+    })
+    lines.push('', 'お疲れ様でした。')
+
+    return lines.join('\n').trim()
 })
 
-const selectDiscussionTheme = (content: string) => {
+const selectDiscussionTheme = (entry: { theme: LearningDiscussionTheme }) => {
+    const { name, talk_script, landing } = entry.theme
+    const content = [name, talk_script, `着地の方向：${landing}`].filter(Boolean).join('\n\n')
     emit('selectDiscussionTheme', content)
 }
-
-const safePresentationHtml = computed(() => {
-    const requestedAccentColor = props.accentColor
-    const accentColor = typeof requestedAccentColor === 'string'
-        && /^#[0-9a-f]{6}$/i.test(requestedAccentColor)
-        ? requestedAccentColor
-        : '#dedede'
-    const securityPolicy = `
-        <meta
-            http-equiv="Content-Security-Policy"
-            content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:;"
-        >
-    `
-    const presentationGuardrails = `
-        <style>
-            :root { --accent: ${accentColor} !important; }
-            html {
-                background: #e7e7e7 !important;
-                min-height: 100% !important;
-                overflow-x: hidden !important;
-            }
-            body {
-                margin: 0 !important;
-                background: #e7e7e7 !important;
-                width: 100% !important;
-                min-height: 100% !important;
-                overflow-x: hidden !important;
-                overflow-y: auto !important;
-            }
-            main.story {
-                display: block !important;
-                box-sizing: border-box !important;
-                width: 100% !important;
-                min-height: 100% !important;
-                margin: 0 !important;
-                overflow: visible !important;
-            }
-            main.story > section.scene {
-                box-sizing: border-box !important;
-                display: block !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                height: auto !important;
-                max-height: none !important;
-                overflow-x: hidden !important;
-                overflow-y: visible !important;
-            }
-        </style>
-    `
-    const htmlWithSecurityPolicy = sanitizedPresentationHtml.value.replace(
-        /<head(\s[^>]*)?>/i,
-        match => `${match}${securityPolicy}`,
-    )
-
-    return htmlWithSecurityPolicy.replace(
-        /<\/head>/i,
-        `${presentationGuardrails}</head>`,
-    )
-})
-
 </script>
 
 <style scoped>
@@ -243,16 +137,15 @@ const safePresentationHtml = computed(() => {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: var(--background-color);
+    background: #e7e7e7;
 }
 
 .learning-presentation__frame {
-    display: block;
     flex: 1;
     min-height: 0;
     width: 100%;
-    border: 0;
-    background: var(--background-color);
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .learning-presentation__discussion-selector {

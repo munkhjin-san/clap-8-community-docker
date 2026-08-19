@@ -3,7 +3,7 @@ export type FlowInputType =
     | 'select' | 'radio' | 'checkbox' | 'toggle'
     | 'user' | 'member' | 'formula' | 'file' | 'table' | 'reference' | 'project'
     | 'password'
-    | 'heading' | 'label' | 'spacer' | 'divider'
+    | 'heading' | 'label' | 'spacer' | 'divider' | 'related'
 
 export type FlowRule = 'edit' | 'read' | 'hide'
 
@@ -14,6 +14,11 @@ export interface FlowFieldValidation {
     min?: number | null
     max?: number | null
     integer_only?: boolean
+    /** 数値の表示（see utils/flowNumber）。未設定なら桁区切りあり・単位なし。 */
+    thousand_separator?: boolean
+    decimals?: number | null
+    unit?: string | null
+    unit_position?: 'before' | 'after'
     min_select?: number | null
     max_select?: number | null
     accept?: string[]
@@ -53,6 +58,20 @@ export interface FlowFieldValidation {
      * values are searchable / exportable / columnable / filterable. Top-level reference fields only.
      */
     field_mappings?: FlowLookupMapping[]
+    /**
+     * related（関連レコード）: 既にあるルックアップ関係を裏返して一覧する設定。
+     *
+     * 「値の一致」ではなく関係そのものを選ぶ：child_definition_id のアプリの child_field_id
+     * （このアプリを指しているルックアップ項目）が持ち主。だから項目名を変えても壊れない。
+     */
+    child_definition_id?: number | null
+    child_field_id?: number | null
+    /** 一覧に出す子アプリの項目ID（未設定なら先頭の数項目）。table の columns とは別物。 */
+    related_columns?: number[]
+    /** 合計を出す子アプリの数値項目ID（kintoneの関連レコード一覧にはできない） */
+    related_aggregates?: number[]
+    /** 表示件数の上限（合計は全件が対象） */
+    related_limit?: number | null
 }
 
 export interface FlowLookupMapping {
@@ -124,6 +143,7 @@ export const FLOW_FIELD_DEFAULT_WIDTHS: Partial<Record<FlowInputType, number>> =
     label: 520,
     divider: 640,
     spacer: 200,
+    related: 1080,
 }
 export const defaultWidthFor = (type: FlowInputType): number => FLOW_FIELD_DEFAULT_WIDTHS[type] ?? FLOW_FIELD_DEFAULT_WIDTH
 
@@ -180,6 +200,8 @@ export interface BuilderStatusAction {
     color: string
     to_status_key: string | null
     eligible: ActionSubject[]
+    /** 通知バッジを表示する — off means the named people stop being chased (button still works) */
+    notify?: boolean
 }
 
 /** Builder-side status: rules held as a fieldKey -> rule map; actions held inline. */
@@ -306,6 +328,7 @@ export interface FlowViewApi {
     view_mode?: string
     columns?: (number | string)[] | null
     filters?: FlowViewFilter[] | null
+    filter_logic?: 'and' | 'or' | null
     sort?: FlowViewSort[] | null
 }
 export interface BuilderView {
@@ -314,6 +337,7 @@ export interface BuilderView {
     is_default: boolean
     columns: (number | string)[]
     filters: FlowViewFilter[]
+    filter_logic?: 'and' | 'or'
     sort: FlowViewSort[]
 }
 
@@ -360,6 +384,13 @@ export interface PdfTableColumn {
 export interface PdfElement {
     id: string
     type: PdfElementType
+    /**
+     * 何ページ目に置くか（1始まり）。
+     *
+     * 未設定は1ページ目。単ページ時代に作られたテンプレートはこのキーを持たないので、
+     * 既存の設定はそのまま1ページ目の帳票として出る。
+     */
+    page?: number
     x: number
     y: number
     w: number
@@ -391,23 +422,150 @@ export interface PdfElement {
     showBorder?: boolean   // 罫線の表示（既定 true）
 }
 
+/** 下敷きにする既存PDF。ページNの下に、このPDFのページNが敷かれる。 */
+export interface PdfBackground {
+    path: string        // storage の相対パス（サーバが決める。画面からは触らない）
+    name: string        // 元のファイル名（表示用）
+    pages: number
+}
+
 export interface PdfTemplate {
-    paper: { orientation: 'portrait' | 'landscape' }
+    /** pages 未設定は1ページ。要素の page が指す最大値の方が大きければそちらが優先される。 */
+    /** page_number 未設定は「出す」。この設定より前のテンプレートの見た目を変えないため。 */
+    paper: { orientation: 'portrait' | 'landscape'; pages?: number; page_number?: boolean }
     elements: PdfElement[]
     filename?: string
+    background?: PdfBackground
+}
+
+/** テンプレートのページ数。設定値と、実際に要素が置かれている位置の大きい方。 */
+export const pdfPageCount = (t?: PdfTemplate | null): number => {
+    if (!t) return 1
+    const used = (t.elements ?? []).reduce((max, el) => Math.max(max, el.page ?? 1), 1)
+    return Math.max(1, t.paper?.pages ?? 1, used)
+}
+
+/** 要素が属するページ（未設定は1ページ目）。 */
+export const pdfElementPage = (el: PdfElement): number => Math.max(1, el.page ?? 1)
+
+/**
+ * A「スロット」is a free area pinned above or below the record table. Unlike a view it belongs to the
+ * app, so every view shows it; the numbers still follow whatever view/filter is active.
+ * `feature` names the built-in that fills the slot — only 集計 (aggregation) so far.
+ */
+export type SlotAggFn = 'sum' | 'avg' | 'max' | 'min'
+
+export interface SlotAggItem {
+    /** "<fieldId>" for a 数値/計算 field, or "<tableFieldId>:<columnKey>" for a subtable number column */
+    source: string
+    fn: SlotAggFn
+    /** overrides the generated「項目 の 合計」caption */
+    label?: string
+    /** wrap the number for display — e.g. prefix「￥」or suffix「件」. Never affects the arithmetic. */
+    prefix?: string
+    suffix?: string
+}
+
+export interface SlotConfig {
+    position: 'top' | 'bottom'
+    feature: 'aggregation'
+    items: SlotAggItem[]
+}
+
+/**
+ * A「カスタムボタン」— a record-detail button whose behaviour lives in server code, not in config.
+ *
+ * `handler` is a KEY into the server's registry (`/flow_action_catalog`), never a URL: the app
+ * builder places, names and gates the button, but cannot invent what it does or where it goes.
+ * `eligible` is the same 押せる人 vocabulary as a status action, so both read identically.
+ */
+export interface ActionToolConfig {
+    handler: string | null
+    /** '' = inherit the app theme colour (same rule as a status action's colour) */
+    color?: string
+    eligible: ActionSubject[]
+}
+
+/**
+ * One method the server permits a custom button to call, as offered by /flow_action_catalog.
+ * `key` is the method name; everything the method does lives in PHP, not here.
+ */
+export interface FlowActionCatalogEntry {
+    key: string
+    label: string
 }
 
 export interface FlowAppTool {
     id?: number
-    tool_type: 'pdf'
+    tool_type: 'pdf' | 'slot' | 'action'
     name: string
     is_active: boolean
-    config: PdfTemplate
+    config: PdfTemplate | SlotConfig | ActionToolConfig
 }
 
-export const TOOL_META: Record<string, { label: string; icon: string }> = {
-    pdf: { label: 'PDF帳票', icon: 'file' },
+/** Narrowing helpers — `config` shape follows `tool_type`, which TS can't infer at every call site. */
+export const isSlotTool = (t: FlowAppTool): boolean => t.tool_type === 'slot'
+export const pdfConfig = (t: FlowAppTool): PdfTemplate => t.config as PdfTemplate
+export const slotConfig = (t: FlowAppTool): SlotConfig => t.config as SlotConfig
+export const actionConfig = (t: FlowAppTool): ActionToolConfig => t.config as ActionToolConfig
+
+export const emptySlot = (): SlotConfig => ({ position: 'bottom', feature: 'aggregation', items: [] })
+export const emptyActionTool = (): ActionToolConfig => ({ handler: null, color: '', eligible: [] })
+
+/**
+ * Has anyone actually been named as 押せる人? An empty list (or one holding only the
+ * position-picker's transient state) means「編集権限を持つ全員」— which is what the server's
+ * matchesAnySubject falls back to, so the hint and the behaviour agree.
+ */
+const NAMED_SUBJECTS = ['creator', 'user', 'creator_project_manager', 'field_project_manager']
+export const eligibleIsConfigured = (eligible: ActionSubject[] | null | undefined): boolean =>
+    (eligible ?? []).some((e) => NAMED_SUBJECTS.includes(e.subject_type))
+
+export const SLOT_AGG_FN_LABEL: Record<SlotAggFn, string> = {
+    sum: '合計', avg: '平均', max: '最大', min: '最小',
 }
+
+/**
+ * The tool kinds the ツール tab offers, one screen each.
+ *
+ * `route` is the URL segment under /apps/builder/:id/tools/, so each kind is linkable
+ * (…/tools/pdf-template, …/tools/aggregation). Adding a future tool means one entry here plus its
+ * own screen — the root grid and the routing are both driven off this list.
+ */
+export interface ToolKind {
+    type: 'pdf' | 'slot' | 'action'
+    route: string
+    label: string
+    desc: string
+    icon: string
+}
+
+export const TOOL_KINDS: ToolKind[] = [
+    {
+        type: 'pdf',
+        route: 'pdf-template',
+        label: 'PDF帳票',
+        desc: 'テンプレートをデザインして、レコードの内容を差し込んだPDFを出力します。',
+        icon: 'file',
+    },
+    {
+        type: 'slot',
+        route: 'aggregation',
+        label: '集計スロット',
+        desc: 'レコード一覧の表の上または下に、合計・平均・最大・最小を表示します。',
+        icon: 'formula',
+    },
+    {
+        type: 'action',
+        route: 'custom-button',
+        label: 'カスタムボタン',
+        desc: 'レコード詳細にボタンを置き、外部連携などの処理を実行します。処理の中身はシステム側で用意したものから選びます。',
+        icon: 'button',
+    },
+]
+
+export const toolKindByRoute = (route?: string | null): ToolKind | undefined =>
+    TOOL_KINDS.find((k) => k.route === route)
 
 export const emptyPdfTemplate = (): PdfTemplate => ({
     paper: { orientation: 'portrait' },
@@ -468,7 +626,7 @@ export interface FlowOptionPosition {
     name: string
 }
 
-export type FlowAuditAction = 'record_view' | 'csv_export' | 'settings_change' | 'file_download'
+export type FlowAuditAction = 'record_view' | 'csv_export' | 'settings_change' | 'file_download' | 'record_action'
 
 /** App-level audit trail entry (「監査ログ」builder tab) — distinct from a record's own 変更履歴. */
 export interface FlowAuditLogEntry {
@@ -484,6 +642,8 @@ export interface FlowAuditLogEntry {
 export interface FlowOptionProject {
     id: number
     name: string
+    /** 1 when the current user is on this project. The server already sorts these first. */
+    is_mine?: number
 }
 
 export interface FlowDefinitionListItem {
@@ -536,6 +696,14 @@ export interface FlowRecordDto {
     can_delete?: boolean
     /** 要対応 — an action on the record's current status explicitly names the viewer */
     pending_action?: boolean
+    /**
+     * Field ids THIS user may write on THIS record — record-edit ∩ field permissions ∩ the current
+     * status's field rules, resolved server-side. null means the endpoint didn't resolve it, in
+     * which case fall back to the field definition alone; [] genuinely means "nothing is editable".
+     */
+    editable_field_ids?: number[] | null
+    /** fields whose value the server withheld for lack of 閲覧; the form shows 閲覧権限がありません */
+    unviewable_field_ids?: number[] | null
 }
 
 export interface FlowRecordsResponse {
@@ -552,6 +720,13 @@ export interface FlowTypeMeta {
     group: '入力' | '選択' | '高度' | 'レイアウト' | 'その他'
     hasOptions?: boolean
     projectOnly?: boolean
+    /**
+     * Hidden from every type picker, but still a valid type: the label lookup and the whole runtime
+     * keep working, so any field already using it renders, validates and saves as before. Set this
+     * rather than deleting the entry — a deleted entry would leave existing fields showing their raw
+     * type name and drop them out of the type selector.
+     */
+    deprecated?: boolean
 }
 
 export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
@@ -566,21 +741,42 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
     { type: 'checkbox', label: 'チェックボックス', icon: 'checkbox', group: '選択', hasOptions: true },
     { type: 'toggle', label: 'オン/オフ', icon: 'toggle', group: '選択' },
     { type: 'user', label: 'ユーザー', icon: 'user', group: '高度' },
-    { type: 'member', label: 'メンバー', icon: 'member', group: '高度', projectOnly: true },
+    // メンバー is hidden until apps actually integrate with projects. It was meant to be "pick from
+    // this project's members", but the picker was handed the full user list, so it behaved exactly
+    // like ユーザー — same storage (an id array in value_json), same validation, same formula
+    // handling, differing only in label and icon. Nothing in the DB uses it (0 fields, 0 columns).
+    // To bring it back: drop `deprecated` and make the options project-scoped (server-side too, or a
+    // saved record could carry a non-member).
+    { type: 'member', label: 'メンバー', icon: 'member', group: '高度', projectOnly: true, deprecated: true },
     { type: 'formula', label: '計算', icon: 'formula', group: '高度' },
     { type: 'reference', label: 'ルックアップ', icon: 'reference', group: '高度' },
     { type: 'project', label: 'プロジェクト', icon: 'project', group: '高度' },
-    { type: 'password', label: 'パスワード（暗号化）', icon: 'password', group: '高度' },
+    // 「（暗号化）」は付けない：暗号化されることは設定パネルの「暗号化について」で説明しており、
+    // 型名に入れるとパレットのチップやバッジで2行に折り返すだけで情報は増えない。
+    { type: 'password', label: 'パスワード', icon: 'password', group: '高度' },
     { type: 'file', label: 'ファイル', icon: 'file', group: 'その他' },
     { type: 'table', label: 'テーブル', icon: 'table', group: 'その他' },
     { type: 'heading', label: '見出し', icon: 'heading', group: 'レイアウト' },
     { type: 'label', label: 'ラベル', icon: 'label', group: 'レイアウト' },
     { type: 'spacer', label: 'スペース', icon: 'spacer', group: 'レイアウト' },
     { type: 'divider', label: '罫線', icon: 'divider', group: 'レイアウト' },
+    // 関連レコード: 値を持たないブロック。ここに出す内容は「このレコードを指している他アプリの
+    // レコード」なので、保存・計算・CSV出力・検索の対象にはならない（isLayoutType に含める）。
+    { type: 'related', label: '関連レコード', icon: 'related', group: 'その他' },
 ]
 
-/** Layout/decoration types that hold no record value. */
-export const FLOW_LAYOUT_TYPES: FlowInputType[] = ['heading', 'label', 'spacer', 'divider']
+/**
+ * Types that hold no record value — must match FlowService::LAYOUT_TYPES on the server.
+ *
+ * 関連レコード（related）is here because this record stores nothing for it: it displays OTHER
+ * records. Being in this list is what keeps it out of list columns, filters, sort, validation,
+ * the dirty check and status field rules. It differs from pure decoration in one way only — it
+ * carries a meaningful label (the panel heading), so the places that hide labels for decoration
+ * check for that explicitly rather than relying on this list.
+ */
+export const FLOW_LAYOUT_TYPES: FlowInputType[] = ['heading', 'label', 'spacer', 'divider', 'related']
+/** Decoration proper: no value AND no meaningful label of its own. */
+export const isDecorationType = (t: FlowInputType) => t !== 'related' && FLOW_LAYOUT_TYPES.includes(t)
 export const isLayoutType = (t: FlowInputType) => FLOW_LAYOUT_TYPES.includes(t)
 
 /**

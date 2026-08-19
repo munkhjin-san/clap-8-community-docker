@@ -256,6 +256,7 @@ class ActualReserveAllocationService
         $records = timecardRecord::query()
             ->whereYear('day', $year)
             ->whereMonth('day', $month)
+            ->where('status_flag', timecardRecord::STATUS_APPROVED)
             ->with([
                 'user:id,name,user_code,position_id',
                 'department:id,name',
@@ -331,6 +332,10 @@ class ActualReserveAllocationService
         $minutesByDepartment = [];
 
         foreach ($record->project_segments ?? collect() as $segment) {
+            if (($segment->status ?? null) !== TimecardProjectSegment::STATUS_APPROVED) {
+                continue;
+            }
+
             if (($segment->segment_type ?? TimecardProjectSegment::TYPE_WORK) !== TimecardProjectSegment::TYPE_WORK) {
                 continue;
             }

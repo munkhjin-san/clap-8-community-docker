@@ -54,7 +54,10 @@ const saveRedirect = async(status:number, id:number | null) => {
                     surveyId: route.params?.surveyId
                 },
                 query: {
-                    answerId: id
+                    answerId: id,
+                    // undefined is dropped by the router, so non-learning
+                    // forms keep their current query shape.
+                    lessonThemeId: route.query?.lessonThemeId
                 }
             })
         }else if(status == 2){
@@ -62,7 +65,8 @@ const saveRedirect = async(status:number, id:number | null) => {
                 name: 'completed-survey',
                 query: {
                     answerId: id,
-                    surveyId: route.params?.surveyId
+                    surveyId: route.params?.surveyId,
+                    lessonThemeId: route.query?.lessonThemeId
                 }
             })
         }

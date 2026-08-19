@@ -49,16 +49,25 @@ onUnmounted(() => {
 <style scoped>
 .learning-pdf-viewer {
     height: calc(100vh - 120px);
-    margin: 14px 0;
+    margin: 0 0 14px;
     min-height: 620px;
     overflow: hidden;
     width: 100%;
 }
 
+/* The element's shadow root holds formatting whitespace around its <iframe>.
+   .section-wrapper's `white-space: break-spaces` and `line-height: 1.8` inherit
+   through the shadow boundary, so those newlines render as blank lines and push
+   the inline iframe down (~86px) — pushing an equal amount of the PDF past the
+   wrapper, where overflow:hidden clips it. Neutralise the inherited text
+   formatting so the iframe sits flush at the top. */
 .learning-pdf-viewer__element {
     display: block;
     height: 100%;
     width: 100%;
+    white-space: normal;
+    line-height: 0;
+    font-size: 0;
 }
 
 @media screen and (max-width: 720px) {

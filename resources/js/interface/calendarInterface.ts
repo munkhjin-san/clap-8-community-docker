@@ -62,7 +62,9 @@ export interface CalendarRecord{
     facilities: Facility[];
     task: Task;
     members_only: number;
-    temp_flag: number
+    temp_flag: number;
+    summaries_count?: number;
+    transcripts_count?: number;
 }
 
 

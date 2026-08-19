@@ -771,30 +771,4 @@ TXT
     {
         return "lunch_challenge:pending:{$dateKey}:{$userId}";
     }
-        public function session(Request $request)
-    {
-        $user = $request->user();
-       
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . config('services.openai.api_key'),
-            'Content-Type' => 'application/json',
-            'OpenAI-Beta' => 'chatkit_beta=v1',
-        ])->post('https://api.openai.com/v1/chatkit/sessions', [
-            'workflow' => [
-                'id' => config('services.openai.chatkit_workflow_id'),
-            ],
-            'user' => (string) $user->id,
-        ]);
-
-        if ($response->failed()) {
-            return response()->json([
-                'message' => 'Failed to create ChatKit session',
-                'error' => $response->json(),
-            ], 500);
-        }
-
-        return response()->json([
-            'client_secret' => $response->json('client_secret'),
-        ]);
-    }
 }

@@ -14,6 +14,7 @@
                 <span class="ce-label">出力範囲</span>
                 <div class="ce-seg">
                     <button type="button" :class="{ on: scope === 'all' }" @click="scope = 'all'">すべての項目</button>
+                    <button type="button" :class="{ on: scope === 'no_table' }" @click="scope = 'no_table'" :disabled="!tableFields.length" title="テーブル項目を除いて出力（1レコード＝1行）">テーブルを除く</button>
                     <button type="button" :class="{ on: scope === 'table' }" @click="scope = 'table'" :disabled="!tableFields.length">テーブルのみ</button>
                 </div>
             </div>
@@ -42,12 +43,17 @@ import Modal from '@/components/Global/Modal.vue'
 
 const props = defineProps<{
     fields: FlowField[]
-    buildUrl: (opts: { encoding: 'utf8' | 'sjis'; scope: 'all' | 'table'; tableFieldId: number | null }) => string
+    buildUrl: (opts: { encoding: 'utf8' | 'sjis'; scope: ExportScope; tableFieldId: number | null }) => string
 }>()
 const emit = defineEmits<{ close: [] }>()
 
+/** all = view columns (a subtable expands to one row per subtable row)
+ *  no_table = same minus Table columns, so one row per record
+ *  table = one chosen Table field's rows only */
+type ExportScope = 'all' | 'no_table' | 'table'
+
 const encoding = ref<'utf8' | 'sjis'>('utf8')
-const scope = ref<'all' | 'table'>('all')
+const scope = ref<ExportScope>('all')
 const tableFields = computed(() => props.fields.filter((f) => f.input_type === 'table' && f.id))
 const tableFieldId = ref<number | null>(null)
 if (tableFields.value.length) tableFieldId.value = tableFields.value[0].id!

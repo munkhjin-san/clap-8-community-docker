@@ -27,7 +27,14 @@ class SyncOpenAiRegulationFile implements ShouldQueue
             return;
         }
 
-        $syncService->resetPageDirectory();
-        $syncService->syncFile($file, $contractExtractionService, force: $this->force);
+        $syncService->resetGeneratedPagesForFile($file);
+        $result = $syncService->syncFile($file, $contractExtractionService, force: $this->force);
+
+        if (($result['status'] ?? null) === 'skipped') {
+            return;
+        }
+
+        $syncService->rebuildStoreData($result['store'] ?? null);
+        $syncService->pruneOrphanedMarkdownCopies();
     }
 }

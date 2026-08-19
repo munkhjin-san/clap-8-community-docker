@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActualResultDepartment;
-use App\Services\ActualResultCsvService;
+use App\Models\FreeeCredential;
 use App\Services\ActualResultPersistenceService;
+use App\Services\Freee\FreeeActualResultService;
+use App\Services\Freee\FreeeJournalPostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -29,109 +30,83 @@ class AdminActualResultController extends Controller
         ]);
     }
 
-    public function calculate(
+    /**
+     * freee会計から対象月の損益計算書を取り込み、実績を作る。
+     */
+    public function syncFromFreee(
         Request $request,
-        ActualResultCsvService $calculator,
+        FreeeActualResultService $freee,
         ActualResultPersistenceService $actualResults
     ) {
         $this->authorizeAdmin();
 
         $data = $request->validate([
-            'file' => ['required', 'file', 'max:10240'],
-            'month' => ['nullable', 'date_format:Y-m'],
+            'month' => ['required', 'date_format:Y-m'],
             'overwrite_confirmed' => ['nullable', 'boolean'],
-            'discard_manual_edits' => ['nullable', 'boolean'],
         ]);
 
-        if (! empty($data['month'])) {
-            $existingReport = $actualResults->reportForMonth($data['month']);
+        $existingReport = $actualResults->reportForMonth($data['month']);
 
-            if ($existingReport !== null && ! ($data['overwrite_confirmed'] ?? false)) {
-                throw ValidationException::withMessages([
-                    'overwrite_confirmed' => 'この月には保存済みの実績があります。上書きの確認が必要です。',
-                ]);
-            }
-
-            $hasManualEdits = $existingReport?->departments->contains(
-                fn (ActualResultDepartment $department) => $department->manual_adjusted
-            ) ?? false;
-
-            if ($hasManualEdits && ! ($data['discard_manual_edits'] ?? false)) {
-                throw ValidationException::withMessages([
-                    'discard_manual_edits' => '手動編集済みの部門があります。編集内容を破棄する確認が必要です。',
-                ]);
-            }
+        if ($existingReport !== null && ! ($data['overwrite_confirmed'] ?? false)) {
+            throw ValidationException::withMessages([
+                'overwrite_confirmed' => 'この月には保存済みの実績があります。上書きの確認が必要です。',
+            ]);
         }
 
-        $result = $calculator->calculateFromUploadedFile($data['file']);
+        $result = $freee->calculateForMonth($this->connectedFreeeCredential(), $data['month']);
 
-        if (! empty($data['month'])) {
-            $csvMonth = $result['file']['calculation_month'] ?? null;
-
-            if ($csvMonth !== null && $csvMonth !== $data['month']) {
-                throw ValidationException::withMessages([
-                    'month' => "選択月（{$data['month']}）とCSVの対象月（{$csvMonth}）が一致しません。",
-                ]);
-            }
-
-            $result = $actualResults->saveUploadedResult($result, $data['file'], $data['month'], $this->activeUserId());
-        }
-
-        return response()->json($result);
+        return response()->json(
+            $actualResults->saveSyncedResult($result, $data['month'], $this->activeUserId())
+        );
     }
 
-    public function accountOptions(Request $request, ActualResultPersistenceService $actualResults)
+    /**
+     * 計算済みの積立金をfreeeへ振替伝票として送る。
+     *
+     * dry_run=true なら送信内容を返すだけ。実送信でも (対象月, 種類) 単位で
+     * 登録済み伝票を更新するため、何度押しても二重計上にはならない。
+     */
+    public function postToFreee(Request $request, FreeeJournalPostService $journals)
     {
         $this->authorizeAdmin();
 
         $data = $request->validate([
             'month' => ['required', 'date_format:Y-m'],
+            'dry_run' => ['nullable', 'boolean'],
+            'buckets' => ['nullable', 'array'],
+            'buckets.*' => [Rule::in(array_merge(
+                array_keys(FreeeJournalPostService::BUCKET_ACCOUNTS),
+                [FreeeJournalPostService::BONUS_ACCRUAL_BUCKET]
+            ))],
         ]);
 
-        return response()->json([
-            'options' => $actualResults->accountOptions($data['month']),
-        ]);
+        return response()->json($journals->postForMonth(
+            $this->connectedFreeeCredential(),
+            $data['month'],
+            filter_var($data['dry_run'] ?? true, FILTER_VALIDATE_BOOL),
+            $this->activeUserId(),
+            $data['buckets'] ?? [],
+        ));
     }
 
-    public function editHistories(Request $request, ActualResultPersistenceService $actualResults)
+    /**
+     * 取込に使う連携済みfreee設定。未連携なら操作の前で止める。
+     */
+    private function connectedFreeeCredential(): FreeeCredential
     {
-        $this->authorizeAdmin();
+        $credential = FreeeCredential::query()
+            ->where('active', true)
+            ->where('status', FreeeCredential::STATUS_CONNECTED)
+            ->orderBy('id')
+            ->first();
 
-        $data = $request->validate([
-            'month' => ['required', 'date_format:Y-m'],
-            'department_id' => ['nullable', 'integer'],
-        ]);
+        if (! $credential) {
+            throw ValidationException::withMessages([
+                'message' => '連携済みのfreee設定がありません。先に管理画面のfreeeタブで認可してください。',
+            ]);
+        }
 
-        return response()->json([
-            'histories' => $actualResults->editHistories($data['month'], $data['department_id'] ?? null),
-        ]);
-    }
-
-    public function updateDepartmentAccount(
-        Request $request,
-        ActualResultDepartment $department,
-        ActualResultPersistenceService $actualResults
-    ) {
-        $this->authorizeAdmin();
-
-        $data = $request->validate([
-            'account_key' => ['nullable', 'string'],
-            'delete' => ['nullable', 'boolean'],
-            'note' => ['nullable', 'string', 'max:1000'],
-            'account' => ['required_unless:delete,true', 'array'],
-            'account.account_code' => ['nullable', 'string', 'max:64'],
-            'account.account_name' => ['required_unless:delete,true', 'string', 'max:255'],
-            'account.category' => ['nullable', Rule::in(['sales', 'expense'])],
-            'account.bucket' => ['nullable', 'string', 'max:80'],
-            'account.bucket_label' => ['nullable', 'string', 'max:255'],
-            'account.amount' => ['nullable', 'numeric'],
-            'account.debit' => ['nullable', 'numeric'],
-            'account.credit' => ['nullable', 'numeric'],
-            'account.balance' => ['nullable', 'numeric'],
-            'account.ending_balance' => ['nullable', 'numeric'],
-        ]);
-
-        return response()->json($actualResults->updateDepartmentAccount($department, $data, $this->activeUserId()));
+        return $credential;
     }
 
     public function export(Request $request, ActualResultPersistenceService $actualResults)

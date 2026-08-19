@@ -4,7 +4,8 @@
             <div class="recordFormTitle" style="display:flex;">
                 <p>グラウドナインに挑戦！</p>
                 <div style="margin-left:auto;">
-                    <div @click="emit('close', true)" class="cursor-pointer" style="position:unset;">
+                    <div @click="closeWindow(true)" :class="rolling ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
+                        :title="rolling ? 'サイコロが止まるまでお待ちください' : undefined" style="position:unset;">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14"
                             viewBox="0 0 32 32">
                             <path
@@ -35,12 +36,12 @@
                 <div v-if="hit === 800"
                     style="display: flex; margin-top: 20px; flex-direction: column; gap: 20px; align-items: center; font-size: 13px;">
                     <div>最高額おめでとう！<br> 賞金は翌月のリフレッシュ<br>補助金に増額されます。</div>
-                    <div @click="emit('close', false)" class="nine-answer-button">OK</div>
+                    <div @click="closeWindow(false)" class="nine-answer-button">OK</div>
                 </div>
                 <div v-if="missed"
                     style="display: flex; margin-top: 20px; flex-direction: column; gap: 20px; align-items: center; font-size: 13px;">
                     <p>ハズレ　次回もお楽しみに！</p>
-                    <div @click="emit('close', false)" class="nine-answer-button">OK</div>
+                    <div @click="closeWindow(false)" class="nine-answer-button">OK</div>
                 </div>
             </div>
 
@@ -76,6 +77,11 @@ const { ask } = useDialog()
 const updateTryFlag = async () => {
     await api.put('/task_update_flag', { task_id: props.taskId })
 }
+// Block closing mid-roll so a result can't be abandoned before it is saved.
+const closeWindow = (flag: boolean) => {
+    if (rolling.value) return
+    emit('close', flag)
+}
 const startRolling = async () => {
     if (rolling.value) return
     if (hit.value && hit.value > 0) {
@@ -87,11 +93,11 @@ const startRolling = async () => {
 const promptGreaterOrLesser = async () => {
     const options = {
         answers: [
-            { label: '大(十以上)', value: true },
-            { label: '小(十以下)', value: false }
+            { label: '小　3〜10', value: false },
+            { label: '大　11〜18', value: true }
         ]
     };
-    const answer = await ask('大か小', options);
+    const answer = await ask('ダブルアップチャンス！\n出目の合計を当てよう', options);
     greater.value = answer.value ?? null;
 };
 const beginDiceRolling = () => {
@@ -137,7 +143,8 @@ const checkExactHit = (value: number) => {
 };
 
 const checkGreaterOrLesserHit = (value: number) => {
-    const condition = greater.value ? value > 10 : value < 10;
+    // 小 = 3〜10 / 大 = 11〜18 (no gap: a sum of 10 used to lose either way).
+    const condition = greater.value ? value >= 11 : value <= 10;
     if (condition) {
         awardPrize();
     } else {

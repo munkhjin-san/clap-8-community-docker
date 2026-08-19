@@ -85,15 +85,11 @@ export const dashboardRoutes: RouteRecordRaw[] = [
                         meta: {
                             title: 'AIチャット',
                         },
-                        component: () => import('@/components/Support/Chat/ChatKit.vue'),
+                        component: () => import('@/components/Support/Chat/AiChat.vue'),
                     },
                     {
                         path: 'chat-test',
-                        name: 'ai_chat_test',
-                        meta: {
-                            title: 'AIチャット（BETA）',
-                        },
-                        component: () => import('@/components/Support/Chat/SelfHostedChat.vue'),
+                        redirect: { name: 'ai_chat' },
                     },
                     {
                         path: 'system_updates',

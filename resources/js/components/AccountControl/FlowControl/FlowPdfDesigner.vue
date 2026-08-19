@@ -6,10 +6,10 @@
                 <input v-model="tool.name" class="pd-name" placeholder="帳票名">
                 <div class="pd-top-right">
                     <div class="pd-orient" title="用紙の向き">
-                        <button :class="{ on: tool.config.paper.orientation === 'portrait' }" @click="tool.config.paper.orientation = 'portrait'" title="縦">
+                        <button :class="{ on: cfg.paper.orientation === 'portrait' }" @click="cfg.paper.orientation = 'portrait'" title="縦">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="1.5" width="7" height="11" rx="1"/></svg>
                         </button>
-                        <button :class="{ on: tool.config.paper.orientation === 'landscape' }" @click="tool.config.paper.orientation = 'landscape'" title="横">
+                        <button :class="{ on: cfg.paper.orientation === 'landscape' }" @click="cfg.paper.orientation = 'landscape'" title="横">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3.5" width="11" height="7" rx="1"/></svg>
                         </button>
                     </div>
@@ -30,14 +30,44 @@
                 </div>
 
                 <!-- canvas -->
-                <div class="pd-canvas-wrap" @pointerdown.self="selectedId = null">
+                <div ref="canvasWrap" class="pd-canvas-wrap" @wheel="onWheel" @pointerdown.self="selectedId = null">
+                    <!-- ページの切り替え。1枚しか無いときも出す——増やせることが分かる場所がここしかない。 -->
+                    <div class="pd-pages" @pointerdown.stop>
+                        <button
+                            v-for="p in pageCount"
+                            :key="p"
+                            class="pd-page-tab"
+                            :class="{ on: p === currentPage, empty: countOnPage(p) === 0 }"
+                            :title="`${p} ページ目`"
+                            @click="goToPage(p)"
+                        >{{ p }}</button>
+                        <button class="pd-page-add" title="ページを追加" @click="addPage">＋</button>
+                        <button
+                            v-if="pageCount > 1"
+                            class="pd-page-del"
+                            title="このページを削除"
+                            @click="removePage(currentPage)"
+                        ><CloseIcon size="10" /></button>
+
+                        <!-- 表示倍率。既定の62%では差込項目を置く作業がしづらい。 -->
+                        <span class="pd-zoom">
+                            <button title="縮小" :disabled="scale <= ZOOM_MIN" @click="zoomBy(-1)">−</button>
+                            <button class="pd-zoom-val" title="100%に戻す" @click="setZoom(1)">{{ Math.round(scale * 100) }}%</button>
+                            <button title="拡大" :disabled="scale >= ZOOM_MAX" @click="zoomBy(1)">＋</button>
+                            <button class="pd-zoom-fit" title="幅に合わせる" @click="fitToWidth">幅に合わせる</button>
+                        </span>
+                    </div>
+
                     <div
                         class="pd-page"
                         :style="{ width: pageW * scale + 'px', height: pageH * scale + 'px' }"
                         @pointerdown.self="selectedId = null"
                     >
+                        <!-- 下敷き。要素より下に敷くだけで、掴めない（配置の邪魔をしない）。 -->
+                        <canvas ref="bgCanvas" class="pd-bg"></canvas>
+
                         <div
-                            v-for="el in elements"
+                            v-for="el in pageElements"
                             :key="el.id"
                             class="pd-el"
                             :class="{ sel: selectedId === el.id, ['t-' + el.type]: true }"
@@ -68,6 +98,14 @@
                 <div class="pd-insp">
                     <template v-if="sel">
                         <div class="pd-insp-h">{{ palLabel(sel.type) }}<button class="pd-el-del" @click="removeEl(sel.id)" title="削除"><CloseIcon size="10" /></button></div>
+
+                        <!-- 置くページ。作った後に「1枚目に戻したい」が必ず出るので、
+                             ここから動かせるようにしておく。 -->
+                        <label v-if="pageCount > 1" class="pd-f">ページ
+                            <select :value="pageOf(sel)" @change="moveToPage(sel, Number(($event.target as HTMLSelectElement).value))">
+                                <option v-for="p in pageCount" :key="p" :value="p">{{ p }} ページ目</option>
+                            </select>
+                        </label>
 
                         <!-- geometry -->
                         <div class="pd-grid4">
@@ -177,9 +215,37 @@
                     <template v-else>
                         <div class="pd-insp-h">ページ設定</div>
                         <label class="pd-f">ファイル名パターン
-                            <input v-model="tool.config.filename" placeholder="請求書_{seq}">
+                            <input v-model="cfg.filename" placeholder="請求書_{seq}">
                         </label>
-                        <p class="pd-hint">{seq}=レコード番号 / {id}=ID / {app}=アプリ名</p>
+                        <p class="pd-hint">{seq}=レコード番号 / {id}=内部ID / {app}=アプリ名</p>
+                        <p class="pd-hint">{フィールドコード} でその項目の値が入ります（例: {契約書No}_{取引先}）。</p>
+
+                        <div class="irow pd-pageno">
+                            <label>ページ番号</label>
+                            <span
+                                class="flow-sw"
+                                :class="{ on: cfg.paper.page_number !== false }"
+                                @click="cfg.paper.page_number = cfg.paper.page_number === false"
+                            ></span>
+                        </div>
+                        <p class="pd-hint">各ページの下に「1 / 2」を入れます。</p>
+
+                        <div class="pd-bg-sec">
+                            <div class="pd-insp-h">下敷きPDF</div>
+                            <template v-if="cfg.background">
+                                <p class="pd-bg-name" :title="cfg.background.name">{{ cfg.background.name }}</p>
+                                <p class="pd-hint">{{ cfg.background.pages }} ページ。各ページの下に、同じ番号のページが敷かれます。</p>
+                                <button class="pd-bg-clear" @click="clearBackground">下敷きを外す</button>
+                            </template>
+                            <template v-else>
+                                <label class="pd-f">
+                                    <input type="file" accept="application/pdf" :disabled="bgUploading" @change="onBackgroundUpload">
+                                </label>
+                                <p class="pd-hint">既にあるPDF（契約書のひな形など）の上に、差込項目を置けます。</p>
+                            </template>
+                            <p v-if="bgUploading" class="pd-hint">読み込み中…</p>
+                        </div>
+                        <p class="pd-hint">全 {{ pageCount }} ページ（明細テーブルが長い場合は、出力時にさらに増えます）。</p>
                         <p class="pd-hint">要素を選択すると、その設定が表示されます。</p>
                     </template>
                 </div>
@@ -197,27 +263,208 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { BuilderDefinition, FlowAppTool, PdfElement, PdfElementType } from '@/types/flow'
-import { isLayoutType, isSecretType } from '@/types/flow'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import type { BuilderDefinition, FlowAppTool, PdfElement, PdfElementType, PdfTemplate } from '@/types/flow'
+import { isLayoutType, isSecretType, pdfElementPage, pdfPageCount } from '@/types/flow'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 
 const props = defineProps<{ tool: FlowAppTool; def: BuilderDefinition }>()
+// only ever opened for a PDF tool; narrow once instead of casting at every use
+const cfg = computed<PdfTemplate>(() => props.tool.config as PdfTemplate)
 const emit = defineEmits<{ close: [] }>()
 
 const api = useApi()
 const dialog = useDialog()
 
-const pageW = computed(() => (props.tool.config.paper.orientation === 'landscape' ? 1123 : 794))
-const pageH = computed(() => (props.tool.config.paper.orientation === 'landscape' ? 794 : 1123))
-const scale = ref(0.62)
+const pageW = computed(() => (cfg.value.paper.orientation === 'landscape' ? 1123 : 794))
+const pageH = computed(() => (cfg.value.paper.orientation === 'landscape' ? 794 : 1123))
+/* ---- 表示倍率 ----
+   要素の座標も文字サイズも掴む判定も、すべて scale を通しているので、ここを変えるだけで
+   全部が追従する（ドラッグ量は / scale しているため、どの倍率でも同じだけ動く）。 */
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 2
+const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.62, 0.75, 0.9, 1, 1.25, 1.5, 2]
+const ZOOM_KEY = 'flow.pdf.designer.zoom'
+
+const canvasWrap = ref<HTMLElement | null>(null)
+const scale = ref(readStoredZoom())
+
+function readStoredZoom(): number {
+    try {
+        const v = Number(localStorage.getItem(ZOOM_KEY))
+        // 前に使っていた倍率で開く。毎回62%に戻ると、開き直すたびに合わせ直しになる。
+        if (isFinite(v) && v >= ZOOM_MIN && v <= ZOOM_MAX) return v
+    } catch { /* localStorage が使えない環境でも動く */ }
+    return 0.62
+}
+
+const setZoom = (v: number) => {
+    scale.value = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(v * 100) / 100))
+    try { localStorage.setItem(ZOOM_KEY, String(scale.value)) } catch { /* 保存できなくても続行 */ }
+}
+
+/** 段階で動かす。今の値より大きい／小さい最初の段に移る。 */
+const zoomBy = (dir: 1 | -1) => {
+    const next = dir > 0
+        ? ZOOM_STEPS.find((z) => z > scale.value + 0.001)
+        : [...ZOOM_STEPS].reverse().find((z) => z < scale.value - 0.001)
+    setZoom(next ?? scale.value)
+}
+
+/** 見えている幅いっぱいに。狭い画面ではこれが一番使う。 */
+const fitToWidth = () => {
+    const el = canvasWrap.value
+    if (!el) return
+    setZoom((el.clientWidth - 48) / pageW.value)   // 48 = 左右の余白
+}
+
+/** Ctrl / ⌘ + ホイールで拡大縮小。修飾キー無しのときは普通のスクロールのまま。 */
+const onWheel = (e: WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return
+    e.preventDefault()
+    setZoom(scale.value * (e.deltaY < 0 ? 1.1 : 1 / 1.1))
+}
 const selectedId = ref<string | null>(null)
 
-const elements = computed(() => props.tool.config.elements)
+const elements = computed(() => cfg.value.elements)
 const sel = computed<PdfElement | null>(() => elements.value.find((e) => e.id === selectedId.value) ?? null)
+
+/* ---- ページ ----
+   page を持たない要素は1ページ目。単ページ時代のテンプレートがそのまま出るのはこの既定のおかげ。 */
+const currentPage = ref(1)
+const pageCount = computed(() => pdfPageCount(cfg.value))
+const pageOf = (el: PdfElement) => pdfElementPage(el)
+const pageElements = computed(() => elements.value.filter((e) => pageOf(e) === currentPage.value))
+const countOnPage = (p: number) => elements.value.filter((e) => pageOf(e) === p).length
+
+const goToPage = (p: number) => {
+    currentPage.value = p
+    // 選択したままページを移ると、見えない要素を編集し続けることになる
+    if (sel.value && pageOf(sel.value) !== p) selectedId.value = null
+}
+
+/* ---- 下敷きPDF ----
+   サーバは下敷きの1ページを用紙いっぱいに引き伸ばして敷く。ここも同じ合わせ方をしないと、
+   画面で合わせた位置が出力でずれる。 */
+const bgCanvas = ref<HTMLCanvasElement | null>(null)
+const bgUploading = ref(false)
+let pdfjs: any = null
+let bgDoc: any = null
+
+const bgUrl = computed(() => {
+    const path = cfg.value.background?.path
+    if (!path || !props.def.id) return null
+    const hash = String(path.split('/').pop() ?? '').replace(/\.pdf$/, '')
+    return `/flow_tool_background/${props.def.id}/${hash}`
+})
+
+const loadBackground = async () => {
+    bgDoc = null
+    if (!bgUrl.value) return paintBackground()
+    try {
+        // アプリに同梱せず、既に配信している pdf.js をそのまま使う（/pdf-reader は帳票以外でも使用中）
+        // 型は無い（実行時に配信されるモジュール）。パスを変数にして、ビルド時の解決も型解決も外す。
+        // **オリジンを明示する**：開発中は読み込み元がViteのサーバなので、相対のままだと
+        // そちらの :5173 を探しに行って落ちる。配信しているのはアプリ側（Laravel）。
+        const origin = window.location.origin
+        const src = `${origin}/pdf-reader/build/pdf.mjs`
+        pdfjs ??= await import(/* @vite-ignore */ src)
+        pdfjs.GlobalWorkerOptions.workerSrc = `${origin}/pdf-reader/build/pdf.worker.mjs`
+        bgDoc = await pdfjs.getDocument({ url: bgUrl.value, withCredentials: true }).promise
+    } catch {
+        dialog.toast('下敷きを表示できませんでした（出力には影響しません）。')
+    }
+    await paintBackground()
+}
+
+const paintBackground = async () => {
+    const cv = bgCanvas.value
+    if (!cv) return
+    const dpr = window.devicePixelRatio || 1
+    const cw = Math.round(pageW.value * scale.value * dpr)
+    const ch = Math.round(pageH.value * scale.value * dpr)
+    cv.width = cw
+    cv.height = ch
+    const ctx = cv.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, cw, ch)
+    if (!bgDoc || currentPage.value > bgDoc.numPages) return
+
+    const page = await bgDoc.getPage(currentPage.value)
+    // 一度そのままの縦横比で描いてから、用紙に合わせて引き伸ばす（サーバの UseTemplate と同じ）
+    const natural = page.getViewport({ scale: 1 })
+    const off = document.createElement('canvas')
+    const s = cw / natural.width
+    const vp = page.getViewport({ scale: s })
+    off.width = Math.max(1, Math.round(vp.width))
+    off.height = Math.max(1, Math.round(vp.height))
+    await page.render({ canvasContext: off.getContext('2d')!, viewport: vp }).promise
+    ctx.drawImage(off, 0, 0, cw, ch)
+}
+
+const onBackgroundUpload = async (e: Event) => {
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+    if (!props.def.id) { dialog.toast('先にアプリを保存してください。'); input.value = ''; return }
+
+    bgUploading.value = true
+    try {
+        const fd = new FormData()
+        fd.append('flow_definition_id', String(props.def.id))
+        fd.append('file', file)
+        const data: any = await api.post('/flow_tool_background', fd, { silent: true })
+        cfg.value.background = data
+        // 下敷きのページ数だけ、置き場を先に用意しておく
+        if (data.pages > pageCount.value) cfg.value.paper.pages = data.pages
+        await loadBackground()
+    } catch (err: any) {
+        dialog.toast(err?.response?.data?.message || '下敷きを読み込めませんでした。')
+    } finally {
+        bgUploading.value = false
+        input.value = ''
+    }
+}
+
+const clearBackground = async () => {
+    if (!(await dialog.ask('下敷きを外します。配置した要素はそのまま残ります。よろしいですか？')).value) return
+    delete cfg.value.background
+    await loadBackground()
+}
+
+watch(bgUrl, loadBackground, { immediate: true })
+watch([currentPage, pageW, pageH, scale], paintBackground)
+onBeforeUnmount(() => { bgDoc?.destroy?.(); bgDoc = null })
+
+const addPage = () => {
+    cfg.value.paper.pages = pageCount.value + 1
+    goToPage(cfg.value.paper.pages)
+}
+
+const moveToPage = (el: PdfElement, p: number) => {
+    el.page = p
+    goToPage(p)
+    selectedId.value = el.id
+}
+
+/** ページを1枚消す。後ろのページは繰り上がる（番号に穴を残さない）。 */
+const removePage = async (p: number) => {
+    if (pageCount.value <= 1) return
+    const n = countOnPage(p)
+    if (n > 0 && !(await dialog.ask(`${p} ページ目の要素 ${n} 件も一緒に削除します。よろしいですか？`)).value) return
+
+    cfg.value.elements = elements.value.filter((e) => pageOf(e) !== p)
+    for (const el of cfg.value.elements) {
+        const cur = pageOf(el)
+        if (cur > p) el.page = cur - 1
+    }
+    cfg.value.paper.pages = Math.max(1, pageCount.value - 1)
+    selectedId.value = null
+    goToPage(Math.min(p, cfg.value.paper.pages))
+}
 
 const valueFields = computed(() => props.def.fields.filter((f) => !isLayoutType(f.input_type) && !isSecretType(f.input_type)))
 const tableFields = computed(() => props.def.fields.filter((f) => f.input_type === 'table'))
@@ -246,7 +493,7 @@ let seq = 0
 const uid = () => `e_${Date.now()}_${seq++}`
 
 const addElement = (type: PdfElementType) => {
-    const base: any = { id: uid(), type, x: 48, y: 48, w: 300, h: 40 }
+    const base: any = { id: uid(), type, page: currentPage.value, x: 48, y: 48, w: 300, h: 40 }
     if (type === 'text') Object.assign(base, { text: 'テキスト', style: { fontSize: 16, align: 'left', color: '#111827' } })
     if (type === 'field') Object.assign(base, { w: 260, h: 28, fieldKey: valueFields.value[0]?.key, style: { fontSize: 13, align: 'left', color: '#111827' } })
     if (type === 'today') Object.assign(base, { w: 200, h: 26, format: { kind: 'date', pattern: 'Y年n月j日' }, style: { fontSize: 13, align: 'left', color: '#111827' } })
@@ -428,7 +675,7 @@ const doPreview = async () => {
     previewing.value = true
     try {
         const res: any = await api.post('/flow_tool_pdf_preview',
-            { flow_definition_id: props.def.id, config: props.tool.config },
+            { flow_definition_id: props.def.id, config: cfg.value },
             { rawResponse: true, silent: true },
             { responseType: 'blob' })
         previewUrl.value = URL.createObjectURL(res.data)
@@ -465,7 +712,24 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-chip-ico { width: 18px; text-align: center; color: var(--primary-color); font-weight: 700; }
 .pd-hint { font-size: 10.5px; color: gray; line-height: 1.5; margin-top: 6px; }
 
-.pd-canvas-wrap { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 24px; }
+.pd-canvas-wrap { flex: 1; overflow: auto; display: flex; flex-direction: column; padding: 24px; }
+/* safe を付けないと、拡大して用紙が枠より広くなったとき左端が見切れてスクロールしても戻れない */
+.pd-canvas-wrap { align-items: center; align-items: safe center; }
+.pd-pages { display: flex; align-items: center; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
+.pd-pages button { border: 1px solid var(--formBorder); background: var(--background-color); color: gray; cursor: pointer; height: 26px; min-width: 26px; padding: 0 8px; display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; }
+.pd-page-tab.on { border-color: var(--primary-color); color: var(--primary-color); }
+.pd-page-tab.empty { border-style: dashed; }
+.pd-bg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pd-pageno { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.pd-pageno label { font-size: 12px; color: gray; }
+.pd-bg-sec { border-top: 1px solid var(--formBorder); margin-top: 14px; padding-top: 12px; }
+.pd-bg-name { font-size: 12px; margin: 0 0 4px; word-break: break-all; }
+.pd-bg-clear { border: 1px solid var(--formBorder); background: var(--background-color); color: gray; cursor: pointer; padding: 5px 10px; font-size: 12px; margin-top: 6px; }
+.pd-page-add { font-size: 14px; }
+.pd-zoom { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--formBorder); }
+.pd-zoom button:disabled { opacity: .4; cursor: default; }
+.pd-zoom-val { min-width: 48px; }
+.pd-zoom-fit { font-size: 11px; }
 /* Always-white paper: lock dark ink so page content stays readable regardless of app theme. */
 .pd-page { position: relative; background: #fff; color: #1a1a1a; box-shadow: 0 2px 16px rgba(0,0,0,.15); flex-shrink: 0; align-self: flex-start; }
 .pd-el { position: absolute; box-sizing: border-box; cursor: move; outline: 1px dashed transparent; user-select: none; -webkit-user-select: none; }

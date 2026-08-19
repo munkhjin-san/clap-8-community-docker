@@ -98,6 +98,18 @@ class ProjectRecord extends Model
     {
         return $this->belongsTo(ProjectType::class);
     }
+
+    /**
+     * 取引先マスタ（freee会計の取引先と対応）。
+     *
+     * `partners` という名前は使えない。同名のJSON列（パートナー企業の文字列配列）が既にあり、
+     * リレーションを同じ名前にすると属性キャストを黙って上書きしてしまう。
+     */
+    public function partnerRecords()
+    {
+        return $this->belongsToMany(PartnerRecord::class, 'project_partners', 'project_record_id', 'partner_record_id')
+            ->withTimestamps();
+    }
     protected $guarded = [];
 
     protected $casts = [
@@ -109,8 +121,18 @@ class ProjectRecord extends Model
         'date_end' => 'date',
         'has_goals' => 'boolean',
         'actual_statuses' => 'array',
-        'has_actual_func' => 'boolean'
+        'has_actual_func' => 'boolean',
+        'freee_section_id' => 'integer',
+        'freee_synced_at' => 'datetime',
     ];
+
+    /**
+     * freeeの部門と紐付いているか。freee_section_id の有無がそのまま同期状態。
+     */
+    public function isFreeeSynced(): bool
+    {
+        return filled($this->freee_section_id);
+    }
 
     public function scopeActiveOn(Builder $q, ?Carbon $day = null): Builder
     {

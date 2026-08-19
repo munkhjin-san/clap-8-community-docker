@@ -331,16 +331,6 @@
                                         type="button"
                                         class="calendar-fg-toggle"
                                         role="switch"
-                                        :aria-checked="zoom_waiting_room"
-                                        @click="zoom_waiting_room = !zoom_waiting_room"
-                                    >
-                                        <span class="calendar-fg-toggle__switch" :class="{ on: zoom_waiting_room }" aria-hidden="true"></span>
-                                        <span>WEB会議待機室</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="calendar-fg-toggle"
-                                        role="switch"
                                         :aria-checked="zoom_ai_companion"
                                         @click="zoom_ai_companion = !zoom_ai_companion"
                                     >
@@ -349,6 +339,19 @@
                                     </button>
                                     <p v-if="zoom_ai_companion" class="web-meeting-settings__warning">
                                         ※ホスト参加後にAIコンパニオンがオンになっていることを確認してください。
+                                    </p>
+                                    <button
+                                        type="button"
+                                        class="calendar-fg-toggle calendar-fg-toggle--locked"
+                                        role="switch"
+                                        aria-checked="true"
+                                        disabled
+                                    >
+                                        <span class="calendar-fg-toggle__switch on" aria-hidden="true"></span>
+                                        <span>文字起こし</span>
+                                    </button>
+                                    <p class="web-meeting-settings__note">
+                                        ※すべてのWeb会議で文字起こしを既定で有効にしています。個別に無効にはできません。
                                     </p>
                                 </div>
                             </template>
@@ -461,7 +464,6 @@ import Edit from '@/components/Icons/Edit.vue';
                 ? 'limited'
                 : 'members'
     )
-    const zoom_waiting_room = ref(formTarget.value?.zoom_waiting_room ? true : false)
     const zoom_ai_companion = ref(formTarget.value?.zoom_ai_companion ? true : false)
     const repetition_type = ref(formTarget.value?.repetition_type && (!props.editTarget || props.edit_all_record) ? formTarget.value.repetition_type : 0)            
     const all_day = ref(formTarget.value &&  Math.abs(DateTime.fromSQL(formTarget.value.date_start).diff(DateTime.fromSQL(formTarget.value.date_end), 'hours').as('hour')) >= 23 ? true : false)   
@@ -665,7 +667,6 @@ import Edit from '@/components/Icons/Edit.vue';
             release_flag: visibilityLevel.value === 'private',
             edit_all: permissionLevel.value === 'all',
             repetition_type: repetition_type.value,
-            zoom_waiting_room: zoom_waiting_room.value,
             zoom_ai_companion: zoom_ai_companion.value,
             time_start:  all_day.value ? '00:00' : time_start.value,
             time_end: all_day.value ? '23:59' : time_end.value,
@@ -1226,9 +1227,22 @@ import Edit from '@/components/Icons/Edit.vue';
     outline-offset: 3px;
 }
 
+/* 常時ONで切り替えできない項目（文字起こし）。押せないことが見た目で分かるようにする */
+.calendar-fg-toggle--locked {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .web-meeting-settings__warning {
     margin: 0;
     color: tomato;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.web-meeting-settings__note {
+    margin: 0;
+    color: var(--third-color);
     font-size: 10px;
     line-height: 1.5;
 }

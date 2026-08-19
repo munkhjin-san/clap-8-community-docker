@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountChooserController;
 use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\CommunityContextController;
 use App\Http\Controllers\ShiftTypeController;
+use App\Http\Controllers\PartnerRecordController;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -18,7 +19,9 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\AdminActualResultController;
 use App\Http\Controllers\AdminAccountController;
+use App\Http\Controllers\AdminBankAccountController;
 use App\Http\Controllers\AdminCostMasterController;
+use App\Http\Controllers\AdminFreeeController;
 use App\Http\Controllers\AdminPaidLeaveLedgerController;
 use App\Http\Controllers\AdminPaidLeavePolicyController;
 use App\Http\Controllers\AdminZoomAccountController;
@@ -51,6 +54,7 @@ use App\Http\Controllers\PublicHolidayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\FlowController;
+use App\Http\Controllers\FlowRecordActionController;
 use App\Http\Controllers\AppCommentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FinanceToolController;
@@ -175,6 +179,12 @@ Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController:
 Route::prefix('cdn_external')->group(function () {
     Route::get('{user_id}/{keyword}/{any?}', [ContentController::class, 'fileTransferAllExternal'])->where('any', '.*');
 });
+// カスタムアプリのファイルを Office Online に読ませるための出口。セッションを持たない相手向けなので
+// 認証グループの外に置くが、代わりに署名付き・期限付きで、URLが指すファイル1件しか読めない
+// （cdn_external のように storage 配下の任意のパスを配ることはしない）。
+Route::get('/flow_file_external/{fileId}', [FlowController::class, 'serveRecordFileExternal'])
+    ->name('flow.file.external')
+    ->middleware('signed');
 Route::get('/public-surveys/{token}', [PublicSurveyController::class, 'show']);
 Route::get('/public-surveys/{token}/data', [PublicSurveyController::class, 'data']);
 Route::post('/public-surveys/{token}/answers', [PublicSurveyController::class, 'submit'])->middleware('throttle:20,1');
@@ -228,7 +238,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
     Route::get('/notice/{id}', function ($id) {return redirect("/dashboard/notice?notice_id={$id}");});
 
     // API routes under /support must be registered before the SPA catch-all below.
-    Route::get('/support/ai-test/conversations', [SupportAiChatController::class, 'index']);
+    Route::get('/support/ai/conversations', [SupportAiChatController::class, 'index']);
 
     Route::get('/{name}/{any?}',[BoardController::class, "index"])
     ->whereIn('name', [
@@ -385,11 +395,50 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/admin/paid-leave-ledger', [AdminPaidLeaveLedgerController::class, 'index']);
         Route::get('/admin/paid-leave-ledger/{account}', [AdminPaidLeaveLedgerController::class, 'show']);
         Route::post('/admin/paid-leave-ledger/{account}/adjustments', [AdminPaidLeaveLedgerController::class, 'storeAdjustment']);
+        // 振込口座（管理画面 > アカウント）。管理者のみ。平文はreveal経路のみでログ必須。
+        Route::get('/admin/bank-accounts', [AdminBankAccountController::class, 'index']);
+        Route::get('/admin/bank-accounts/{user}', [AdminBankAccountController::class, 'show']);
+        Route::put('/admin/bank-accounts/{user}', [AdminBankAccountController::class, 'upsert']);
+        Route::delete('/admin/bank-accounts/{user}', [AdminBankAccountController::class, 'destroy']);
+        Route::post('/admin/bank-accounts/{user}/reveal', [AdminBankAccountController::class, 'reveal']);
+        Route::get('/admin/bank-accounts/{user}/logs', [AdminBankAccountController::class, 'logs']);
         Route::get('/admin/zoom-accounts', [AdminZoomAccountController::class, 'index']);
         Route::post('/admin/zoom-accounts', [AdminZoomAccountController::class, 'store']);
         Route::put('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'update']);
         Route::delete('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'destroy']);
         Route::post('/admin/zoom-accounts/{zoomAccount}/test', [AdminZoomAccountController::class, 'test']);
+        // freee連携（管理画面 > 施設 > freee）
+        Route::get('/admin/freee-credentials', [AdminFreeeController::class, 'index']);
+        Route::post('/admin/freee-credentials', [AdminFreeeController::class, 'store']);
+        Route::put('/admin/freee-credentials/{freeeCredential}', [AdminFreeeController::class, 'update']);
+        Route::delete('/admin/freee-credentials/{freeeCredential}', [AdminFreeeController::class, 'destroy']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/connect', [AdminFreeeController::class, 'connect']);
+        // コールバックを受けられない環境向け：表示された認可コードを手貼りして交換する
+        Route::post('/admin/freee-credentials/{freeeCredential}/exchange-code', [AdminFreeeController::class, 'exchangeCode']);
+        Route::get('/admin/freee-credentials/{freeeCredential}/companies', [AdminFreeeController::class, 'companies']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/company', [AdminFreeeController::class, 'selectCompany']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/refresh', [AdminFreeeController::class, 'refresh']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/test', [AdminFreeeController::class, 'test']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/disconnect', [AdminFreeeController::class, 'disconnect']);
+        // 取引先一覧（freee会計）
+        Route::get('/admin/freee/partners', [AdminFreeeController::class, 'partners']);
+        // プロジェクト ⇄ freee部門（Section）の連携
+        Route::post('/admin/freee/projects/{project}/section', [AdminFreeeController::class, 'syncSection']);
+        Route::get('/admin/freee/projects/{project}/section', [AdminFreeeController::class, 'checkSection']);
+        Route::delete('/admin/freee/projects/{project}/section', [AdminFreeeController::class, 'unlinkSection']);
+        // freeeの同意画面からのリダイレクト先。freeeアプリ管理に登録するURLと完全一致させる。
+        Route::get('/admin/freee/callback', [AdminFreeeController::class, 'callback']);
+        // 取引先マスタ（管理画面 > プロジェクト管理 > 取引先）
+        Route::get('/admin/partners', [PartnerRecordController::class, 'index']);
+        Route::post('/admin/partners', [PartnerRecordController::class, 'store']);
+        Route::get('/admin/partners/selectable-projects', [PartnerRecordController::class, 'selectableProjects']);
+        Route::put('/admin/partners/{partner}', [PartnerRecordController::class, 'update']);
+        Route::delete('/admin/partners/{partner}', [PartnerRecordController::class, 'destroy']);
+        Route::put('/admin/partners/{partner}/projects', [PartnerRecordController::class, 'syncProjects']);
+        Route::post('/admin/partners/{partner}/freee/push', [PartnerRecordController::class, 'pushToFreee']);
+        Route::post('/admin/partners/{partner}/freee/pull', [PartnerRecordController::class, 'pullFromFreee']);
+        Route::get('/admin/partners/{partner}/freee', [PartnerRecordController::class, 'checkFreee']);
+        Route::delete('/admin/partners/{partner}/freee', [PartnerRecordController::class, 'unlinkFreee']);
         Route::get('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'index']);
         Route::post('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'store']);
         Route::put('/admin/calendar-facilities/{calendarFacility}', [AdminCalendarFacilityController::class, 'update']);
@@ -405,10 +454,8 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::delete('/admin/cost-items/{costItem}/rates/{rate}', [AdminCostMasterController::class, 'destroyRate']);
         Route::get('/admin/actual-results', [AdminActualResultController::class, 'show']);
         Route::get('/admin/actual-results/export', [AdminActualResultController::class, 'export']);
-        Route::get('/admin/actual-results/account-options', [AdminActualResultController::class, 'accountOptions']);
-        Route::get('/admin/actual-results/edit-histories', [AdminActualResultController::class, 'editHistories']);
-        Route::post('/admin/actual-results/calculate', [AdminActualResultController::class, 'calculate']);
-        Route::patch('/admin/actual-results/departments/{department}/accounts', [AdminActualResultController::class, 'updateDepartmentAccount']);
+        Route::post('/admin/actual-results/sync-freee', [AdminActualResultController::class, 'syncFromFreee']);
+        Route::post('/admin/actual-results/post-freee', [AdminActualResultController::class, 'postToFreee']);
         Route::post('/one_shot_confirmation', [WorkController::class, 'one_shot_confirmation']);
 
         //User
@@ -465,6 +512,10 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/challenge_relay_close', [PostController::class, 'challenge_relay_close']);
         Route::post('/nice_follow_up_dismiss', [PostController::class, 'nice_follow_up_dismiss']);
         Route::put('/save_relay_prize', [PostController::class, 'save_relay_prize']);
+        Route::post('/rakuaward_score', [PostController::class, 'rakuaward_score']);
+        Route::get('/rakuaward_mvps', [PostController::class, 'rakuaward_mvps']);
+        Route::post('/rakuaward_result_read', [PostController::class, 'rakuaward_result_read']);
+        Route::post('/rakuaward_announce', [PostController::class, 'rakuaward_announce']);
         Route::post('/post_get_post_users', [PostController::class, 'post_get_post_users']);
         Route::post('/post_get_all_possible_users', [PostController::class, 'post_get_all_possible_users']);
         Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);
@@ -508,6 +559,8 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/calendar_more_users', [CalendarController::class, 'calendar_more_users']);
         Route::get('/get_possible_groups', [CalendarController::class, 'get_possible_groups']);
         Route::post('/set_more_members', [CalendarController::class, 'set_more_members']);
+        Route::post('/select_my_group', [CalendarController::class, 'select_my_group']);
+        Route::post('/update_calendar_extra_users', [CalendarController::class, 'update_calendar_extra_users']);
         Route::post('/delete_my_group', [CalendarController::class, 'delete_my_group']);
         Route::post('/get_calendar_search', [CalendarController::class, 'get_calendar_search']);
         Route::post('/get_all_facilities', [CalendarController::class, 'get_all_facilities']);
@@ -515,6 +568,8 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/calendar_delete_record', [CalendarController::class, 'calendar_delete_record']);
         Route::get('/get_departments_calendar', [CalendarController::class, 'get_departments_calendar']);
         Route::get('/get_schedule_summaries', [CalendarController::class, 'get_schedule_summaries']);
+        Route::post('/generate_transcript_ai_summary', [CalendarController::class, 'generate_transcript_ai_summary']);
+    Route::post('/update_transcript_speaker', [CalendarController::class, 'update_transcript_speaker']);
         Route::put('/save_edited_summary', [CalendarController::class, 'save_edited_summary']);
         Route::delete('/delete_schedule_summary', [CalendarController::class, 'delete_schedule_summary']);
         Route::post('/calendar_temp_reserve', [CalendarController::class, 'calendar_temp_reserve']);
@@ -702,7 +757,6 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/lesson_theme/{theme}/ai_config', [LessonController::class, 'save_lesson_theme_ai_config']);
         Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/generate', [LessonController::class, 'generate_personal_material']);
         Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/feedback', [LessonController::class, 'save_personal_material_feedback']);
-        Route::get('/lesson_theme/{theme}/personal_materials/{personalMaterial}/presentation', [LessonController::class, 'download_personal_material_presentation']);
         Route::get('/lesson_theme_categories', [LessonController::class, 'get_lesson_categories']);
         Route::post('/lesson_theme_category', [LessonController::class, 'save_lesson_category']);
         Route::delete('/lesson_theme_category', [LessonController::class, 'delete_lesson_category']);
@@ -710,6 +764,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::put('/lesson_theme_category/{category}/default', [LessonController::class, 'set_default_lesson_category']);
         Route::get('/get_portfolios_list', [LessonController::class, 'get_portfolios_list']);
         Route::delete('/admin/learning/portfolio/{portfolio}', [LessonController::class, 'delete_admin_portfolio']);
+        Route::delete('/admin/learning/theme/{theme}/user/{user}/progress', [LessonController::class, 'delete_admin_theme_progress']);
         Route::get('/get_previous_experience', [LessonController::class, 'get_previous_experience']);
 
         Route::post('/upload_lesson_file', [LessonController::class, 'upload_lesson_file']);
@@ -719,6 +774,9 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         });
         Route::get('/get_lesson_files', [LessonController::class, 'get_lesson_files']);
         Route::delete('/remove_lesson_file', [LessonController::class, 'remove_lesson_file']);
+        // 誓約書
+        Route::post('/lesson_theme/{theme}/pledge/sign', [LessonController::class, 'sign_lesson_pledge']);
+        Route::get('/lesson_pledge_file/{signature}', [LessonController::class, 'download_lesson_pledge']);
 
         Route::post('/section_update', [LessonController::class, 'section_update']);
         Route::put('/update_portfolio_status', [LessonController::class, 'update_portfolio_status']);
@@ -782,6 +840,8 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/get_profit', [ProjectController::class, 'get_profit']);
         Route::get('/get_settlement', [ProjectController::class, 'get_settlement']);
         Route::post('/get_partners_tags', [ProjectController::class, 'get_partners_tags']);
+    Route::get('/partner_record_options', [ProjectController::class, 'partner_record_options']);
+    Route::get('/partner_record/{partner}', [ProjectController::class, 'partner_record_detail']);
         Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
         Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
         Route::get('/get_total_finance', [ProjectController::class, 'get_total_finance']);
@@ -798,6 +858,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::delete('/finance_comment_delete', [ProjectController::class, 'finance_comment_delete']);
         Route::post('/get_comment_count_from_total', [ProjectController::class, 'get_comment_count_from_total']);
         Route::post('/finance_check', [ProjectController::class, 'finance_check']);
+        Route::post('/project_comment_remind', [ProjectController::class, 'project_comment_remind']);
         Route::get('/clear_project_report_badge', [ProjectController::class, 'clear_project_report_badge']);
         Route::get('/clear_project_confirm_badge', [ProjectController::class, 'clear_project_confirm_badge']);
         Route::get('/projects/{project}/actual-results', [ProjectController::class, 'actualResultDepartments']);
@@ -1060,12 +1121,11 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/openai/models', [OpenAiController::class, 'models']);
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
-        Route::post('/chatkit/session', [OpenAiController::class, 'session']);
-        Route::post('/support/ai-test/messages', [SupportAiChatController::class, 'send'])
+        Route::post('/support/ai/messages', [SupportAiChatController::class, 'send'])
             ->middleware('throttle:20,1');
-        Route::post('/support/ai-test/messages/stream', [SupportAiChatController::class, 'stream'])
+        Route::post('/support/ai/messages/stream', [SupportAiChatController::class, 'stream'])
             ->middleware('throttle:20,1');
-        Route::delete('/support/ai-test/conversations/{conversation}', [SupportAiChatController::class, 'destroy']);
+        Route::delete('/support/ai/conversations/{conversation}', [SupportAiChatController::class, 'destroy']);
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);
@@ -1120,6 +1180,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/flow_definition_delete', [FlowController::class, 'deleteFlowDefinition']);
         Route::post('/flow_kintone_preview', [FlowController::class, 'kintonePreview']);
         Route::get('/flow_options', [FlowController::class, 'getFlowOptions']);
+        Route::get('/flow_record_search', [FlowController::class, 'searchFlowRecords']);
         Route::get('/flow_dashboard', [FlowController::class, 'getFlowDashboard']);
         // app runtime (records / views / actions / formula)
         Route::get('/flow_app_records/{definition}', [FlowController::class, 'getAppRecords']);
@@ -1132,6 +1193,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         // flow notifications (per-app bell badge + popup + prefs + comment read)
         Route::get('/flow_pending_actions/{definition}', [FlowController::class, 'getFlowPendingActions']);
         Route::get('/flow_notifications/{definition}', [FlowController::class, 'getFlowNotifications']);
+        Route::post('/flow_notifications_read_all', [FlowController::class, 'markAllFlowNotificationsRead']);
         Route::post('/flow_notification_pref', [FlowController::class, 'saveFlowNotificationPref']);
         Route::post('/flow_notification_comments_read', [FlowController::class, 'markFlowCommentsRead']);
         // system reference sources (built-in masters, e.g. offices) — mirror the app-reference endpoints
@@ -1147,13 +1209,28 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/flow_app_truncate/{id}', [FlowController::class, 'truncateAppRecords']);
         Route::get('/flow_tool_pdf/{toolId}/{recordId}', [FlowController::class, 'renderToolPdf']);
         Route::post('/flow_tool_pdf_preview', [FlowController::class, 'previewToolPdf']);
+        // PDF帳票の下敷き（既存の帳票の上に差込項目を置くための元PDF）
+        Route::post('/flow_tool_background', [FlowController::class, 'uploadToolBackground']);
+        Route::get('/flow_tool_background/{definitionId}/{hash}', [FlowController::class, 'toolBackground']);
         Route::post('/flow_app_record_transition', [FlowController::class, 'transitionAppRecord']);
+        // カスタムボタン：宛先はコード側の登録済みハンドラが持つ（設定にURLは入らない）
+        Route::get('/flow_action_catalog', [FlowRecordActionController::class, 'catalog']);
+        Route::post('/flow_record_action', [FlowRecordActionController::class, 'run']);
         Route::post('/flow_formula_preview', [FlowController::class, 'previewFormula']);
         Route::get('/flow_app_export/{definition}', [FlowController::class, 'exportRecords']);
         Route::post('/flow_app_import', [FlowController::class, 'importRecords']);
         Route::get('/flow_audit_logs/{definition}', [FlowController::class, 'getFlowAuditLogs']);
         Route::get('/flow_audit_log/{logId}/download', [FlowController::class, 'downloadAuditExport']);
-        Route::post('/flow_file_download_log', [FlowController::class, 'logFileDownload']);
+        // ファイル項目：アップロード／配信／保存前の取り消し。配信は必ずここを通す
+        // （共通の /cdn/{path} は権限を一切見ないため、ファイル項目には使わない）
+        Route::post('/flow_file_upload', [FlowController::class, 'uploadRecordFile']);
+        Route::get('/flow_file/{fileId}', [FlowController::class, 'serveRecordFile']);
+        Route::post('/flow_file_discard', [FlowController::class, 'discardRecordFile']);
+        // Office形式のプレビュー用：権限を確認したうえで署名付きの一時URLを発行する
+        Route::post('/flow_file_viewer_url', [FlowController::class, 'recordFileViewerUrl']);
+        // 関連レコード：既にあるルックアップ関係を裏返して一覧する
+        Route::get('/flow_related/{fieldId}/{recordId}', [FlowController::class, 'relatedRecords']);
+        Route::get('/flow_related_candidates/{definition}', [FlowController::class, 'relatedCandidates']);
 
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 

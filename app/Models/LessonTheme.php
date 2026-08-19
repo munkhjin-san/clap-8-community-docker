@@ -43,6 +43,10 @@ class LessonTheme extends Model
     public function form(){
         return $this->hasOne(CustomForm::class, 'id', 'custom_form_id');
     }
+    // 誓約書: one signed copy per learner.
+    public function pledge_signatures(){
+        return $this->hasMany(LessonPledgeSignature::class, 'lesson_theme_id');
+    }
     public function isSurveyCompletedBy($userId)
     {
         return $this->form?->survey_answers?->where('user_id', $userId)->isNotEmpty();

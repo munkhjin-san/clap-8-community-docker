@@ -55,7 +55,7 @@
                                 <div class="fmain">
                                     <div class="ftop">
                                         <span class="badge"><FlowFieldIcon :type="field.input_type" :size="13" />{{ typeLabel(field.input_type) }}</span>
-                                        <span v-if="!isLayoutType(field.input_type)" class="lbl">{{ field.label }}</span>
+                                        <span v-if="!isDecorationType(field.input_type)" class="lbl">{{ field.label }}</span>
                                         <span v-if="field.is_required" class="req">必須</span>
                                         <div class="tools" @click.stop>
                                             <button @click="duplicate(field)" title="複製">
@@ -84,7 +84,11 @@
                                             <span class="prev-td prev-td-add"></span>
                                         </div>
                                     </div>
-                                    <div v-else class="prev" :class="{ heading: field.input_type === 'heading', labeltext: field.input_type === 'label' }">{{ previewText(field) }}</div>
+                                    <!-- 関連レコード: 中身は保存済みレコードでしか出せないので、下絵では設定の要約を出す -->
+                                    <div v-else-if="field.input_type === 'related'" class="prev-related">{{ relatedSummary(field) }}</div>
+                                    <!-- ラベルだけは装飾込みで見せる（保存時に無害化済み） -->
+                                    <div v-else-if="field.input_type === 'label'" class="prev labeltext" v-html="field.label"></div>
+                                    <div v-else class="prev" :class="{ heading: field.input_type === 'heading' }">{{ previewText(field) }}</div>
                                 </div>
                                 <div class="fresize" draggable="false" @dragstart.stop.prevent @pointerdown.stop="startResize($event, field)" @click.stop title="幅をドラッグで調整"></div>
                             </div>
@@ -102,20 +106,16 @@
             </div>
         </div>
 
-        <div v-if="!isNarrow" class="insp-col">
-            <FlowFieldInspector v-if="current" :field="current" :fields="allFields" :tools="def.tools" v-model:columnKey="selectedColumnKey" />
-            <p v-else class="text-[12px] text-gray-400">項目を選択すると設定が表示されます。</p>
-        </div>
-
-        <!-- mobile: field settings as a centred modal (tapping a field opens it) -->
-        <Modal v-if="isNarrow && current && mobileInspectorOpen" persist @close="closeMobileInspector">
+        <!-- 項目の設定は画面幅にかかわらずモーダル。横に細い柱として置くと、ラベルの
+             リッチテキスト編集のように場所を要るものが入らない。 -->
+        <Modal v-if="current && inspectorOpen" size="large" persist @close="closeInspector">
             <template #title>
                 <b class="ffm-modal-title"><FlowFieldIcon :type="current.input_type" :size="15" /> {{ typeLabel(current.input_type) }}の設定</b>
             </template>
             <template #content>
-                <FlowFieldInspector :field="current" :fields="allFields" :tools="def.tools" v-model:columnKey="selectedColumnKey" />
+                <FlowFieldInspector :field="current" :fields="allFields" :tools="def.tools" :definition-id="def.id ?? null" v-model:columnKey="selectedColumnKey" />
                 <div class="ffm-modal-foot">
-                    <button class="ffm-done" @click="closeMobileInspector">完了</button>
+                    <button class="ffm-done" @click="closeInspector">完了</button>
                 </div>
             </template>
         </Modal>
@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { FLOW_FIELD_TYPES, FLOW_TYPE_LABEL, FLOW_FIELD_MIN_WIDTH, defaultWidthFor, isLayoutType } from '@/types/flow'
+import { FLOW_FIELD_TYPES, FLOW_TYPE_LABEL, FLOW_FIELD_MIN_WIDTH, defaultWidthFor, isDecorationType, isLayoutType } from '@/types/flow'
 import type { BuilderDefinition, FlowField, FlowInputType } from '@/types/flow'
 import { referencingFormulas, referencedDeleteMessage, pdfToolsReferencingField } from '@/utils/flowFormulaRefs'
 import { useDialog } from '@/composables/dialog'
@@ -139,15 +139,15 @@ const rows = ref<FlowField[][]>([])
 const canvasEl = ref<HTMLElement | null>(null)
 const selectedUid = ref<string | null>(null)
 const selectedColumnKey = ref<string | null>(null)
-const mobileInspectorOpen = ref(false) // narrow mode: field settings show as a centred modal
-const closeMobileInspector = () => { mobileInspectorOpen.value = false }
+const inspectorOpen = ref(false) // 項目の設定モーダル（PC・モバイル共通）
+const closeInspector = () => { inspectorOpen.value = false }
 let uidSeq = 0
 const nextUid = () => `fuid_${++uidSeq}`
 
 // select a field (clearing any column selection unless a column of it is explicitly chosen)
-const selectField = (uid: string | null) => { selectedUid.value = uid; selectedColumnKey.value = null; if (isNarrow.value && uid) mobileInspectorOpen.value = true }
+const selectField = (uid: string | null) => { selectedUid.value = uid; selectedColumnKey.value = null; if (uid) inspectorOpen.value = true }
 // select a specific column inside a table field
-const selectColumn = (field: FlowField, key: string) => { selectedUid.value = field.uid || null; selectedColumnKey.value = key; if (isNarrow.value) mobileInspectorOpen.value = true }
+const selectColumn = (field: FlowField, key: string) => { selectedUid.value = field.uid || null; selectedColumnKey.value = key; inspectorOpen.value = true }
 // add a column to a table field from the canvas and select it
 const addTableColumn = (field: FlowField) => {
     if (!field.validation) field.validation = {}
@@ -162,7 +162,7 @@ const addTableColumn = (field: FlowField) => {
 
 const groups = ['入力', '選択', '高度', 'レイアウト', 'その他'] as const
 const typesByGroup = (group: string) =>
-    FLOW_FIELD_TYPES.filter((t) => t.group === group && (!t.projectOnly || !!props.def.project_record_id))
+    FLOW_FIELD_TYPES.filter((t) => t.group === group && !t.deprecated && (!t.projectOnly || !!props.def.project_record_id))
 const typeLabel = (t: string) => FLOW_TYPE_LABEL[t] ?? t
 const hasOptions = (t: string) => ['select', 'radio', 'checkbox'].includes(t)
 
@@ -240,6 +240,18 @@ const makeField = (type: FlowInputType): FlowField => ({
     order_number: 0,
 })
 
+/**
+ * 関連レコードの下絵。実際の一覧は保存済みレコードでしか出せないので、ここでは何を出す設定かを示す。
+ * 未設定のまま置き忘れたブロックがすぐ分かるようにするのが主目的。
+ */
+const relatedSummary = (f: FlowField) => {
+    const v: any = f.validation ?? {}
+    if (!v.child_definition_id || !v.child_field_id) return '未設定 — 右の設定で参照先アプリと結び付けを選んでください'
+    const cols = Array.isArray(v.related_columns) && v.related_columns.length ? `${v.related_columns.length}列` : '列は自動'
+    const sums = Array.isArray(v.related_aggregates) && v.related_aggregates.length ? ` / 合計 ${v.related_aggregates.length}件` : ''
+    return `このレコードを参照しているレコードを一覧（${cols}${sums}）`
+}
+
 const previewText = (f: FlowField) => {
     if (f.input_type === 'heading' || f.input_type === 'label') return f.label
     if (f.input_type === 'file') return 'ファイルを選択'
@@ -282,7 +294,8 @@ const addByClick = (type: FlowInputType) => {
 }
 const pickField = (type: FlowInputType) => {
     addByClick(type)
-    if (isNarrow.value) { paletteOpen.value = false; mobileInspectorOpen.value = true }
+    paletteOpen.value = false
+    inspectorOpen.value = true
 }
 const duplicate = (field: FlowField) => {
     // Deep-copy validation.columns (a shallow spread would share the array → editing the copy's
@@ -307,7 +320,7 @@ const duplicate = (field: FlowField) => {
     }
     sync()
     selectedUid.value = copy.uid || null
-    if (isNarrow.value) mobileInspectorOpen.value = true
+    inspectorOpen.value = true
 }
 const dialog = useDialog()
 const remove = async (field: FlowField) => {
@@ -438,7 +451,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.flow-form-tab { display: grid; grid-template-columns: 150px minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+.flow-form-tab { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: start; }
 .flow-form-tab.narrow { grid-template-columns: 1fr; }
 .palette { display: flex; flex-direction: column; position: sticky; top: 0; align-self: start; }
 .pal-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; font-size: 13px; font-weight: 500; cursor: pointer; }
@@ -502,8 +515,9 @@ onUnmounted(() => {
 .field:hover .fresize, .field.sel .fresize { background: var(--primary-color); opacity: 0.25; }
 .fresize:hover { opacity: 0.5 !important; }
 .drop { border: 1.5px dashed var(--formBorder); border-radius: 6px; padding: 30px; text-align: center; font-size: 12px; color: gray; }
-.insp-col { position: sticky; top: 0; align-self: start; height: calc(100vh - 165px); overflow: auto; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 12px; padding: 14px; }
 .ffm-modal-title { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 600; }
 .ffm-modal-foot { display: flex; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--calendarBorder); }
 .ffm-done { border: none; background: var(--primary-button, var(--primary-color)); color: #fff; border-radius: 7px; padding: 8px 24px; font-size: 13px; cursor: pointer; }
+/* 関連レコードの下絵 */
+.prev-related { font-size: 11.5px; color: gray; border: 1.5px dashed var(--formBorder); border-radius: 7px; padding: 9px 11px; line-height: 1.6; }
 </style>

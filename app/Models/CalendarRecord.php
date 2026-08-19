@@ -36,6 +36,9 @@ class CalendarRecord extends Model
     public function summaries(){
         return $this->hasMany(CalendarMeetingSummary::class, 'meeting_id', 'zoom_id');
     }
+    public function transcripts(){
+        return $this->hasMany(CalendarMeetingTranscript::class);
+    }
     public function related_temp_records(){
         return $this->hasMany(CalendarRecord::class, 'temp_unique_id', 'temp_unique_id')->where('temp_flag', 1);
     }

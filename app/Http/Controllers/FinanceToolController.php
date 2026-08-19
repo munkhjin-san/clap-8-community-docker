@@ -63,8 +63,7 @@ class FinanceToolController extends Controller
 
     public function toolGetVarianceSummary(array $args): array
     {
-        // Defaults to the latest Google Sheets 実績 release month.
-        // Example: May 1 => March, May 20 => April.
+        $hasExplicitPeriod = isset($args['year']) || isset($args['month']);
         $defaultPeriod = $this->financeSnapshots->latestClosedPeriod();
         $year  = (int) ($args['year']  ?? $defaultPeriod->year);
         $month = isset($args['month']) ? (int) $args['month'] : (int) $defaultPeriod->month;
@@ -76,7 +75,15 @@ class FinanceToolController extends Controller
         $limit = max(1, min((int) ($args['limit'] ?? 10), 50));
 
         try {
-            $snapshot = $this->financeSnapshots->buildFiscalYearSnapshot((int) $fiscalYear, [], $periodKey, 30);
+            $snapshot = $this->financeSnapshots->buildFiscalYearSnapshot(
+                (int) $fiscalYear,
+                [],
+                $hasExplicitPeriod ? $periodKey : null,
+                30
+            );
+            if (! $hasExplicitPeriod) {
+                $periodKey = (string) ($snapshot['latest_actual_period'] ?? $periodKey);
+            }
         } catch (\Throwable $e) {
             return ['error' => '財務データの取得に失敗しました: ' . $e->getMessage()];
         }
@@ -89,7 +96,7 @@ class FinanceToolController extends Controller
             }
 
             $plan = $monthData['profit'] ?? null;      // 損益 row in finance table
-            $act  = $monthData['settlement'] ?? null;  // Google Sheets 実績 row
+            $act  = $monthData['settlement'] ?? null;
             if (! $act || empty($act['has_data'])) {
                 continue;
             }
@@ -118,7 +125,7 @@ class FinanceToolController extends Controller
                 'project_name' => $project['project_name'],
                 'period'       => $periodKey,
                 'comparison_base' => '損益',
-                'actual_source' => 'Google Sheets 実績',
+                'actual_source' => FinanceSnapshotService::actualSourceLabel($act),
                 'plan'         => $plan,
                 'profit_plan'  => $plan,
                 'actual'       => $act,
@@ -134,11 +141,18 @@ class FinanceToolController extends Controller
         usort($rows, fn ($a, $b) => $b['max_amount_gap'] <=> $a['max_amount_gap']);
 
         $alertRows = array_filter($rows, fn ($r) => $r['alert']);
+        $actualSources = array_values(array_unique(array_column($rows, 'actual_source')));
+        $actualSource = match (count($actualSources)) {
+            0 => '保存済みActualResult優先・Google Sheets補完',
+            1 => $actualSources[0],
+            default => '保存済みActualResult・Google Sheets実績混在',
+        };
 
         return [
             'period'      => $periodKey,
-            'period_basis' => 'Google Sheets 実績反映月（毎月20日ルール）',
+            'period_basis' => '実績基準月（保存済みActualResult優先・Google Sheets補完）',
             'comparison_base' => '損益',
+            'actual_source' => $actualSource,
             'scope' => 'single_month',
             'threshold'   => $threshold,
             'total'       => count($rows),
@@ -319,9 +333,9 @@ class FinanceToolController extends Controller
                 'answer_contract' => [
                     'totals.yearly_plan'                       => '指定プロジェクトの予算。',
                     'totals.profit'                            => '指定プロジェクトの計画（Kintone損益）。',
-                    'months.{latest_actual_period}.settlement' => '指定プロジェクトの最新実績反映月の単月Google Sheets実績。',
+                    'months.{latest_actual_period}.settlement' => '指定プロジェクトの最新実績反映月の単月実績。保存済みActualResultを優先し、未保存時はGoogle Sheetsを使う。',
                     'totals.settlement'                        => '指定プロジェクトの実績累計。',
-                    'totals.forecast'                          => '指定プロジェクトの着地見込み。get_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。完了後月は補完しない。',
+                    'totals.forecast'                          => '指定プロジェクトの着地見込み。保存済みActualResult、Google Sheets実績、Kintone損益見込みの順で使う。完了後月は補完しない。',
                     'variance_vs_plan'                         => '指定プロジェクトの着地見込みと計画の差分。',
                     'variance_vs_yearly_plan'                  => '指定プロジェクトの着地見込みと予算の差分。',
                 ],
@@ -381,6 +395,7 @@ class FinanceToolController extends Controller
             $plan = $comparisonBase === 'yearly_plan' ? $yearlyPlan : $profitPlan;
             $actualHasData = ! empty($actual['has_data']);
             $planHasData = ! empty($plan['has_data']);
+            $actualSourceLabel = FinanceSnapshotService::actualSourceLabel($actual);
             $variance = ($actualHasData && $planHasData)
                 ? $this->financeVarianceForChat($actual, $plan)
                 : null;
@@ -397,11 +412,11 @@ class FinanceToolController extends Controller
                 'latest_actual_period' => $snapshot['latest_actual_period'] ?? $snapshot['latest_closed_period'],
                 'comparison_base' => $comparisonBase,
                 'comparison_base_label' => $comparisonBaseLabel,
-                'actual_source' => 'Google Sheets 実績',
+                'actual_source' => $actualSourceLabel,
                 'answer_contract' => [
-                    'actual' => '指定プロジェクト・指定月のGoogle Sheets実績。',
+                    'actual' => "指定プロジェクト・指定月の{$actualSourceLabel}。",
                     'plan' => "指定プロジェクト・指定月の{$comparisonBaseLabel}。",
-                    'variance_actual_vs_plan' => "Google Sheets実績 - {$comparisonBaseLabel}。",
+                    'variance_actual_vs_plan' => "実績 - {$comparisonBaseLabel}。",
                     'comments' => '指定プロジェクト・指定月のproject_finance_comments。コメントがある場合だけ差異理由の根拠にする。',
                 ],
                 'actual_data_available' => $actualHasData,

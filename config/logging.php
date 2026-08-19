@@ -127,6 +127,7 @@ return [
             'path' => storage_path('logs/zoomEvent.log'),
             'level' => 'debug',
         ],
+
     ],
 
 ];

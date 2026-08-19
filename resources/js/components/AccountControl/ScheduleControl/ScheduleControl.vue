@@ -20,6 +20,12 @@
                 >
                     Web会議
                 </div>
+                <div
+                    :class="['sub-tab-item', { 'selected-sub-tab': route.path.includes('/facilities/freee') }]"
+                    @click="router.push({ name: 'freee-integration' })"
+                >
+                    freee
+                </div>
             </div>
         </div>
         <router-view />

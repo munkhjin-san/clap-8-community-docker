@@ -34,6 +34,7 @@
                     <div class="project-cell">労働日数</div>
                     <div class="project-cell">労働時間</div>
                     <div class="project-cell">ステータス</div>
+                    <div class="project-cell">freee連携</div>
                     <div class="project-cell">アクション</div>
                 </div>
                 <div class="project-cell-row" @click="selectedProject = project" v-for="project in searchResults">
@@ -116,15 +117,53 @@
                         </select>
                     </div>
                     <div class="project-cell">
+                        <div class="freee-sync" @click.stop>
+                            <template v-if="project.freee_section_id">
+                                <span class="freee-sync__chip">
+                                    section_id: {{ project.freee_section_id }}
+                                </span>
+                                <div class="freee-sync__buttons">
+                                    <button
+                                        type="button"
+                                        class="freee-sync__button"
+                                        :disabled="freeeBusyId === project.id"
+                                        @click="checkFreeeSection(project)"
+                                    >
+                                        確認
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="freee-sync__button"
+                                        :disabled="freeeBusyId === project.id"
+                                        @click="unlinkFreeeSection(project)"
+                                    >
+                                        連携解除
+                                    </button>
+                                </div>
+                            </template>
+                            <template v-else>
+                                <span class="freee-sync__chip is-idle">未連携</span>
+                                <button
+                                    type="button"
+                                    class="freee-sync__button"
+                                    :disabled="freeeBusyId === project.id"
+                                    @click="syncFreeeSection(project)"
+                                >
+                                    連携する
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="project-cell">
                         <div style="display: flex; gap: 10px;" @click.stop>
-                            <CommandButton 
+                            <CommandButton
                                 :buttons="[
                                     { title: '変更', action: () => editProject(project)},
                                     { title: '削除', action: () => deleteProject(project)}
                                 ]"
                             />
                         </div>
-                        
+
                     </div>
                 </div>
                 
@@ -286,6 +325,7 @@ import { User } from '@/interface/globalInterface';
 import { DateTime } from 'luxon';
 import AddIcon from '@/components/Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 import { useProject } from '@/composables/project';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import { marked } from 'marked';
@@ -318,7 +358,64 @@ const editData = ref<Project | null>(null)
 const projectUsers = useProjectUsers()
 const props = defineProps(['keywords', 'userList'])
 const api = useApi()
+const dialog = useDialog()
 const { projectList, getProjects } = useProject()
+const freeeBusyId = ref<number | null>(null)
+
+// freeeの部門連携。連携は「既存部門があれば紐付けるだけ」で、
+// 見つからないときだけ新規登録される（重複防止はサーバー側で判定）。
+const syncFreeeSection = async (project: Project) => {
+    freeeBusyId.value = project.id
+    try {
+        const result = await api.post(`/admin/freee/projects/${project.id}/section`, {}) as {
+            result?: string
+            section_id?: number
+            message?: string
+        } | null
+        if (!result) return
+
+        applyFreeeSectionId(project, result.section_id ?? null)
+        dialog.ping(
+            result.result === 'created'
+                ? `freeeに部門を新規登録しました（section_id: ${result.section_id}）。`
+                : `既存の部門と紐付けました（section_id: ${result.section_id}）。`,
+        )
+    } finally {
+        freeeBusyId.value = null
+    }
+}
+
+const checkFreeeSection = async (project: Project) => {
+    freeeBusyId.value = project.id
+    try {
+        const result = await api.get(`/admin/freee/projects/${project.id}/section`, null) as {
+            message?: string
+        } | null
+        if (result?.message) dialog.ping(result.message)
+    } finally {
+        freeeBusyId.value = null
+    }
+}
+
+// freee側の部門は削除せず、こちらの紐付けだけを外す。
+const unlinkFreeeSection = async (project: Project) => {
+    freeeBusyId.value = project.id
+    try {
+        const result = await api.del(`/admin/freee/projects/${project.id}/section`, {}, {
+            ask: `「${project.name}」の連携を解除しますか？freee側の部門は削除されません。`,
+            toast: '連携を解除しました',
+        })
+        if (result !== null) applyFreeeSectionId(project, null)
+    } finally {
+        freeeBusyId.value = null
+    }
+}
+
+// 一覧を再取得せずその行だけ更新する。
+const applyFreeeSectionId = (project: Project, sectionId: number | null) => {
+    const row = projectList.value.find(p => p.id === project.id)
+    if (row) (row as Project & { freee_section_id: number | null }).freee_section_id = sectionId
+}
 const applyWindow = ref(false)
 const selectedProject = ref<Project | null>(null)
 const selectedProjectTypeId = ref('')
@@ -552,3 +649,61 @@ watch(fullHtml, (html) => {const { html: ex, truncated } = buildHtmlExcerpt(html
         isExpanded.value = false;
     }, { immediate: true });
 </script>
+
+<style scoped>
+.freee-sync {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+    white-space: nowrap;
+}
+
+.freee-sync__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    background: #edf8f0;
+    color: #166534;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.freee-sync__chip::before {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #22a447;
+    content: '';
+}
+
+.freee-sync__chip.is-idle {
+    background: var(--bg3);
+    color: gray;
+}
+
+.freee-sync__chip.is-idle::before {
+    background: #a1a1aa;
+}
+
+.freee-sync__buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.freee-sync__button {
+    padding: 4px 9px;
+    border: 1px solid var(--bg3);
+    background: var(--background-color);
+    color: var(--text-color);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.freee-sync__button:disabled {
+    color: #a1a1aa;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+</style>

@@ -10,6 +10,7 @@
             :rows="rows"
             @rollback-status="statusUpdate"
             @delete-portfolio="deletePortfolio"
+            @delete-progress="deleteProgress"
         />
     </div>
 </template>
@@ -99,6 +100,13 @@ const deletePortfolio = async(id: number | undefined) => {
     if (!id) return
 
     await learningApi.deleteAdminPortfolio(id)
+    getData()
+}
+
+const deleteProgress = async(userId: number) => {
+    if (!userId || !themeId.value) return
+
+    await learningApi.deleteAdminThemeProgress(themeId.value, userId)
     getData()
 }
 </script>

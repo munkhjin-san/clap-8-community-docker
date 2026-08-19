@@ -5,6 +5,7 @@ import {
 import type {
     FlowField, FlowRecordDto, FlowViewApi, FlowViewFilter, FlowViewSort, FlowViewOperator, FlowAdhocFilter,
 } from '@/types/flow'
+import { isDynamicDate, matchesDynamicDate, resolveDynamicDate } from './flowDynamicDate'
 
 export interface ResolvedColumn {
     key: string          // unique key for v-for / sort tracking
@@ -73,6 +74,12 @@ export const matchesFilter = (rec: FlowRecordDto, f: FlowViewFilter): boolean =>
     const v = refValue(rec, f.field)
     const target = f.values ?? []
     const first = target[0]
+    // dynamic dates (今日/今月/…) resolve to a range, so they need range comparison rather than
+    // the scalar cases below — mirrors FlowService::applyDynamicDateOp on the server
+    if (isDynamicDate(first) && f.operator !== 'is_empty' && f.operator !== 'not_empty') {
+        const range = resolveDynamicDate(first, String(v ?? '').length > 10)
+        if (range) return matchesDynamicDate(v, f.operator, range)
+    }
     switch (f.operator) {
         case 'is_empty': return isBlank(v)
         case 'not_empty': return !isBlank(v)
@@ -92,8 +99,17 @@ export const matchesFilter = (rec: FlowRecordDto, f: FlowViewFilter): boolean =>
     }
 }
 
-export const applyFilters = (records: FlowRecordDto[], filters?: FlowViewFilter[] | null): FlowRecordDto[] =>
-    !filters?.length ? records : records.filter((r) => filters.every((f) => matchesFilter(r, f)))
+/** A view's saved filters, combined by the view's own AND/OR — mirrors FlowService::applyConditionGroup. */
+export const applyFilters = (
+    records: FlowRecordDto[],
+    filters?: FlowViewFilter[] | null,
+    logic: 'and' | 'or' = 'and',
+): FlowRecordDto[] =>
+    !filters?.length
+        ? records
+        : logic === 'or'
+            ? records.filter((r) => filters.some((f) => matchesFilter(r, f)))
+            : records.filter((r) => filters.every((f) => matchesFilter(r, f)))
 
 /** Ad-hoc filter (from the search bar's ⚲ icon): same per-condition semantics as a view's filters,
  *  but the conditions combine via a single chosen AND/OR rather than always-AND. */
@@ -133,6 +149,11 @@ export const operatorsForType = (type: string | undefined): FlowViewOperator[] =
             return ['equals', 'not_equals', 'includes_any', 'is_empty', 'not_empty']
         case 'checkbox': case 'user': case 'member':
             return ['includes_any', 'is_empty', 'not_empty']
+        // a project cell holds an id, so the text operators the default branch offers could never
+        // match what the user typed — pick by id instead. One project per condition; combine
+        // several with extra conditions and the filter's AND/OR.
+        case 'project':
+            return ['equals', 'not_equals', 'is_empty', 'not_empty']
         case 'toggle':
             return ['equals']
         default:

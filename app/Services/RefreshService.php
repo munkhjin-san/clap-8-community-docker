@@ -1305,6 +1305,7 @@ class RefreshService
                 'user:id,name,icon_path,icon_bg',
                 'to_users:id,name,icon_path,icon_bg',
                 'awards',
+                'rakuawardScores.user',
             ])
             ->orderByDesc('created_at')
             ->get();
@@ -1322,12 +1323,25 @@ class RefreshService
                 'nominee' => $this->rakuawardUserPayload($nominee),
                 'charged_amount' => $chargedAmount,
                 'supporter_count' => $post->awards->count(),
+                'total_score' => (int) $post->rakuawardScores->sum('score'),
+                'scorer_count' => $post->rakuawardScores->count(),
+                'scores' => $post->rakuawardScores
+                    ->sortByDesc('score')
+                    ->map(fn ($s) => [
+                        'user' => $this->rakuawardUserPayload($s->user),
+                        'score' => (int) $s->score,
+                    ])
+                    ->values()
+                    ->all(),
                 'granted' => ! is_null($post->rakuaward_granted_at),
                 'granted_at' => optional($post->rakuaward_granted_at)->toIso8601String(),
                 'refunded' => ! is_null($post->rakuaward_refunded_at),
                 'refunded_at' => optional($post->rakuaward_refunded_at)->toIso8601String(),
             ];
-        })->values()->all();
+        })
+            ->sortByDesc('total_score')
+            ->values()
+            ->all();
 
         return [
             'year' => $year,
@@ -1447,20 +1461,7 @@ class RefreshService
             $post->rakuaward_granted_at = $grantDate;
             $post->save();
 
-            // Everyone who charged this top-5 nomination earns a GlowdNine play.
-            $post->awards->each(function ($charger) use ($post) {
-                PostRelayPrize::firstOrCreate(
-                    [
-                        'root_post_id' => (int) $post->id,
-                        'user_id' => (int) $charger->id,
-                    ],
-                    [
-                        'prize' => 0,
-                        'try_flag' => 0,
-                        'source' => 'rakuaward',
-                    ]
-                );
-            });
+            $this->awardRakuawardChargerPlays($post);
 
             return [
                 'granted' => true,
@@ -1469,6 +1470,158 @@ class RefreshService
                 'amount' => $amount,
             ];
         });
+    }
+
+    public function settleRakuawardMonth(int $year, int $month, ?int $actorId = null): array
+    {
+        $start = Carbon::create($year, $month, 1)->startOfMonth();
+        $end = (clone $start)->endOfMonth();
+
+        // Rank EVERY nomination of the month by total director score.
+        $posts = PostRecord::where('app_type', 7)
+            ->whereBetween('created_at', [$start, $end])
+            ->with(['rakuawardScores'])
+            ->get()
+            ->sortByDesc(fn (PostRecord $post) => (int) $post->rakuawardScores->sum('score'))
+            ->values();
+
+        // Competition ranking: equal scores share a rank (1,2,2,4...) and are flagged as tied.
+        $scores = $posts->map(fn (PostRecord $post) => (int) $post->rakuawardScores->sum('score'));
+
+        foreach ($posts as $index => $post) {
+            $score = (int) $scores[$index];
+            $post->timestamps = false;
+            $post->rakuaward_rank = $scores->filter(fn ($other) => $other > $score)->count() + 1;
+            $post->rakuaward_rank_tied = $scores->filter(fn ($other) => $other === $score)->count() > 1;
+            $post->save();
+        }
+
+        // Grant + MVP for the top 5 (score > 0). Respect any MVPs already granted this
+        // month so a re-announcement (new nominations arrived) can never exceed the cap.
+        $alreadyGranted = $posts->filter(fn (PostRecord $post) => ! is_null($post->rakuaward_granted_at))->count();
+        $slots = max(0, self::RAKUAWARD_MONTHLY_LIMIT - $alreadyGranted);
+
+        $mvpIds = $posts
+            ->filter(fn (PostRecord $post) => (int) $post->rakuawardScores->sum('score') > 0)
+            ->take(self::RAKUAWARD_MONTHLY_LIMIT)
+            ->filter(fn (PostRecord $post) => is_null($post->rakuaward_granted_at))
+            ->take($slots)
+            ->pluck('id')
+            ->all();
+
+        $granted = 0;
+        $grantedAmount = 0;
+        foreach ($mvpIds as $postId) {
+            $result = $this->grantRakuawardMvp((int) $postId, $actorId);
+            $granted++;
+            $grantedAmount += $result['amount'];
+        }
+
+        // Note: unselected nominations are NOT auto-refunded here; refunding stays a manual admin action.
+        return [
+            'year' => $year,
+            'month' => $month,
+            'granted_posts' => $granted,
+            'granted_amount' => $grantedAmount,
+        ];
+    }
+
+    private function grantRakuawardMvp(int $postId, ?int $actorId): array
+    {
+        return DB::transaction(function () use ($postId, $actorId) {
+            $post = PostRecord::query()
+                ->where('id', $postId)
+                ->where('app_type', 7)
+                ->whereNull('rakuaward_granted_at')
+                ->whereNull('rakuaward_refunded_at')
+                ->with(['to_users:id,name', 'awards'])
+                ->lockForUpdate()
+                ->first();
+
+            if (! $post) {
+                return ['amount' => 0];
+            }
+
+            $nominee = $post->to_users->first();
+            $amount = (int) $post->awards->sum(fn ($user) => (int) ($user->pivot->award_bet ?? 0));
+
+            // Pay the charged total to the nominee's refresh (only if there were money charges).
+            if ($nominee && $amount > 0) {
+                $grantDate = Carbon::now();
+                $account = RefreshAccount::query()->firstOrCreate(
+                    ['user_id' => $nominee->id],
+                    [
+                        'is_active' => true,
+                        'opening_total_granted' => 0,
+                        'opening_total_used' => 0,
+                        'opening_remaining_amount' => 0,
+                    ]
+                );
+
+                RefreshGrant::query()->updateOrCreate(
+                    [
+                        'refresh_account_id' => $account->id,
+                        'source_system' => 'glowd',
+                        'source_key' => sha1('rakuaward|' . $post->id),
+                    ],
+                    [
+                        'grant_type' => 'rakuaward',
+                        'grant_year' => (int) $grantDate->year,
+                        'granted_at' => $grantDate->toDateString(),
+                        'expires_at' => $grantDate->copy()->addYear()->toDateString(),
+                        'amount' => $amount,
+                        'remaining_amount' => $amount,
+                        'note' => Carbon::parse($post->created_at)->format('Y年n月') . ' 楽アワード（' . $post->title . '）',
+                        'created_by_user_id' => $actorId,
+                    ]
+                );
+            }
+
+            $this->awardRakuawardChargerPlays($post);
+
+            $post->timestamps = false;
+            $post->rakuaward_granted_at = Carbon::now();
+            $post->save();
+
+            return ['amount' => $amount];
+        });
+    }
+
+    /**
+     * Members who charged a top-5 nomination earn a GlowdNine play, but only once per
+     * month: supporting several winning nominations in the same month still triggers one.
+     */
+    private function awardRakuawardChargerPlays(PostRecord $post): void
+    {
+        $period = Carbon::parse($post->created_at);
+        $monthPostIds = PostRecord::where('app_type', 7)
+            ->whereYear('created_at', $period->year)
+            ->whereMonth('created_at', $period->month)
+            ->pluck('id')
+            ->all();
+
+        foreach ($post->awards as $charger) {
+            $alreadyThisMonth = PostRelayPrize::where('user_id', $charger->id)
+                ->where('source', 'rakuaward')
+                ->whereIn('root_post_id', $monthPostIds)
+                ->exists();
+
+            if ($alreadyThisMonth) {
+                continue;
+            }
+
+            PostRelayPrize::firstOrCreate(
+                [
+                    'root_post_id' => (int) $post->id,
+                    'user_id' => (int) $charger->id,
+                ],
+                [
+                    'prize' => 0,
+                    'try_flag' => 0,
+                    'source' => 'rakuaward',
+                ]
+            );
+        }
     }
 
     private function rakuawardUserPayload($user): ?array

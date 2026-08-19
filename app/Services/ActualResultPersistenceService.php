@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\ActualResultDepartment;
-use App\Models\ActualResultEditHistory;
 use App\Models\ActualResultReport;
 use App\Models\ActualResultUpload;
 use App\Models\ProjectRecord;
@@ -17,36 +16,6 @@ use InvalidArgumentException;
 
 class ActualResultPersistenceService
 {
-    private const MANUAL_BUCKETS = [
-        'sales' => [
-            'operating_sales',
-            'other_sales',
-        ],
-        'expense' => [
-            'ordinary_expense',
-            'basic_bonus_reserve',
-            'paid_leave_reserve',
-            'welfare_reserve',
-            'refresh_reserve',
-            'beginning_inventory',
-            'purchases',
-            'ending_inventory',
-        ],
-    ];
-
-    private const MANUAL_BUCKET_LABELS = [
-        'operating_sales' => '売上',
-        'other_sales' => 'その他収入',
-        'ordinary_expense' => '通常経費',
-        'basic_bonus_reserve' => '基本賞与積立金',
-        'paid_leave_reserve' => '有給積立金',
-        'welfare_reserve' => '福利厚生積立金',
-        'refresh_reserve' => 'リフレッシュ積立金',
-        'beginning_inventory' => '期首商品棚卸高',
-        'purchases' => '仕入高',
-        'ending_inventory' => '期末商品棚卸高',
-    ];
-
     private const SENSITIVE_PAYROLL_ACCOUNTS = [
         '給料手当',
         '給与',
@@ -82,10 +51,6 @@ class ActualResultPersistenceService
         'リフレッシュ積立金' => 'refresh_reserve',
         '積立振替売上' => 'reserve_transfer_sales',
     ];
-
-    public function __construct(private ActualResultCsvService $calculator)
-    {
-    }
 
     public function payloadForMonth(string $month): ?array
     {
@@ -124,7 +89,7 @@ class ActualResultPersistenceService
             $result['file']['saved_upload_id'] = $upload->id;
             $result['file']['stored_path'] = $storedPath;
 
-            $this->syncReportPayload($report, $result, $actorId, [], false);
+            $this->syncReportPayload($report, $result, $actorId);
 
             $report->forceFill([
                 'current_upload_id' => $upload->id,
@@ -134,141 +99,49 @@ class ActualResultPersistenceService
         });
     }
 
-    public function updateDepartmentAccount(ActualResultDepartment $department, array $data, int $actorId): array
+    /**
+     * freee APIから取り込んだ実績を保存する。
+     *
+     * CSVアップロードと違い実ファイルが無いので、取込元が後から辿れるように
+     * stored_path には擬似URIを残す（列がNOT NULLのため空にはできない）。
+     */
+    public function saveSyncedResult(array $result, string $month, int $actorId, string $source = 'freee'): array
     {
-        return DB::transaction(function () use ($department, $data, $actorId) {
-            $department = $department->fresh(['report.departments']);
-            $report = $department->report;
-            $payload = $this->payloadFromReport($report);
-            $departmentIndex = $this->departmentPayloadIndex($payload, $department->department_name);
+        $targetMonth = $this->targetMonth($month);
 
-            if ($departmentIndex === null) {
-                throw new InvalidArgumentException('Department payload was not found.');
-            }
+        return DB::transaction(function () use ($result, $targetMonth, $actorId, $source) {
+            $report = ActualResultReport::withTrashed()->firstOrNew(['target_month' => $targetMonth]);
+            $report->fill([
+                'created_by' => $report->exists ? $report->created_by : $actorId,
+                'updated_by' => $actorId,
+                'deleted_at' => null,
+            ]);
+            $report->save();
 
-            $accounts = array_values($payload['departments'][$departmentIndex]['accounts'] ?? []);
-            $accountKey = (string) ($data['account_key'] ?? '');
-            $accountIndex = $this->accountPayloadIndex($accounts, $accountKey);
-            $before = $accountIndex === null ? null : $accounts[$accountIndex];
-            $delete = (bool) ($data['delete'] ?? false);
-
-            if ($before !== null && $this->isCalculatedAccount($before)) {
-                throw ValidationException::withMessages([
-                    'account_key' => '自動計算された明細は編集できません。',
-                ]);
-            }
-
-            if ($delete) {
-                if ($accountIndex === null) {
-                    throw new InvalidArgumentException('Account was not found.');
-                }
-
-                array_splice($accounts, $accountIndex, 1);
-                $after = null;
-                $action = 'delete_account';
-            } else {
-                $after = $this->manualAccountPayload($data['account'] ?? [], $before, $department->department_name);
-                $accountKey = $accountKey !== '' ? $accountKey : $after['account_key'];
-
-                if ($accountIndex === null) {
-                    $accounts[] = $after;
-                    $action = 'add_account';
-                } else {
-                    $accounts[$accountIndex] = $after;
-                    $action = 'update_account';
-                }
-            }
-
-            $payload['departments'][$departmentIndex]['accounts'] = $accounts;
-            $payload = $this->calculator->recalculateResultPayload($payload);
-
-            ActualResultEditHistory::create([
+            $monthLabel = Carbon::parse($targetMonth)->format('Y-m');
+            $upload = ActualResultUpload::create([
                 'actual_result_report_id' => $report->id,
-                'actual_result_department_id' => $department->id,
-                'project_record_id' => $department->project_record_id,
-                'department_name' => $department->department_name,
-                'action' => $action,
-                'account_key' => $accountKey,
-                'before_value' => $before,
-                'after_value' => $after,
-                'note' => $data['note'] ?? null,
-                'edited_by' => $actorId,
+                'target_month' => $targetMonth,
+                'original_name' => $source.' 損益計算書 ('.$monthLabel.')',
+                'stored_path' => $source.'://reports/trial_pl/'.$monthLabel,
+                'file_hash' => null,
+                'file_size' => 0,
+                'file_metadata' => $result['file'] ?? [],
+                'calculated_summary' => $result['summary'] ?? [],
+                'uploaded_by' => $actorId,
             ]);
 
-            $this->syncReportPayload($report, $payload, $actorId, [$department->department_name], true);
+            $result['month'] = $monthLabel;
+            $result['file']['saved_upload_id'] = $upload->id;
+
+            $this->syncReportPayload($report, $result, $actorId);
+
+            $report->forceFill([
+                'current_upload_id' => $upload->id,
+            ])->save();
 
             return $this->payloadFromReport($report->fresh(['departments', 'uploads']));
         });
-    }
-
-    public function accountOptions(string $month): array
-    {
-        $payload = $this->payloadForMonth($month);
-
-        if ($payload === null) {
-            return [];
-        }
-
-        $options = [];
-
-        foreach ($payload['departments'] ?? [] as $department) {
-            foreach ($department['accounts'] ?? [] as $account) {
-                if ($this->isCalculatedAccount($account)) {
-                    continue;
-                }
-
-                $key = $account['account_key'] ?? $this->accountKey($account);
-
-                if (isset($options[$key])) {
-                    continue;
-                }
-
-                $options[$key] = [
-                    'account_key' => $key,
-                    'account_code' => $account['account_code'] ?? '',
-                    'account_name' => $account['account_name'] ?? '',
-                    'category' => $account['category'] ?? 'expense',
-                    'bucket' => $account['bucket'] ?? 'ordinary_expense',
-                    'bucket_label' => $account['bucket_label'] ?? '',
-                    'amount_source' => $account['amount_source'] ?? '',
-                    'source_department' => $department['department'] ?? '',
-                ];
-            }
-        }
-
-        return array_values($options);
-    }
-
-    public function editHistories(string $month, ?int $departmentId = null): array
-    {
-        $report = $this->reportForMonth($month);
-
-        if ($report === null) {
-            return [];
-        }
-
-        return ActualResultEditHistory::query()
-            ->with('editor:id,name')
-            ->where('actual_result_report_id', $report->id)
-            ->when($departmentId, fn ($query) => $query->where('actual_result_department_id', $departmentId))
-            ->latest()
-            ->limit(100)
-            ->get()
-            ->map(fn (ActualResultEditHistory $history) => [
-                'id' => $history->id,
-                'actual_result_department_id' => $history->actual_result_department_id,
-                'project_record_id' => $history->project_record_id,
-                'department_name' => $history->department_name,
-                'action' => $history->action,
-                'account_key' => $history->account_key,
-                'before_value' => $history->before_value,
-                'after_value' => $history->after_value,
-                'note' => $history->note,
-                'edited_by' => $history->edited_by,
-                'editor_name' => $history->editor?->name,
-                'created_at' => optional($history->created_at)->toISOString(),
-            ])
-            ->all();
     }
 
     public function exportCsv(string $month): string
@@ -606,9 +479,7 @@ class ActualResultPersistenceService
     private function syncReportPayload(
         ActualResultReport $report,
         array $payload,
-        int $actorId,
-        array $manualDepartmentNames = [],
-        bool $preserveManualFlags = true
+        int $actorId
     ): void {
         $payload['exists'] = true;
         $payload['id'] = $report->id;
@@ -629,14 +500,6 @@ class ActualResultPersistenceService
                 continue;
             }
 
-            $existing = ActualResultDepartment::query()
-                ->where('actual_result_report_id', $report->id)
-                ->where('department_name', $departmentName)
-                ->first();
-
-            $manualAdjusted = in_array($departmentName, $manualDepartmentNames, true)
-                || ($preserveManualFlags && (bool) ($existing?->manual_adjusted));
-
             ActualResultDepartment::updateOrCreate(
                 [
                     'actual_result_report_id' => $report->id,
@@ -645,7 +508,8 @@ class ActualResultPersistenceService
                 array_merge(
                     $this->departmentColumns($department, $projectIdsByName[$departmentName] ?? null),
                     [
-                        'manual_adjusted' => $manualAdjusted,
+                        // 手動編集は廃止。freee取込で常に上書きされる。
+                        'manual_adjusted' => false,
                         'updated_by' => $actorId,
                     ]
                 )
@@ -719,69 +583,6 @@ class ActualResultPersistenceService
         return $file->storeAs("actual-results/{$month->format('Y/m')}", $fileName, 'local');
     }
 
-    private function departmentPayloadIndex(array $payload, string $departmentName): ?int
-    {
-        foreach ($payload['departments'] ?? [] as $index => $department) {
-            if (($department['department'] ?? '') === $departmentName) {
-                return $index;
-            }
-        }
-
-        return null;
-    }
-
-    private function accountPayloadIndex(array $accounts, string $accountKey): ?int
-    {
-        if ($accountKey === '') {
-            return null;
-        }
-
-        foreach ($accounts as $index => $account) {
-            if (($account['account_key'] ?? $this->accountKey($account)) === $accountKey) {
-                return $index;
-            }
-        }
-
-        return null;
-    }
-
-    private function manualAccountPayload(array $account, ?array $before, string $departmentName): array
-    {
-        $category = in_array(($account['category'] ?? $before['category'] ?? 'expense'), ['sales', 'expense'], true)
-            ? (string) ($account['category'] ?? $before['category'] ?? 'expense')
-            : 'expense';
-        $requestedBucket = (string) ($account['bucket'] ?? $before['bucket'] ?? '');
-        $bucket = in_array($requestedBucket, self::MANUAL_BUCKETS[$category], true)
-            ? $requestedBucket
-            : ($category === 'sales' ? 'operating_sales' : 'ordinary_expense');
-        $amount = (int) round((float) ($account['amount'] ?? $before['amount'] ?? 0));
-
-        $payload = [
-            'account_code' => (string) ($account['account_code'] ?? $before['account_code'] ?? ''),
-            'account_name' => trim((string) ($account['account_name'] ?? $before['account_name'] ?? '')),
-            'category' => $category,
-            'bucket' => $bucket,
-            'bucket_label' => self::MANUAL_BUCKET_LABELS[$bucket],
-            'amount_source' => 'manual',
-            'amount' => $amount,
-            'debit' => (int) round((float) ($account['debit'] ?? ($category === 'expense' ? $amount : 0))),
-            'credit' => (int) round((float) ($account['credit'] ?? ($category === 'sales' ? $amount : 0))),
-            'balance' => (int) round((float) ($account['balance'] ?? $amount)),
-            'ending_balance' => (int) round((float) ($account['ending_balance'] ?? $before['ending_balance'] ?? 0)),
-            'rows' => max((int) ($before['rows'] ?? 0), 1),
-            'source_departments' => [$departmentName],
-            'source_amounts' => [],
-        ];
-
-        if ($payload['account_name'] === '') {
-            throw new InvalidArgumentException('Account name is required.');
-        }
-
-        $payload['account_key'] = $this->accountKey($payload);
-
-        return $payload;
-    }
-
     private function accountKey(array $account): string
     {
         return implode('|', [
@@ -791,22 +592,6 @@ class ActualResultPersistenceService
             (string) ($account['bucket'] ?? ''),
         ]);
     }
-
-    private function isCalculatedAccount(array $account): bool
-    {
-        return in_array((string) ($account['bucket'] ?? ''), [
-            'performance_bonus_reserve',
-            'indirect_allocation_expense',
-            'reserve_transfer_sales',
-            'indirect_allocation_sales',
-        ], true) || in_array((string) ($account['amount_source'] ?? ''), [
-            'generated_charge',
-            'generated_internal_sales',
-            'generated_bonus_accrual',
-            'timecard_kintone',
-        ], true);
-    }
-
     private function profitMargin(int $sales, int $profit): ?float
     {
         if ($sales === 0) {

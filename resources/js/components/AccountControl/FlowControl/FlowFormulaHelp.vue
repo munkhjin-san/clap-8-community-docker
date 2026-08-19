@@ -16,6 +16,16 @@
                         <thead><tr><th>要素</th><th>書き方</th><th>例</th></tr></thead>
                         <tbody>
                             <tr><td>項目の値</td><td>「<code>[</code>」を入力すると項目の候補が表示されます</td><td><code>[単価]</code></td></tr>
+                            <tr>
+                                <td>テーブルの列</td>
+                                <td><code>[テーブル名.列名]</code>。候補では「テーブル › 列名」と表示されます</td>
+                                <td><code>SUM([明細.金額])</code></td>
+                            </tr>
+                            <tr>
+                                <td>テーブル全体</td>
+                                <td>列を付けないと<b>すべての数値列</b>が対象になります</td>
+                                <td><code>SUM([明細])</code></td>
+                            </tr>
                             <tr><td>数値</td><td>そのまま入力</td><td><code>100</code> / <code>3.14</code></td></tr>
                             <tr><td>文字</td><td>クォートで囲む</td><td><code>"要確認"</code></td></tr>
                             <tr><td>真偽</td><td>キーワード</td><td><code>TRUE</code> / <code>FALSE</code></td></tr>
@@ -75,7 +85,11 @@
                     <h3>ヒント</h3>
                     <ul class="ffh-tips">
                         <li>ツールバーのボタンで関数や演算子をカーソル位置に挿入できます。</li>
-                        <li>「<code>[</code>」を入力すると項目の候補が表示され、選ぶと項目キーが挿入されます。</li>
+                        <li>「<code>[</code>」を入力すると項目の候補が表示され、選ぶと挿入されます。</li>
+                        <li>
+                            1列だけ合計したいときは <code>SUM([明細.金額])</code> のように<b>列まで指定</b>します。
+                            <code>SUM([明細])</code> は表の数値列をすべて合計するので、金額と数量が混ざって意図と違う結果になります。
+                        </li>
                         <li>入力中はエディターの下に計算結果（またはエラー）がリアルタイムで表示されます。</li>
                     </ul>
                 </section>
@@ -92,6 +106,8 @@ const emit = defineEmits<{ close: [] }>()
 
 const EXAMPLES = [
     { code: '[単価] * [数量]', desc: '小計を計算' },
+    { code: 'SUM([明細.金額])', desc: 'テーブルの「金額」列だけを合計' },
+    { code: 'COUNT([明細.金額])', desc: 'テーブルの行数（値が入っている行）' },
     { code: 'ROUNDDOWN([単価] * [数量] * 1.1, 0)', desc: '税込金額（端数切り捨て）' },
     { code: 'IF([数量] >= 10, [単価] * 0.9, [単価])', desc: '10個以上で1割引' },
     { code: 'IF(AND([数量] > 0, [単価] > 0), [単価] * [数量], 0)', desc: '両方入力されている時だけ計算' },

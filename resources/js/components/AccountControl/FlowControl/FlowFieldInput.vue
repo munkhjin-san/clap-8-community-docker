@@ -1,7 +1,9 @@
 <template>
     <!-- layout / decoration: renders the same in every mode -->
     <div v-if="field.input_type === 'heading'" class="fi-heading">{{ field.label }}</div>
-    <div v-else-if="field.input_type === 'label'" class="fi-labeltext">{{ field.label }}</div>
+    <!-- ラベルはリッチテキスト。保存時に App\Support\FlowRichText で許可タグだけに削ってあるので、
+         ここは v-html で出す（生の入力をそのまま流していない）。 -->
+    <div v-else-if="field.input_type === 'label'" class="fi-labeltext" v-html="field.label"></div>
     <div v-else-if="field.input_type === 'spacer'" class="fi-spacer" :style="{ height: (field.validation?.height || 24) + 'px' }"></div>
     <hr v-else-if="field.input_type === 'divider'" class="fi-divider" :style="{ borderTopStyle: field.validation?.line_style || 'solid' }">
 
@@ -16,7 +18,7 @@
                     <tbody>
                         <tr v-for="(row, ri) in tableRows" :key="ri">
                             <td v-for="col in tableColumns" :key="col.key">
-                                <FlowFieldInput :field="cellField(col)" :model-value="row[col.key]" :users="users" :projects="projects" readonly />
+                                <FlowFieldInput :field="cellField(col)" :model-value="row[col.key]" :users="users" :projects="projects" readonly cell-preview />
                             </td>
                         </tr>
                     </tbody>
@@ -71,14 +73,29 @@
                     <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(f) }}</span><span class="fi-fname-ext">{{ fileExt(f) }}</span></span>
                 </button>
             </template>
-            <!-- table: first file + a "+N" badge for the rest -->
+            <!-- テーブルの升：ファイルは全部、縦に並べる。「先頭＋N件」だと、何が入っているかを
+                 見るのに毎回開く必要があった。名前は升の幅で切り詰めるので、長い名前が来ても
+                 列幅は動かない（全体を見たいときはホバーで出る）。
+                 サブテーブル・関連レコード（cellPreview）ではプレビューを開くボタンになる。
+                 レコード一覧の升には開く先が無いので素の span にして、クリックはそのまま
+                 レコードを開く側へ通す。 -->
             <template v-else>
-                <span class="fi-fileitem">
-                    <img v-if="arrayVal[0]?.mime_type === 'image' && arrayVal[0]?.url" :src="arrayVal[0].url" class="fi-thumb" alt="">
-                    <FileIcon v-else class="fi-fileicon" :ext="arrayVal[0]?.extension" />
-                    <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(arrayVal[0]) }}</span><span class="fi-fname-ext">{{ fileExt(arrayVal[0]) }}</span></span>
+                <span class="fi-filelist">
+                    <component
+                        :is="cellPreview ? 'button' : 'span'"
+                        v-for="(f, i) in arrayVal"
+                        :key="f?.id ?? i"
+                        :type="cellPreview ? 'button' : undefined"
+                        class="fi-fileitem fi-filerow"
+                        :class="{ 'fi-file-btn': cellPreview }"
+                        :title="fileBase(f) + fileExt(f)"
+                        @click="openCellPreview(i, $event)"
+                    >
+                        <img v-if="f?.mime_type === 'image' && f?.url" :src="f.url" class="fi-thumb" alt="">
+                        <FileIcon v-else class="fi-fileicon" :ext="f?.extension" />
+                        <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(f) }}</span><span class="fi-fname-ext">{{ fileExt(f) }}</span></span>
+                    </component>
                 </span>
-                <span v-if="arrayVal.length > 1" class="fi-filemore">+{{ arrayVal.length - 1 }}</span>
             </template>
         </template>
         <template v-else-if="field.input_type === 'select' || field.input_type === 'radio'"><span class="fi-pill">{{ val }}</span></template>
@@ -160,20 +177,25 @@
             </label>
         </div>
         <span v-else-if="field.input_type === 'toggle'" class="flow-sw" :class="{ on: !!val }" @click="val = !val"></span>
-        <MemberSelector
+        <FlowListPicker
             v-else-if="field.input_type === 'user' || field.input_type === 'member'"
-            v-model="selectedUsers"
+            :model-value="val"
             :options="(users as any)"
             :multiple="userMultiple"
-            compact
-            :place-holder="field.label || 'ユーザーを選択'"
+            array-value
+            avatar
+            placeholder="ユーザーを選択"
+            @update:model-value="onMasterPick($event)"
         />
         <div v-else-if="field.input_type === 'file'" class="fi-files">
-            <div v-for="(f, i) in arrayVal" :key="f?.id ?? i" class="fi-fileitem fi-file-edit">
-                <button type="button" class="fi-file-open" @click="openPreview(i)">
+            <div v-for="(f, i) in arrayVal" :key="f?.id ?? i" class="fi-fileitem fi-file-edit" :class="{ 'fi-file-missing': isMissing(f) }">
+                <!-- a file whose bytes are gone stays listed, unclickable, and says so: the record of
+                     "something was attached here" is worth more than a tidy empty field -->
+                <button type="button" class="fi-file-open" :disabled="isMissing(f)" :title="isMissing(f) ? 'ファイルの実体が見つかりません' : f?.name" @click="openPreview(i)">
                     <img v-if="f?.mime_type === 'image' && f?.url" :src="f.url" class="fi-thumb" alt="">
                     <FileIcon v-else class="fi-fileicon" :ext="f?.extension" />
                     <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(f) }}</span><span class="fi-fname-ext">{{ fileExt(f) }}</span></span>
+                    <span v-if="isMissing(f)" class="fi-file-badge">未検出</span>
                 </button>
                 <button type="button" class="fi-fileremove" title="削除" @click="removeFile(i)">×</button>
             </div>
@@ -202,7 +224,9 @@
                                     :model-value="row[col.key]"
                                     :users="users"
                                     :projects="projects"
-                                    :readonly="col.input_type === 'formula'"
+                                    :readonly="col.input_type === 'formula' || !!col.validation?.disabled"
+                                    :owner-field-id="field.id"
+                                    :column-key="col.key"
                                     @update:model-value="setCell(ri, col.key, $event)"
                                 />
                             </td>
@@ -257,18 +281,13 @@
                 </div>
             </div>
         </div>
-        <div v-else-if="field.input_type === 'project'" class="fi-project">
-            <ItemSelector
-                :multiple="false"
-                :options="(projects as any)"
-                :reduce="(o: any) => o.id"
-                label="name"
-                v-model="val"
-                :clearable="true"
-                :close-on-select="true"
-                place-holder="プロジェクトを選択"
-            />
-        </div>
+        <FlowListPicker
+            v-else-if="field.input_type === 'project'"
+            :model-value="val"
+            :options="(projects as any)"
+            placeholder="プロジェクトを選択"
+            @update:model-value="onMasterPick($event)"
+        />
         <input v-else type="text" v-model="val" class="fi-input">
     </template>
 </template>
@@ -282,8 +301,11 @@ import { useFloatingMenu } from '@/composables/floatingMenu'
 import { useFilePreview } from '@/store/filePreview'
 import { useTheme } from '@/store/theme'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
-import MemberSelector from '@/components/Form/MemberSelector.vue'
-import ItemSelector from '@/components/Form/ItemSelector.vue'
+import FlowListPicker from './FlowListPicker.vue'
+import { isSecretType } from '@/types/flow'
+import { resolveFieldDefault } from '@/utils/flowDefaults'
+import { formatFlowNumber } from '@/utils/flowNumber'
+import { useAuthUserStore } from '@/store/auth'
 import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
 const props = defineProps<{
@@ -293,8 +315,18 @@ const props = defineProps<{
     projects?: FlowOptionProject[]
     readonly?: boolean
     preview?: boolean
+    /** compact cell rendering (as in a table) but clicks may still open the file preview modal —
+     *  set for subtable cells, which are only ever rendered on the record detail */
+    cellPreview?: boolean
     /** record id — only needed so a password field can call the reveal endpoint */
     recordId?: number | null
+    /**
+     * Which real field owns an upload. A subtable cell renders from a synthetic column field with no
+     * id, so the parent table field passes its own id (plus the column key) down — the upload endpoint
+     * derives the app from the field and refuses a column that isn't a file column.
+     */
+    ownerFieldId?: number | null
+    columnKey?: string | null
 }>()
 const projectName = (id: any) => {
     if (id === null || id === undefined || id === '') return '—'
@@ -308,6 +340,7 @@ const emit = defineEmits<{
 defineOptions({ name: 'FlowFieldInput' }) // explicit name so table cells can recurse into this component
 
 const api = useApi()
+const auth = useAuthUserStore()
 const filePreview = useFilePreview()
 const theme = useTheme()
 // native date/time pickers render their icon per `color-scheme`; follow the app theme so it's visible in dark mode
@@ -319,6 +352,9 @@ const fileName = (f: any): string => String(f?.name ?? (typeof f === 'string' ? 
 const fileExt = (f: any): string => { const n = fileName(f); const i = n.lastIndexOf('.'); return i > 0 ? n.slice(i) : '' }
 const fileBase = (f: any): string => { const n = fileName(f); const i = n.lastIndexOf('.'); return i > 0 ? n.slice(0, i) : n }
 
+/** The bytes are gone (an old upload the temp-file purge removed before it was ever moved). */
+const isMissing = (f: any) => f?.status === 'missing' || !f?.url
+
 // Open the shared FilePreview modal (image/pdf/text/video/audio preview + download menu for the rest).
 const openPreview = (i: number) => {
     const src = arrayVal.value
@@ -328,22 +364,36 @@ const openPreview = (i: number) => {
     const idx = clicked?.id != null ? files.findIndex((f: any) => f.id === clicked.id) : 0
     filePreview.setFilePreview({ active: true, files, target: files[idx] ?? files[0], source: 'flow', index: idx < 0 ? 0 : idx, message: null })
 }
+/** Compact-cell file click. A record-list cell has no modal to open into, so the click is left to
+ *  bubble (it opens the record); a subtable cell on the detail opens the preview and stops there. */
+const openCellPreview = (i: number, e: MouseEvent) => {
+    if (!props.cellPreview) return
+    e.stopPropagation()
+    openPreview(i)
+}
 const acceptAttr = computed(() => (props.field.validation?.accept?.length ? props.field.validation.accept.join(',') : undefined))
 
-// Upload to the shared temp store (/attach_upload_api); backend moves them to the record folder on save.
+/**
+ * Upload straight to the app's own file store (/flow_file_upload).
+ *
+ * The shared /attach_upload_api is deliberately not used: it mints a row in `message_files` (the
+ * chat table) just to get an id, which left orphaned rows there and no way to reach the owning
+ * record. The URL comes back from the server — it is never built here, so the storage layout can
+ * change without touching the client.
+ */
+const uploadFieldId = computed(() => props.ownerFieldId ?? props.field.id ?? null)
 const addFiles = async (e: Event) => {
     const target = e.target as HTMLInputElement
     if (!target.files?.length) return
+    if (!uploadFieldId.value) { target.value = ''; return }
     uploading.value = true
     try {
         const fd = new FormData()
-        Array.from(target.files).forEach((file, idx) => fd.append(String(idx), file))
-        const uploaded = (await api.post('/attach_upload_api', fd)) ?? []
-        const added = uploaded.map((u: any) => ({
-            id: u.id, name: u.name, extension: u.extension, mime_type: u.mime_type,
-            size: u.size, user_id: u.user_id, url: `/cdn/temp_upload/${u.id}.${u.extension}`,
-        }))
-        emit('update:modelValue', [...arrayVal.value, ...added])
+        fd.append('field_id', String(uploadFieldId.value))
+        if (props.columnKey) fd.append('column_key', props.columnKey)
+        Array.from(target.files).forEach((file) => fd.append('files[]', file))
+        const res = (await api.post('/flow_file_upload', fd)) as { files: any[] } | null
+        emit('update:modelValue', [...arrayVal.value, ...(res?.files ?? [])])
     } finally {
         uploading.value = false
         target.value = ''
@@ -353,7 +403,10 @@ const addFiles = async (e: Event) => {
 const removeFile = (i: number) => {
     const next = [...arrayVal.value]
     const [removed] = next.splice(i, 1)
-    if (removed && !removed.stored) api.post('/remove_temp_file', { id: removed.id }, { silent: true })
+    // only an un-attached upload needs discarding here; an attached one is released by saving the record
+    if (removed?.id && removed.status === 'pending') {
+        api.post('/flow_file_discard', { id: removed.id }, { silent: true })
+    }
     emit('update:modelValue', next)
 }
 
@@ -394,10 +447,18 @@ const syncPwFromModel = () => {
     hideSecret()
     if (typeof props.modelValue === 'boolean') emit('update:modelValue', '')
 }
-if (props.field.input_type === 'password' && !props.readonly) syncPwFromModel()
-// the record can change under a reused component (prev/next navigation) — resync
+if (isSecretType(props.field.input_type) && !props.readonly) syncPwFromModel()
+/**
+ * The record can change under a reused component (prev/next navigation) — resync.
+ *
+ * Scoped to secret fields, and that guard is the whole point: a secret's stored value arrives as a
+ * boolean meaning "one is set", which syncPwFromModel() rewrites to '' for "keep it". Unscoped, this
+ * fired for EVERY field type, so a 切り替え (toggle) — whose value is legitimately a boolean — had its
+ * value clobbered to '' the moment it changed. Switching a toggle on was impossible: the click emitted
+ * true, this watcher emitted '' straight after, and the switch rendered off again.
+ */
 watch(() => [props.modelValue, props.recordId], () => {
-    if (typeof props.modelValue === 'boolean') syncPwFromModel()
+    if (isSecretType(props.field.input_type) && typeof props.modelValue === 'boolean') syncPwFromModel()
 })
 watch(pwMode, (m) => {
     if (m === 'keep') emit('update:modelValue', '')
@@ -474,24 +535,8 @@ const linkify = (raw: any): { text: string; href?: string }[] => {
     return parts.length ? parts : [{ text }]
 }
 
-// user/member field: flow stores ID arrays; MemberSelector wants full User objects (return-object). Bridge both ways.
+// FlowListPicker speaks ids in both directions, so the old object<->id bridge for MemberSelector is gone
 const userMultiple = computed(() => props.field.validation?.multiple !== false) // default = multiple (existing behavior)
-const usersById = computed<Record<number, FlowOptionUser>>(() => {
-    const m: Record<number, FlowOptionUser> = {}
-    ;(props.users ?? []).forEach((u) => { m[u.id] = u })
-    return m
-})
-const selectedUsers = computed<any>({
-    get() {
-        const ids = Array.isArray(props.modelValue) ? props.modelValue : (props.modelValue != null && props.modelValue !== '' ? [props.modelValue] : [])
-        const objs = ids.map((id: number) => usersById.value[id] ?? ({ id, name: `#${id}` } as any))
-        return userMultiple.value ? objs : (objs[0] ?? null)
-    },
-    set(v: any) {
-        const arr = Array.isArray(v) ? v : (v ? [v] : [])
-        emit('update:modelValue', arr.map((u: any) => u.id))
-    },
-})
 /* ---- table field: rows of cells, each cell a nested FlowFieldInput ---- */
 const tableColumns = computed<any[]>(() => props.field.validation?.columns || [])
 const tableRows = computed<any[]>(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
@@ -513,11 +558,12 @@ const cellFields = computed<Record<string, FlowField>>(() => {
     return m
 })
 const cellField = (col: any): FlowField => cellFields.value[col.key]
-const defaultCell = (c: any) => {
-    if (['checkbox', 'file', 'user', 'member'].includes(c.input_type)) return []
-    if (c.input_type === 'toggle') return false
-    return null
-}
+/**
+ * A new table row honours each column's 初期値, the same way a new record honours a field's — the
+ * column carries the identical validation object, so the shared resolver does the work. Without this
+ * a default could be configured on a column and never appear, which is worse than not offering it.
+ */
+const defaultCell = (c: any) => resolveFieldDefault(cellField(c), auth.id)
 const addRow = () => {
     const row: Record<string, any> = {}
     for (const c of tableColumns.value) row[c.key] = defaultCell(c)
@@ -539,6 +585,50 @@ const refSource = computed(() => props.field.validation?.target_source ?? null)
 const hasRefTarget = computed(() => refTargetId.value != null || refSource.value != null)
 const refLabelField = computed(() => props.field.validation?.label_field ?? '')
 const refMappings = computed(() => (props.field.validation?.field_mappings ?? []).filter((m: any) => m?.from && m?.to))
+
+/* ---- ユーザー / プロジェクト auto-fill -----------------------------------------------------------
+ * Same contract as the 参照 field's field copy, and deliberately the same `field_mappings` shape and
+ * the same `lookup` emit — so the parents (record form and the list's inline row) need no changes at
+ * all: applyLookupCopy already knows what to do with it.
+ *
+ * The master's columns come from FlowSystemSources, so the allowlist and the value resolvers live in
+ * one place and /flow_system_record serves this untouched.
+ */
+const autoFillSource = computed<'user' | 'project' | null>(() =>
+    props.field.input_type === 'project'
+        ? 'project'
+        : (props.field.input_type === 'user' || props.field.input_type === 'member') ? 'user' : null,
+)
+
+/**
+ * Called from the picker's own change handler — never from a watch on `val`.
+ *
+ * `val` also changes when a saved record loads, and re-filling then would overwrite the stored values
+ * with today's master data, which is precisely what the snapshot exists to prevent: an approved
+ * record has to keep saying what was true when it was approved.
+ */
+const onMasterPick = async (next: any) => {
+    val.value = next
+    if (props.readonly || !autoFillSource.value || !refMappings.value.length) return
+
+    const ids = Array.isArray(next) ? next.filter((x) => x != null && x !== '') : (next == null || next === '' ? [] : [next])
+    // emptied → clear the fields it filled, same as clearing a 参照
+    if (!ids.length) {
+        emit('lookup', { mappings: refMappings.value, source: {} })
+
+        return
+    }
+    // more than one person selected: there is no single 役職 to copy, so leave the destinations as they
+    // are rather than picking a winner. The inspector hides the mapping editor for multi-select fields;
+    // this covers a field switched to 複数選択 after mappings were already configured.
+    if (ids.length > 1) return
+
+    try {
+        const keys = encodeURIComponent(refMappings.value.map((m: any) => m.from).join(','))
+        const data = await api.get(`/flow_system_record/${autoFillSource.value}/${ids[0]}?fields=${keys}`)
+        emit('lookup', { mappings: refMappings.value, source: data?.values ?? {} })
+    } catch { /* best-effort, like the 参照 copy: the selection itself is already applied */ }
+}
 const refSelected = computed<any>(() => (props.modelValue && props.modelValue.id ? props.modelValue : null))
 const refQuery = ref('')
 const refOpen = ref(false)
@@ -577,6 +667,11 @@ const onRefInput = (e: Event) => {
 }
 const onRefKeydown = (e: KeyboardEvent) => {
     if (e.isComposing || e.keyCode === 229) return // don't hijack Enter/arrows while an IME is composing
+    // The record list cancels an inline row edit on Escape from a document listener, so while this
+    // menu is open Escape has to stop here — closing the menu must not also abandon the row.
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || (e.key === 'Escape' && refOpen.value)) {
+        e.stopPropagation()
+    }
     if (e.key === 'ArrowDown') {
         e.preventDefault()
         if (!refOpen.value) { openRef(); return }
@@ -622,12 +717,12 @@ const openRefRecord = () => {
     router.push({ name: 'flow-record-detail', params: { flowId: refTargetId.value, recordId: sel.number } })
 }
 
-const formatNumber = (n: any) => (n === null || n === '' ? '' : Number(n).toLocaleString())
+const formatNumber = (n: any) => formatFlowNumber(n, props.field.validation)
 // Formula results: number-typed → comma format (also clears float noise like 385000.00000000006); text → raw.
 const formatFormula = (v: any) => {
     if (v === null || v === '' || v === undefined) return ''
     if (props.field.result_type === 'text') return String(v)
-    return isNaN(Number(v)) ? String(v) : Number(v).toLocaleString()
+    return isNaN(Number(v)) ? String(v) : formatFlowNumber(v, props.field.validation)
 }
 </script>
 
@@ -635,10 +730,6 @@ const formatFormula = (v: any) => {
 /* global main.css forces `box-sizing: unset !important` on *, so re-assert border-box here (class beats * even with !important) or width:100% + padding overflows the block */
 .fi-input { width: 100%; box-sizing: border-box !important; font-size: 13px; padding: 6px 9px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); }
 .fi-area { min-height: 64px; resize: vertical; }
-/* project picker: match the thin, rounded look of .fi-input (ItemSelector ships a bolder/square shell) */
-.fi-project { max-width: 100%; }
-.fi-project :deep(.item-selector-shell) { border: 1px solid var(--formBorder) !important; border-radius: 6px !important; box-sizing: border-box !important; overflow: hidden; }
-.fi-project :deep(.one-selector .v-field__input) { min-height: 34px; padding-top: 2px; padding-bottom: 2px; font-size: 13px; }
 .fi-multi { min-height: 80px; }
 .fi-opts { display: flex; flex-wrap: wrap; gap: 11px 18px; }
 .fi-opt { font-size: 13px; display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; line-height: 1.5; }
@@ -653,7 +744,11 @@ const formatFormula = (v: any) => {
 .fi-opt input[type="checkbox"] { border-radius: 5px; }
 .fi-opt input[type="radio"] { border-radius: 50%; }
 .fi-opt:hover input:not(:checked) { border-color: var(--primary-color); }
-.fi-opt input:checked { background: var(--primary-color); border-color: var(--primary-color); }
+/* --primary-button, not --primary-color: the tick and the dot below are white, and --primary-color
+   flips with the theme (#000 light, #e4e6eb dark) — so in dark mode a checked box was a white mark on
+   a near-white fill. --primary-button stays dark in both themes (#000 / #4b4b4b), which is why the
+   record list's .rv-check and the permission tabs' .flow-cbox never had this problem. */
+.fi-opt input:checked { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); }
 .fi-opt input[type="checkbox"]:checked::after {
     content: ""; position: absolute; left: 5px; top: 2px;
     width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
@@ -696,10 +791,21 @@ const formatFormula = (v: any) => {
 .fi-fileicon :deep(svg) { width: 16px !important; min-width: 16px !important; height: 20px !important; display: block; }
 .fi-thumb { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
 .fi-fname { display: inline-flex; min-width: 0; max-width: 20ch; font-size: 12.5px; }
+
 .fi-fname-base { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fi-fname-ext { flex-shrink: 0; white-space: nowrap; }
+/* 升の中は縦一列。幅の歯止めは .fi-fname の max-width（文字数）が持つ——表は auto レイアウトで、
+   升の幅は中身で決まるため、% で上限を書いても「中身の幅」を指すだけで効かない。 */
+.fi-filelist { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; max-width: 100%; }
+.fi-filerow { margin: 0; max-width: 100%; }
 .fi-filemore { font-size: 11px; color: gray; background: var(--bg3); border-radius: 8px; padding: 1px 7px; margin-left: 2px; align-self: center; flex-shrink: 0; }
+.fi-filemore-btn { border: none; cursor: pointer; font-family: inherit; }
+.fi-filemore-btn:hover { color: var(--primary-color); text-decoration: underline; }
 .fi-fileremove { border: none; background: none; color: gray; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+/* a file whose bytes are gone: still listed, plainly not openable */
+.fi-file-missing .fi-file-open { color: gray; cursor: not-allowed; }
+.fi-file-missing .fi-file-open:hover .fi-fname { text-decoration: none; }
+.fi-file-badge { flex: none; font-size: 10.5px; color: gray; border: 1px solid var(--formBorder); border-radius: 4px; padding: 0 4px; }
 .fi-fileadd { display: inline-flex; align-items: center; align-self: flex-start; font-size: 12px; padding: 5px 12px; border: 1px dashed var(--formBorder); border-radius: 6px; color: var(--primary-color); cursor: pointer; }
 .fi-fileadd:hover { background: var(--bg3); }
 .fi-heading { font-size: 15px; font-weight: 500; color: var(--primary-color); border-bottom: 1px solid var(--calendarBorder); padding-bottom: 4px; }
@@ -718,9 +824,12 @@ const formatFormula = (v: any) => {
 .fi-tbl-del { border: none; background: none; color: gray; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 5px; }
 .fi-tbl-del:hover { color: #e2574c; }
 .fi-tbl-empty { text-align: center; color: gray; font-size: 12px; padding: 12px; }
-/* cell inputs sit flush inside the grid — the td border provides the structure */
-.fi-tbl td :deep(.fi-input) { border: 1px solid transparent; background: transparent; }
-.fi-tbl td :deep(.fi-input:focus) { border-color: var(--formBorder); background: var(--background-color); }
+/* Cell inputs keep the border every other input has. They used to sit flush — transparent border,
+   transparent background, revealed only on focus — so a cell you could type in looked exactly like a
+   read-only one, and the only way to find out was to click it. Slightly tighter padding than a
+   top-level input (5/7 vs 6/9) so the extra chrome doesn't grow every row. */
+.fi-tbl td :deep(.fi-input) { padding: 5px 7px; }
+.fi-tbl td :deep(.fi-input:focus) { border-color: var(--primary-color); outline: none; }
 .fi-tbl td :deep(.fi-opts) { padding: 4px 2px; gap: 6px 12px; }
 .fi-tbl-add { margin-top: 8px; font-size: 12px; padding: 6px 12px; border: 1px dashed var(--formBorder); border-radius: 6px; color: var(--primary-color); background: var(--background-color); cursor: pointer; }
 .fi-tbl-add:hover { background: var(--bg3); }

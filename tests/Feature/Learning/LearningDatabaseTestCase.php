@@ -53,6 +53,8 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->integer('portfolio')->nullable();
             $table->integer('has_case_study')->nullable();
             $table->integer('custom_form_id')->nullable();
+            $table->boolean('pledge')->default(false);
+            $table->string('pledge_file_path')->nullable();
             $table->integer('previous_version')->nullable();
             $table->timestamps();
         });
@@ -120,6 +122,15 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('lesson_pledge_signatures', function ($table) {
+            $table->increments('id');
+            $table->integer('lesson_theme_id');
+            $table->integer('user_id');
+            $table->string('file_path');
+            $table->timestamp('signed_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('lesson_personal_materials', function ($table) {
             $table->increments('id');
             $table->integer('lesson_theme_id');
@@ -128,8 +139,6 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->string('config_key');
             $table->longText('content')->nullable();
             $table->text('presentation_spec')->nullable();
-            $table->string('presentation_theme')->nullable();
-            $table->string('presentation_path')->nullable();
             $table->text('source_snapshot')->nullable();
             $table->boolean('understand')->nullable();
             $table->longText('important_point')->nullable();
@@ -155,6 +164,7 @@ abstract class LearningDatabaseTestCase extends TestCase
         Schema::create('lesson_exams', function ($table) {
             $table->increments('id');
             $table->integer('lesson_theme_id');
+            $table->integer('lesson_material_id')->nullable();
             $table->string('title')->nullable();
             $table->integer('passing_score')->default(80);
             $table->integer('max_attempts')->default(1);

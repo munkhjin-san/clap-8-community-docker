@@ -9,8 +9,32 @@
         <div class="post-header">
             <HamBurger v-if="responsive.mobile" />
             <div v-show="tab === 'all'" class="fc-header-tools">
-                <div class="post-search-wrap">
-                    <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="'アプリを検索'" @searchStart="onSearch" />
+                <div ref="searchWrapEl" class="post-search-wrap" @keydown.escape="closeSuggest">
+                    <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="'アプリを検索'" @searchStart="onSearch" @focus="suggestOpen = true" />
+                    <!-- Typing suggests rather than filtering the grid behind: the top row escalates to
+                         a cross-app record search, the rows under it are the matching apps. Same shape
+                         as the board search (BoardSearchBar). -->
+                    <Transition name="modalFade">
+                        <div v-if="suggestOpen && search.trim()" class="fc-suggest">
+                            <button type="button" class="fc-sg-row fc-sg-records" @click="openRecordSearch">
+                                <SearchIcon :size="13" />
+                                <span class="fc-sg-label">レコードから検索</span>
+                                <span class="fc-sg-kw">{{ search.trim() }}</span>
+                            </button>
+                            <div class="fc-sg-sep"></div>
+                            <button
+                                v-for="d in appHits"
+                                :key="d.id"
+                                type="button"
+                                class="fc-sg-row"
+                                @click="openApp(d)"
+                            >
+                                <FlowAppIcon :icon-svg="d.icon_svg" :icon-image="d.icon_image" :color-id="d.color_id" :name="d.name" :seed="d.id" :size="22" />
+                                <span class="fc-sg-label">{{ d.name }}</span>
+                            </button>
+                            <p v-if="!appHits.length" class="fc-sg-empty">一致するアプリはありません</p>
+                        </div>
+                    </Transition>
                 </div>
                 <!-- view toggle: stays next to the search on every breakpoint (req 8) -->
                 <router-link :to="{name: 'help-documentation', params: { docId: 'app'}}" title="使い方" class="box-border w-[30px] h-[30px] flex items-center justify-center bg-[var(--background-color)] rounded border border-solid border-[var(--formBorder)]">
@@ -46,6 +70,8 @@
                 </span>
             </div>
         </div>
+
+        <FlowRecordSearchModal v-if="recordSearchOpen" :initial-keyword="recordSearchKw" @close="recordSearchOpen = false" />
 
         <FloatButton v-if="tab === 'all'" hideOn="fcBody" @action="openBuilder()">
             <template #icon>
@@ -92,7 +118,7 @@
                                 <span class="fc-fi"><span class="fc-num">{{ def.records_count ?? 0 }}</span>件</span>
                                 <div class="ml-auto flex items-center gap-[10px]" @click.stop>
                                     <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
-                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" @read="getDefinitions" />
                                 </div>
                             </div>
                         </div>
@@ -120,7 +146,7 @@
                                 <div class="ac"><span class="fc-vis">{{ def.is_public ? '全社員' : '限定' }}</span></div>
                                 <div class="fc-td-menu" @click.stop>
                                     <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
-                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" @read="getDefinitions" />
                                     <ItemMenu :items="menuItems(def)" teleport />
                                 </div>
                             </div>
@@ -152,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApi } from '@/composables/api'
 import { useResponsive } from '@/store/responsive'
@@ -165,6 +191,8 @@ import type { MenuList } from '@/interface/globalInterface'
 import FloatButton from '@/components/Global/FloatButton.vue'
 import AddIcon from '@/components/Form/AddIcon.vue'
 import PostSearchBar from '@/components/Post/PostSearchBar.vue'
+import FlowRecordSearchModal from './FlowRecordSearchModal.vue'
+import SearchIcon from '@/components/Icons/Search.vue'
 import HamBurger from '@/components/Global/HamBurger.vue'
 import Badge from '@/components/Global/Badge.vue'
 import Grid from '@/components/Icons/Grid.vue'
@@ -207,11 +235,44 @@ const menuItems = (def: FlowDefinitionListItem): MenuList[] => {
     return items
 }
 
-const onSearch = (kw: string) => { search.value = kw }
-const sortedDefinitions = computed(() => {
+const searchWrapEl = ref<HTMLElement | null>(null)
+const suggestOpen = ref(false)
+const recordSearchOpen = ref(false)
+const recordSearchKw = ref('')
+const closeSuggest = () => { suggestOpen.value = false }
+// clicking anywhere outside the search dismisses the suggest panel (it overlays the app grid)
+const onDocClick = (e: MouseEvent) => {
+    if (suggestOpen.value && !searchWrapEl.value?.contains(e.target as Node)) closeSuggest()
+}
+onMounted(() => document.addEventListener('click', onDocClick))
+onUnmounted(() => document.removeEventListener('click', onDocClick))
+
+const onSearch = (kw: string) => {
+    search.value = kw
+    if (kw.trim()) suggestOpen.value = true
+}
+
+/** Apps matching the keyword — shown in the dropdown only; the grid behind stays unfiltered. */
+const appHits = computed(() => {
     const kw = search.value.trim().toLowerCase()
-    let list = definitions.value
-    if (kw) list = list.filter((d) => (d.name ?? '').toLowerCase().includes(kw) || (d.description ?? '').toLowerCase().includes(kw))
+    if (!kw) return []
+    return definitions.value
+        .filter((d) => (d.name ?? '').toLowerCase().includes(kw) || (d.description ?? '').toLowerCase().includes(kw))
+        .slice(0, 8)
+})
+const openApp = (d: FlowDefinitionListItem) => {
+    closeSuggest()
+    router.push({ name: 'flow-records', params: { flowId: d.id } })
+}
+const openRecordSearch = () => {
+    recordSearchKw.value = search.value.trim()
+    closeSuggest()
+    recordSearchOpen.value = true
+}
+const sortedDefinitions = computed(() => {
+    // deliberately not filtered by `search`: typing drives the suggest dropdown instead, so the
+    // grid stays put while you look for an app or escalate to a record search
+    const list = definitions.value
     const cmp = (a: FlowDefinitionListItem, b: FlowDefinitionListItem) => {
         switch (sort.value) {
             case 'created_asc': return (a.created_at ?? '').localeCompare(b.created_at ?? '')
@@ -303,7 +364,17 @@ onMounted(() => {
 /* header: search + view toggle share one row on every breakpoint */
 .fc-header-tools { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 /* keep the search from spanning the whole toolbar on desktop */
-.post-search-wrap { flex: 1; min-width: 0; max-width: 520px; }
+/* width is capped inside PostSearchBar now; this only needs to position the suggest dropdown */
+.post-search-wrap { flex: 1; min-width: 0; max-width: 400px; position: relative; }
+/* suggest dropdown: sits under the search input, mirroring the board search panel */
+.fc-suggest { position: absolute; top: 34px; left: 0; right: 0; z-index: 20; box-sizing: border-box; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 7px; box-shadow: 0 6px 18px rgba(0,0,0,.10); padding: 4px 0; max-height: 340px; overflow-y: auto; }
+.fc-sg-row { box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: none; background: none; cursor: pointer; text-align: left; font-size: 12.5px; color: var(--primary-color); letter-spacing: normal; }
+.fc-sg-row:hover { background: var(--bg3); }
+.fc-sg-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-sg-records .fc-sg-label { flex-shrink: 0; }
+.fc-sg-kw { margin-left: auto; color: gray; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-sg-sep { height: 1px; background: var(--calendarBorder); margin: 4px 0; }
+.fc-sg-empty { font-size: 12px; color: gray; padding: 7px 12px; margin: 0; }
 /* toggle: pinned right with breathing room, height matched to the search input.
    box-sizing is globally content-box here, so 29px content + 2px border = 31px, matching the input */
 /* margin-right matches the tab bar / body padding (20px) so it lines up with the sort control below */

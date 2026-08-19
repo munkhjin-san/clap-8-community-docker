@@ -41,7 +41,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_variance_summary',
-                    'description' => '単月のGoogle Sheets実績 vs 損益の乖離ランキングを返します。月省略時は毎月20日反映ルールに基づく最新実績反映月を使います。年度合計として扱ってはいけません。',
+                    'description' => '単月の実績（保存済みActualResultを優先し、未保存時はGoogle Sheetsで補完）vs 損益の乖離ランキングを返します。月省略時は最新実績基準月を使います。年度合計として扱ってはいけません。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -57,7 +57,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_fiscal_year_finance_summary',
-                    'description' => '財務年度（3月開始、翌2月終了）の予算（yearly_plan）・計画（Kintone損益）・Google Sheets実績・実績/着地見込み（予測込み）・差分を返します。実績/着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使用します。「今期の財務状況」「FY2026の着地見込み」「年度の計画対比」など取締役向けの質問で使用します。',
+                    'description' => '財務年度（3月開始、翌2月終了）の予算（yearly_plan）・計画（Kintone損益）・実績・実績/着地見込み（予測込み）・差分を返します。実績は保存済みActualResultを優先し、未保存時だけGoogle Sheetsで補完します。実績がない月はKintone損益を見込み値として使用します。「今期の財務状況」「FY2026の着地見込み」「年度の計画対比」など取締役向けの質問で使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -78,7 +78,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_project_fiscal_year_pl',
-                    'description' => '指定プロジェクトの財務年度（3月-翌2月）の月別P&L、予算（yearly_plan）、計画（Kintone損益）、Google Sheets実績、実績/着地見込み（予測込み）、差分を返します。「この案件の年度PL」「プロジェクトの通期見込み」に使用します。',
+                    'description' => '指定プロジェクトの財務年度（3月-翌2月）の月別P&L、予算（yearly_plan）、計画（Kintone損益）、実績（保存済みActualResult優先・Google Sheets補完）、実績/着地見込み（予測込み）、差分を返します。「この案件の年度PL」「プロジェクトの通期見込み」に使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -95,7 +95,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_project_variance_explanation',
-                    'description' => '指定プロジェクト・指定月のGoogle Sheets実績と計画（既定はKintone損益）の差異、差異額、差異率、該当月のproject_finance_commentsを返します。「なぜ実績が計画と違う？」「差異理由は？」「コメントに理由はある？」など、単月の実績差異理由を説明する質問で必ず使用します。',
+                    'description' => '指定プロジェクト・指定月の実績（保存済みActualResult優先・Google Sheets補完）と計画（既定はKintone損益）の差異、差異額、差異率、該当月のproject_finance_commentsを返します。「なぜ実績が計画と違う？」「差異理由は？」「コメントに理由はある？」など、単月の実績差異理由を説明する質問で必ず使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -116,7 +116,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_finance_forecast_ranking',
-                    'description' => '財務年度の着地見込みで、計画（Kintone損益）に対して利益が悪いプロジェクトをランキングします。予算差分も参考値として返します。着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使用します。「利益が危ない案件」「計画未達になりそうな案件」に使用します。',
+                    'description' => '財務年度の着地見込みで、計画（Kintone損益）に対して利益が悪いプロジェクトをランキングします。予算差分も参考値として返します。着地見込みは保存済みActualResult、Google Sheets実績、Kintone損益見込みの順で使用します。「利益が危ない案件」「計画未達になりそうな案件」に使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -136,7 +136,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_finance_data_quality',
-                    'description' => '財務データ品質を確認します。年間計画・損益・Google Sheets実績の欠損、最新実績反映月、重複した月次損益レコード、実績未反映月を返します。回答の数値が怪しい場合や、データが正しく戻っているか確認するときに使用します。',
+                    'description' => '財務データ品質を確認します。年間計画・損益・実績（保存済みActualResult優先・Google Sheets補完）の欠損、最新実績反映月、重複した月次損益レコード、実績未反映月を返します。回答の数値が怪しい場合や、データが正しく戻っているか確認するときに使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -480,9 +480,12 @@ TXT;
             $payload = [
                 'model'       => $model,
                 'messages'    => $messages,
-                'max_tokens'  => 1000,
+                'max_completion_tokens' => 1000,
             ];
             if (! empty($tools)) {
+                // Chat Completions function tools require reasoning to be disabled
+                // for the configured GPT-5.6 model.
+                $payload['reasoning_effort'] = 'none';
                 $payload['tools'] = $tools;
                 $payload['tool_choice'] = ($i === 0 && $forcedFirstTool)
                     ? ['type' => 'function', 'function' => ['name' => $forcedFirstTool]]
@@ -499,7 +502,14 @@ TXT;
                 ], 502);
             }
 
-            $choice = $response->choices[0];
+            $choice = $response->choices[0] ?? null;
+            if ($choice === null) {
+                report(new \RuntimeException('OpenAI chat response did not contain a choice.'));
+
+                return response()->json([
+                    'message' => 'OpenAI応答の形式が不正です。もう一度お試しください。',
+                ], 502);
+            }
 
             if ($choice->finishReason === 'stop') {
                 $content = trim((string) ($choice->message->content ?? ''));
@@ -659,6 +669,12 @@ TXT;
             'get_fiscal_year_finance_summary' => $this->formatFiscalSummaryReply(
                 $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
             ),
+            'get_variance_summary' => $this->formatVarianceSummaryReply(
+                $this->dispatchTool($tool, $this->varianceSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            'get_finance_data_quality' => $this->formatDataQualityReply(
+                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
             'get_monthly_trend' => $this->formatMonthlyTrendReply(
                 $this->dispatchTool($tool, $this->monthlyTrendArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
             ),
@@ -673,6 +689,9 @@ TXT;
             ),
             'get_pm_finance_ranking' => $this->formatPmRankingReply(
                 $this->dispatchTool($tool, $this->pmRankingArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            'get_revenue_concentration' => $this->formatRevenueConcentrationReply(
+                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
             ),
             'compare_fiscal_years' => $this->formatFiscalComparisonReply(
                 $this->dispatchTool($tool, $this->fiscalComparisonArgsFromQuestion($latestUserContent, $financeFiscalYear), $financeMcp)
@@ -868,6 +887,27 @@ TXT;
         return [
             'fiscal_year' => $fiscalYear,
             'as_of_period' => $latestActualPeriod,
+            'limit' => 10,
+        ];
+    }
+
+    private function varianceSummaryArgsFromQuestion(
+        string $content,
+        int $financeFiscalYear,
+        string $latestActualPeriod
+    ): array {
+        $hasExplicitPeriod = preg_match('/\d{4}\s*[-\/年]\s*\d{1,2}|\d{1,2}\s*月/u', $content) === 1;
+        if (! $hasExplicitPeriod) {
+            return ['limit' => 10];
+        }
+
+        $period = $this->periodsFromVarianceQuestion($content, $financeFiscalYear, $latestActualPeriod)[0]
+            ?? $latestActualPeriod;
+        [$year, $month] = array_map('intval', explode('-', $period));
+
+        return [
+            'year' => $year,
+            'month' => $month,
             'limit' => 10,
         ];
     }
@@ -1134,7 +1174,7 @@ TXT;
         $lines = ["【{$period} {$projectName}】"];
 
         if (empty($result['actual_data_available'])) {
-            $lines[] = "Google Sheets実績がないため、{$baseLabel}との差異理由は判定できません。";
+            $lines[] = "実績がないため、{$baseLabel}との差異理由は判定できません。";
         }
 
         if (empty($result['plan_data_available'])) {
@@ -1172,6 +1212,144 @@ TXT;
         return implode("\n", $lines);
     }
 
+    private function formatVarianceSummaryReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $period = (string) ($result['period'] ?? '対象月');
+        $projects = array_values(array_filter($result['projects'] ?? [], fn ($project) => is_array($project)));
+        if ($projects === []) {
+            return "{$period}の実績と計画（Kintone損益）を比較できるプロジェクトはありません。";
+        }
+
+        $lines = [
+            "{$period} 実績と計画（Kintone損益）の乖離ランキング",
+            '実績ソース: ' . (string) ($result['actual_source'] ?? '保存済み実績優先・Google Sheets補完'),
+            '',
+        ];
+
+        foreach (array_slice($projects, 0, 5) as $index => $project) {
+            $gaps = $project['amount_gap'] ?? [];
+            $source = (string) ($project['actual_source'] ?? FinanceSnapshotService::actualSourceLabel($project['actual'] ?? []));
+            $lines[] = sprintf(
+                '%d. %s（%s）: 売上 %s、販管費 %s、利益 %s',
+                $index + 1,
+                (string) ($project['project_name'] ?? '名称未設定'),
+                $source,
+                $this->formatSignedYen((int) ($gaps['sales'] ?? 0)),
+                $this->formatSignedYen((int) ($gaps['expenses'] ?? 0)),
+                $this->formatSignedYen((int) ($gaps['profit'] ?? 0))
+            );
+        }
+
+        $top = $projects[0];
+        $lines[] = '';
+        $lines[] = '最大乖離は ' . (string) ($top['project_name'] ?? '名称未設定')
+            . ' の ' . $this->formatYen((int) ($top['max_amount_gap'] ?? 0)) . ' です。';
+
+        return implode("\n", $lines);
+    }
+
+    private function formatDataQualityReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
+        $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '不明');
+        $summary = $result['summary'] ?? [];
+        $releasedPeriods = array_values($summary['released_actual_periods'] ?? []);
+        $availableActualPeriods = array_values($summary['available_actual_periods'] ?? []);
+        $allPeriods = array_values($result['period']['months'] ?? []);
+        $missingReleasedPeriods = array_values(array_diff($releasedPeriods, $availableActualPeriods));
+        $futurePeriods = array_values(array_diff($allPeriods, $releasedPeriods));
+        $missingActualRows = array_values(array_filter(
+            $result['issues']['missing_actual'] ?? [],
+            fn ($issue) => is_array($issue)
+        ));
+        $missingByPeriod = array_count_values(array_filter(array_map(
+            fn (array $issue) => (string) ($issue['period'] ?? ''),
+            $missingActualRows
+        )));
+        $dataStatus = $result['data_status'] ?? [];
+
+        $lines = [
+            "FY{$fiscalYear} 財務データ品質（最新実績反映月: {$latestActualPeriod}）",
+            '実績ソース: 保存済みActualResultを優先し、該当プロジェクト・月が未保存の場合だけGoogle Sheetsを使用',
+            '',
+            sprintf(
+                '欠損: 予算 %d件、計画 %d件、実績 %d件',
+                (int) ($summary['missing_yearly_plan_count'] ?? 0),
+                (int) ($summary['missing_profit_count'] ?? 0),
+                (int) ($summary['missing_actual_count'] ?? 0)
+            ),
+            '重複した月次計画: ' . (int) ($summary['duplicate_profit_record_count'] ?? 0) . '件',
+            '実績未確定のためKintone損益を見込み利用: ' . (int) ($summary['forecast_from_profit_count'] ?? 0) . '件',
+            '実績データ確認月: ' . ($availableActualPeriods !== [] ? implode(', ', $availableActualPeriods) : 'なし'),
+            '反映期限を過ぎた未反映月: ' . ($missingReleasedPeriods !== [] ? implode(', ', $missingReleasedPeriods) : 'なし'),
+            '今後の未確定月: ' . ($futurePeriods !== [] ? implode(', ', $futurePeriods) : 'なし'),
+        ];
+
+        if ($missingByPeriod !== []) {
+            $lines[] = '反映済み月内の実績欠損: ' . implode('、', array_map(
+                fn (string $period, int $count) => "{$period} {$count}件",
+                array_keys($missingByPeriod),
+                array_values($missingByPeriod)
+            ));
+        }
+
+        $actualResultPeriods = array_values($dataStatus['actual_result_periods'] ?? []);
+        $googleFallbackPeriods = array_values($dataStatus['google_sheet_fallback_periods'] ?? []);
+        if ($actualResultPeriods !== []) {
+            $lines[] = '保存済みActualResult使用月: ' . implode(', ', $actualResultPeriods);
+        }
+        if ($googleFallbackPeriods !== []) {
+            $lines[] = 'Google Sheets補完月: ' . implode(', ', $googleFallbackPeriods);
+        }
+        if (! empty($dataStatus['google_sheet_warning'])) {
+            $lines[] = '注意: ' . (string) $dataStatus['google_sheet_warning'];
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function formatRevenueConcentrationReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
+        $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
+        $projects = array_values(array_filter($result['projects'] ?? [], fn ($project) => is_array($project)));
+        $lines = [
+            "FY{$fiscalYear} 着地売上の集中リスク（最新実績反映月: {$latestActualPeriod}）",
+            '着地売上合計: ' . $this->formatYen((int) ($result['total_forecast_revenue'] ?? 0)),
+            sprintf(
+                '上位3件シェア %.1f%%、上位5件シェア %.1f%%',
+                (float) ($result['top3_share_pct'] ?? 0),
+                (float) ($result['top5_share_pct'] ?? 0)
+            ),
+            (string) ($result['risk_note'] ?? ''),
+            '',
+        ];
+
+        foreach (array_slice($projects, 0, 5) as $project) {
+            $lines[] = sprintf(
+                '%d. %s: %s（%.1f%%）',
+                (int) ($project['rank'] ?? 0),
+                (string) ($project['project_name'] ?? '名称未設定'),
+                $this->formatYen((int) ($project['forecast_revenue'] ?? 0)),
+                (float) ($project['share_pct'] ?? 0)
+            );
+        }
+
+        return implode("\n", array_filter($lines, fn (string $line) => $line !== ''));
+    }
+
     private function formatFiscalSummaryReply(array $result): string
     {
         if (isset($result['error'])) {
@@ -1196,7 +1374,7 @@ TXT;
             '【計画（月次修正 / Kintone損益）】',
             $this->formatFinanceUnitLine($plan),
             '',
-            "【実績累計（{$latestActualPeriod}まで / Google Sheets）】",
+            "【実績累計（{$latestActualPeriod}まで / " . FinanceSnapshotService::actualSourceLabel($actual) . '）】',
             $this->formatFinanceUnitLine($actual),
             '',
             '【実績/着地見込み（予測込み）】',

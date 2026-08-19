@@ -38,6 +38,8 @@
                     :customPlaceHolder="customPlaceHolder"
                     @search-start="(word) => {keywords = word}"
                 />
+                <!-- 各一覧が絞り込みや件数をここへ差し込む（検索欄と同じ行にまとめるため）。 -->
+                <div id="adminListTools" class="project-admin-nav__tools"></div>
             </div>
         </div>
         <router-view
@@ -74,6 +76,7 @@ const selectedDate = ref({
 
 type ProjectAdminRouteName =
   | 'projectlist'
+  | 'partnerlist'
   | 'mentorcontrol'
   | 'projecttypes'
   | 'checkitem-categories'
@@ -87,6 +90,7 @@ interface NavigationItem {
 
 const primaryTabs: NavigationItem[] = [
   { routeName: 'projectlist', label: 'プロジェクト一覧' },
+  { routeName: 'partnerlist', label: '取引先' },
   { routeName: 'mentorcontrol', label: '人事考課管理' },
 ]
 const secondaryTabs: NavigationItem[] = [
@@ -97,6 +101,7 @@ const secondaryTabs: NavigationItem[] = [
 ]
 const searchBarRoutes: Record<string, string> = {
   projectlist: 'プロジェクト検索',
+  partnerlist: '取引先検索',
   mentorcontrol: 'メンバーとメンター検索',
 }
 
@@ -203,7 +208,21 @@ provide('refresh', getSelectableUsers)
     }
     .project-admin-nav__search{
         display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+    }
+    /* 検索欄は幅を保ち、残りを差し込み領域に渡す。 */
+    .project-admin-nav__search > :first-child{
         width: 30%;
+        min-width: 220px;
+    }
+    .project-admin-nav__tools{
+        display: flex;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+        gap: 12px;
     }
     @media (max-width: 959px) {
         .project-admin-nav{

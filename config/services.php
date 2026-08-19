@@ -61,8 +61,11 @@ return [
     'php_cli_binary' => env('PHP_CLI_BINARY'),
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
-        'chatkit_workflow_id' => env('OPENAI_CHATKIT_WORKFLOW_ID'),
         'support_chat_model' => env('OPENAI_SUPPORT_CHAT_MODEL', 'gpt-5.6-terra'),
+        'transcript_summary_model' => env('OPENAI_TRANSCRIPT_SUMMARY_MODEL', 'gpt-5.6-terra'),
+        'transcript_summary_prompt_version' => env('OPENAI_TRANSCRIPT_SUMMARY_PROMPT_VERSION', 'v1'),
+        'transcript_summary_max_chunk_chars' => env('OPENAI_TRANSCRIPT_SUMMARY_MAX_CHUNK_CHARS', 60000),
+        'transcript_summary_max_output_tokens' => env('OPENAI_TRANSCRIPT_SUMMARY_MAX_OUTPUT_TOKENS', 7000),
         'organization' => env('OPENAI_ORGANIZATION'),
         'compare_model' => env('OPENAI_COMPARE_SUMMARY_MODEL', 'gpt-5.6-luna'),
         'prompts' => [
@@ -86,8 +89,6 @@ return [
     'learning_presentation' => [
         'model' => env('LEARNING_PRESENTATION_MODEL', 'gpt-5.6-sol'),
         'max_output_tokens' => env('LEARNING_PRESENTATION_MAX_OUTPUT_TOKENS', 20000),
-        'node_binary' => env('NODE_BINARY', 'node'),
-        'render_timeout' => env('LEARNING_PRESENTATION_RENDER_TIMEOUT', 60),
     ],
     'VAPID' => [
         'public_key' => env('VAPID_PUBLIC_KEY'),
@@ -106,5 +107,8 @@ return [
         'delivery_url' => env('CUENOTE_DELIVERY_URL', 'https://sms-console.cuenote.jp/v9/delivery'),
     ],
 
-
+    'freee' => [
+        // 呼び出し対象の事業所ID。未設定なら認可時にfreeeが返した company_id を使う。
+        'company_id' => env('FREEE_COMPANY_ID'),
+    ],
 ];

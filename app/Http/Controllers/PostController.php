@@ -16,6 +16,8 @@ use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
 use App\Models\PostRelay;
 use App\Models\PostRelayPrize;
+use App\Models\PostRakuawardScore;
+use App\Models\UserReadHistory;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
@@ -24,6 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Events\MessageSent;
 use App\Jobs\PostStatusChangeNotification;
 use App\Services\BadgeService;
+use App\Services\RefreshService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Jobs\SocketEmitter;
@@ -32,6 +35,9 @@ use Illuminate\Validation\ValidationException;
 
 class PostController extends Controller
 {
+    // Read-history key for the monthly rakuaward results announcement.
+    private const RAKUAWARD_RESULT_READABLE = 'rakuaward_result';
+
     protected $badgeService;
     public function __construct(
         BadgeService $badgeService, 
@@ -179,6 +185,7 @@ class PostController extends Controller
             'grants',
             'entries' => fn ($query) => $query->withCount('comments')->withCount('claps')->with('claps')->orderBy('created_at', 'desc'),    
             'awards',
+            'rakuawardScores.user',
             'result_files',
             'emotedUsers',
             'postRelays' => fn ($query) => $query
@@ -212,6 +219,7 @@ class PostController extends Controller
             'to_users',
             'grants',
             'awards',
+            'rakuawardScores.user',
             'result_files',
             'emotedUsers',
             'postRelays' => function ($query) {
@@ -800,6 +808,162 @@ class PostController extends Controller
         $this->badgeService->invalidateBadgeSummaryCache();
         return response()->json();
 
+    }
+    public function rakuaward_score(Request $request)
+    {
+        $request->validate([
+            'record_id' => 'required|integer|exists:post_records,id',
+            'score' => 'required|integer|min:1|max:10',
+        ]);
+
+        $user = Auth::user();
+        // Only directors/executives may score. Community-aware (was position_id 1-5).
+        if (! $user->isBoss() && ! $user->isAdmin()) {
+            throw ValidationException::withMessages(['score' => 'スコアを付ける権限がありません。']);
+        }
+
+        $record = PostRecord::findOrFail($request->record_id);
+        if ((int) $record->app_type !== 7) {
+            throw ValidationException::withMessages(['record_id' => 'この投稿にはスコアを付けられません。']);
+        }
+
+        // Scoring stays open until a director announces the month (which stores the rank).
+        if (! is_null($record->rakuaward_rank)
+            || ! is_null($record->rakuaward_granted_at)
+            || ! is_null($record->rakuaward_refunded_at)) {
+            throw ValidationException::withMessages(['score' => '発表済みのため採点できません。']);
+        }
+
+        PostRakuawardScore::updateOrCreate(
+            ['post_id' => $record->id, 'user_id' => $user->id],
+            ['score' => (int) $request->score]
+        );
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        $scores = PostRakuawardScore::where('post_id', $record->id)->with('user')->get();
+
+        return response()->json(['scores' => $scores]);
+    }
+    public function rakuaward_mvps()
+    {
+        // Results block = the latest month a director has announced.
+        $announced = PostRecord::latestAnnouncedRakuawardMonth();
+        // Provisional block = oldest month still waiting to be announced (stays until announced).
+        $pending = PostRecord::earliestPendingRakuawardMonth();
+
+        $mvps = $announced ? $this->rakuawardMonthRanking($announced) : [];
+        $alreadyRead = $announced
+            ? UserReadHistory::where('readable_type', self::RAKUAWARD_RESULT_READABLE)
+                ->where('readable_id', $this->rakuawardResultKey($announced))
+                ->where('user_id', Auth::id())
+                ->exists()
+            : true;
+
+        return response()->json([
+            'month' => $announced ? $announced->format('Y-m') : null,
+            'mvps' => $mvps,
+            'result_unread' => count($mvps) > 0 && ! $alreadyRead,
+            'pending_month' => $pending ? $pending->format('Y-m') : null,
+            'pending' => $pending ? $this->rakuawardMonthRanking($pending) : [],
+        ]);
+    }
+    public function rakuaward_announce(Request $request, RefreshService $refreshService)
+    {
+        $request->validate([
+            'month' => 'required|date_format:Y-m',
+        ]);
+
+        $user = Auth::user();
+        // Community-aware (was position_id 1-5).
+        if (! $user->isBoss() && ! $user->isAdmin()) {
+            throw ValidationException::withMessages(['month' => '発表する権限がありません。']);
+        }
+
+        $month = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
+
+        // Nothing to announce when every nomination of the month is already ranked.
+        $unannounced = PostRecord::where('app_type', 7)
+            ->whereYear('created_at', $month->year)
+            ->whereMonth('created_at', $month->month)
+            ->whereNull('rakuaward_rank')
+            ->exists();
+
+        if (! $unannounced) {
+            throw ValidationException::withMessages(['month' => 'この月は既に発表済みです。']);
+        }
+
+        $result = $refreshService->settleRakuawardMonth((int) $month->year, (int) $month->month, (int) Auth::id());
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json($result);
+    }
+    public function rakuaward_result_read(Request $request)
+    {
+        $request->validate([
+            'month' => 'nullable|date_format:Y-m',
+        ]);
+
+        $month = $request->filled('month')
+            ? Carbon::createFromFormat('Y-m', $request->month)->startOfMonth()
+            : PostRecord::latestAnnouncedRakuawardMonth();
+
+        if (! $month) {
+            return response()->json(['read' => false]);
+        }
+
+        UserReadHistory::updateOrCreate(
+            [
+                'readable_type' => self::RAKUAWARD_RESULT_READABLE,
+                'readable_id' => $this->rakuawardResultKey($month),
+                'user_id' => Auth::id(),
+            ],
+            [
+                'last_read_at' => now(),
+            ],
+        );
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json(['read' => true]);
+    }
+    // The monthly results announcement is a period, not a record, so it is keyed by YYYYMM.
+    private function rakuawardResultKey(Carbon $month): int
+    {
+        return (int) $month->format('Ym');
+    }
+    private function rakuawardMonthRanking(Carbon $month): array
+    {
+        $start = $month->copy()->startOfMonth();
+        $end = $month->copy()->endOfMonth();
+
+        return PostRecord::where('app_type', 7)
+            ->whereBetween('created_at', [$start, $end])
+            ->with(['user:id,name,icon_path,icon_bg', 'to_users:id,name,icon_path,icon_bg', 'rakuawardScores'])
+            ->get()
+            ->map(function (PostRecord $post) {
+                $nominee = $post->to_users->first();
+
+                return [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                    'total_score' => (int) $post->rakuawardScores->sum('score'),
+                    'granted' => ! is_null($post->rakuaward_granted_at),
+                    'nominee' => $nominee ? [
+                        'id' => $nominee->id,
+                        'name' => $nominee->name,
+                        'icon_path' => $nominee->icon_path,
+                        'icon_bg' => $nominee->icon_bg,
+                    ] : null,
+                    'creator' => $post->user ? [
+                        'id' => $post->user->id,
+                        'name' => $post->user->name,
+                        'icon_path' => $post->user->icon_path,
+                        'icon_bg' => $post->user->icon_bg,
+                    ] : null,
+                ];
+            })
+            ->sortByDesc('total_score')
+            ->values()
+            ->all();
     }
     public function get_post_comments(Request $request){
         $validatedData = $request->validate([

@@ -8,6 +8,8 @@ export interface AppComment {
     content: string;
     mentioned_user_ids: number[] | null;
     user?: User | null;
+    /** 移行してきたコメントの元の書き手。こちらのユーザーには結び付けない（表示だけ）。 */
+    legacy_author?: string | null;
     files?: MessageFile[];
     created_at: string;
     updated_at: string;

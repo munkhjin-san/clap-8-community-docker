@@ -23,5 +23,7 @@ class RemoveOpenAiRegulationFilePages implements ShouldQueue
 
         $syncService->deleteTrackedPages($file);
         $syncService->markFileNotSynced($file);
+        $syncService->rebuildStoreData();
+        $syncService->pruneOrphanedMarkdownCopies();
     }
 }

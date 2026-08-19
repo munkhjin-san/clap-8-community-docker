@@ -96,7 +96,7 @@ class RefreshAutoAllocation implements ShouldQueue
         $uncompleted_grants = PostRecord::where('app_type', 2)
             ->whereYear('date_end', $lastMonth->year)
             ->whereMonth('date_end', $lastMonth->month)
-            ->whereNotIn('status_flag', [1, 2])
+            ->whereNotIn('status_flag', [1, 2, 4])
             ->whereHas('grants', function ($query) {
                 $query->where('expenses', '>', 0);
             })
@@ -170,7 +170,7 @@ class RefreshAutoAllocation implements ShouldQueue
                 $challengeGrants[$userId] += $grantPerUser;
             }
         }
-
+        
         $glowdNineTotals = $totals
             ->filter(fn ($row) => (int) $row->grand_total_prize > 0)
             ->mapWithKeys(fn ($row) => [(int) $row->user_id => (int) $row->grand_total_prize])

@@ -3,9 +3,9 @@
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
-    width: 15px;
-    height: 15px;
-    min-width: 15px;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
     border: 1px solid var(--primary-color);
     background-color: var(--background-color);
     position: relative;
@@ -30,13 +30,31 @@
 .custom-f-checkbox:checked::after {
     content: "";
     position: absolute;
+    /*
+     * チェックはSVG（ベクター）をマスクで抜いて描く。
+     *
+     * 以前は 2px の枠線を rotate(45deg) して L 字を作っていたが、この方法は
+     * 親要素がサブピクセル位置にあると破綻する。モーダル（.chatCreate は width:60%）の
+     * ように % 幅の中に置かれるとチェックボックスの原点が x=227.8 のような小数になり、
+     * 45度の直線がドット単位で階段状にずれて「傾いて見える」状態になっていた。
+     * 実測: プロジェクト一覧では整数位置で正常、モーダル内では小数位置で崩れる。
+     *
+     * ベクターなら小数位置でも左右対称にアンチエイリアスされ、位置に依存しない。
+     * 中央寄せも background-position: center が行うため計算値を持たなくてよい。
+     * 色は mask なので var(--background-color) がそのまま効き、ダーク／ライト両対応。
+     */
+    /*
+     * viewBox はパスの外接に合わせて詰めてある（余白の多い 0 0 24 24 だと、
+     * 同じ mask-size でもチェック自体が小さく細く描かれる）。
+     * 12px 指定で実際のインクは約10px幅・線幅2px となり、旧実装の見た目を保つ。
+     */
+    width: 12px;
+    height: 12px;
     top: 1px;
-    left: 5px;
-    width: 4px;
-    height: 9px;
-    border: solid var(--background-color);
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
+    left: 1px;
+    background-color: var(--background-color);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 10.5l5 5 9-11' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px 12px no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 10.5l5 5 9-11' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px 12px no-repeat;
 }
 .custom-f-radio:checked::after {
     content: "";

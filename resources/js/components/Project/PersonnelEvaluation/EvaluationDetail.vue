@@ -42,7 +42,7 @@
 
                         <div>
                             <div class="mb-[10px] text-[12px] text-[gray]">給料（非公開）</div>
-                            <div class="text-[14px]">{{ formatSalary(evaluationData?.current_salary_rank) }}</div>
+                            <div class="text-[14px]">{{ formatSalary(evaluationData?.after_salary_rank ?? evaluationData?.current_salary_rank) }}</div>
                         </div>
                         <div v-if="currentPosition?.value">
                             <div class="mb-[10px] text-[12px] text-[gray]">役職手当（非公開）</div>

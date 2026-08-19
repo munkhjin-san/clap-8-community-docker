@@ -86,12 +86,12 @@
                 <div v-if="form.repeat_setting == 1">
                     <div
                         class="flex justify-between items-center px-[20px]">
-                        <div class="flex items-center gap-[20px] relative w-full justify-end">
+                        <div class="flex items-center mt-5 md:mt-0 gap-[20px] relative w-full justify-end">
                             <span class="text-[13px]">対象月</span>
                             <button @click="adjustByOne(-1)" class="bg-inherit flex items-center justify-center h-[30px] w-[30px] min-w-[30px]">
                                 <Back size="13"/>
                             </button>
-                            <button @click.stop="menu.setMenu({parent: 'intervalPicker'})" class="bg-inherit cursor-pointer text-[15px]">
+                            <button @click.stop="menu.setMenu({parent: 'intervalPicker'})" class="bg-inherit cursor-pointer text-[15px] text-[var(--primary-color)]">
               
                                 {{ `${selectedDate.year}年${selectedDate.month}月` }}
                  
@@ -145,7 +145,8 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="tab == 0">
+                <p v-if="loading" class="text-xs text-[gray] text-center mt-2">読み込み中...</p>
+                <div v-else-if="tab == 0">
                     <div class="mt-[20px]">
                         <div class="mt-[10px] flex flex-col gap-[30px]">
                             <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="(answer, index) in answersByUser">
@@ -173,7 +174,7 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="tab == 1 && answersByBlock" >
+                <div v-else-if="tab == 1 && answersByBlock" >
                     <div class="mt-[10px] flex flex-col gap-[30px]">
                         <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="(block, index) in answersByBlock.blocks" >
                             <label class="flex items-center">
@@ -229,7 +230,7 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="tab == 2" class="flex flex-col gap-[20px] my-[20px]">
+                <div v-else-if="tab == 2" class="flex flex-col gap-[20px] my-[20px]">
                     <div v-for="block in chartData" class="p-[20px] bg-[var(--background-color)]">
                         <div class="flex">
                             <div class="w-[50%]">
@@ -295,6 +296,7 @@ import { useMenuStore } from '@/store/menu';
 import { useTheme } from '@/store/theme';
 import { useApi } from '@/composables/api';
 import { PROJECT_STATUS_LABEL } from '@/utils/tools';
+import LoaderSpin from '@/components/Global/LoaderSpin.vue';
 ChartJS.register(ArcElement, Tooltip, Legend, Colors )
 const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select', 'file']
 const props = defineProps<{
@@ -373,7 +375,7 @@ const answersByBlock = ref<CustomForm | null>(null)
 const linkedProjects = ref<LinkedProject[]>([])
 const projectLinksLoading = ref(false)
 const viewUsers = ref<{title: string, users: User[]}>({title: '', users: []})
-
+const loading = ref(false)
 const openedQuestions = ref<string[]>([])
 const openedUsers = ref<string[]>([])
 onMounted(() => {
@@ -390,6 +392,7 @@ const adjustByOne = (direction: number) => {
     const adjusted = instance.plus({ months: direction });
     selectedDate.year = adjusted.year;
     selectedDate.month = adjusted.month as MonthNumbers;
+    loading.value = true
     getSurveyAnswers()
 }
 const setViewUsers = (payload: {title: string, users: User[]}) => {
@@ -480,6 +483,8 @@ const getSurveyAnswers = async() => {
         }
     } catch (error) {
         
+    } finally {
+        loading.value = false
     }
 }
 const exportCSV = async() => {

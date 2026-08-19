@@ -22,7 +22,7 @@
                             <Back class="rotate-[270deg]" size="10" />
                         </span>
                     </div>
-                    <div v-if="nominateChargable"
+                    <div v-if="record.app_type == 7"
                         class="whitespace-nowrap text-[12px] pl-4 pr-3 py-1 rounded-full bg-[var(--bg3)] mr-2">
                         {{ status }}
                     </div>
@@ -211,6 +211,31 @@
                         class="chargeFormeAddButton cursor-pointer">{{ props.record.app_type == 7 ? 'チャージする' : 'チャレンジにチャージする' }}</button>
                     <button v-else class="chargeFormeAddButton" disabled>{{ canNotCharge }}</button>
                 </div>
+                <div v-if="isRakuawardDirector" class="rakuaward-score-panel">
+                    <p class="text-[13px] mb-2">この投稿を採点（1〜10）</p>
+
+                    <div class="flex flex-wrap gap-1.5">
+                        <button
+                            v-for="n in 10"
+                            :key="n"
+                            type="button"
+                            :disabled="scoreLocked"
+                            :class="['rakuaward-score-chip', { active: myRakuawardScore === n }]"
+                            @click="submitScore(n)"
+                        >{{ n }}</button>
+                        <PrivateChip class="ml-2"/>
+                    </div>
+                    <p v-if="scoreLocked" class="text-[11px] text-[gray] mt-2">発表済みのため採点できません</p>
+                    <div v-if="rakuawardScores.length" class="mt-3">
+                        <div class="text-[13px]">合計スコア: {{ totalRakuawardScore }}点（採点者 {{ rakuawardScores.length }}人）</div>
+                        <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                            <div v-for="s in rakuawardScores" :key="s.id" class="flex items-center gap-1">
+                                <UserPanel :user="s.user" :disableInstant="true" size="20" />
+                                <span class="text-[12px]">{{ s.score }}点</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div v-if="record.app_type == 5">
                     <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
                 </div>
@@ -358,7 +383,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
 import PostIcon from './PostIcon.vue';
 import { DateTime } from 'luxon';
 import { amountOfMoneyParser, customParser, oikawaMap, urlCheck } from '@/utils/tools';
-import { Post, PostEntry } from '@/interface/postInterface';
+import { Post, PostEntry, PostRakuawardScore } from '@/interface/postInterface';
 import { User } from '@/interface/globalInterface';
 import PostEntryRecord from './PostEntryRecord.vue';
 import { fileExtensionFromPath, filePreviewTypeFromPath, workFilePreview } from '@/utils/workApi';
@@ -372,6 +397,7 @@ import { useModal } from '@/composables/modal';
 import { PostMethods, PostMethodsKey } from '@/interface/keys';
 import Back from '../Icons/Back.vue';
 import { useTheme } from '@/store/theme.js';
+import PrivateChip from '../Global/PrivateChip.vue';
 const messageUsers = useMessageUsers()
 const menu = useMenuStore()
 const auth = useAuthUserStore()
@@ -571,7 +597,14 @@ const isMultipleUsers = computed(() => {
 const niceChargeEnd = computed(() => DateTime.fromISO(props.record.created_at).endOf('month'))
 const status = computed(() => {
     if (props.record.app_type === 7) {
-        if (props.record.rakuaward_granted_at) return 'MVP'
+        const rank = props.record.rakuaward_rank
+        if (rank) {
+            const tied = !!props.record.rakuaward_rank_tied
+            // 1st place is always MVP (even when shared); lower shared ranks get "タイ".
+            if (rank === 1) return 'MVP'
+            if (rank <= 5) return `${rank}位${tied ? 'タイ' : ''}`
+            return 'ノミネート'
+        }
         return DateTime.now() <= niceChargeEnd.value ? 'チャージ受付中' : 'ノミネート'
     }
     if (props.record.app_type !== 2) return;
@@ -693,6 +726,25 @@ const challengeButtonView = computed(() => {
     }
     return false
 })
+// Rakuaward director scoring (1-10), visible only to directors/executives (position_id < 6).
+const isRakuawardDirector = computed(() => {
+    const pid = auth.user?.position_id
+    return props.record.app_type == 7 && pid != null && Number(pid) < 6
+})
+const rakuawardScores = ref<PostRakuawardScore[]>([...(props.record.rakuaward_scores ?? [])])
+const totalRakuawardScore = computed(() => rakuawardScores.value.reduce((sum, s) => sum + (s.score || 0), 0))
+const myRakuawardScore = computed(() => rakuawardScores.value.find(s => s.user_id == auth.id)?.score ?? null)
+// Scoring stays open until a director announces the month (which stores the rank).
+const scoreLocked = computed(() => {
+    return !!props.record.rakuaward_rank
+        || !!props.record.rakuaward_granted_at
+        || !!props.record.rakuaward_refunded_at
+})
+const submitScore = async (n: number) => {
+    if (scoreLocked.value) return
+    const data = await api.post('/rakuaward_score', { record_id: props.record.id, score: n })
+    if (data?.scores) rakuawardScores.value = data.scores
+}
 const isOwner = computed(() => {
     if (props.record && auth.user) {
         if (props.record.app_type == 2) {
@@ -988,5 +1040,35 @@ const totalCalories = computed(() => {
     height: 9px;
     background: #d97706;
     border-radius: 9999px;
+}
+
+.rakuaward-score-panel {
+    margin: 4px 0 20px;
+}
+
+.rakuaward-score-chip {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--check-inactive);
+    background: transparent;
+    color: var(--primary-color);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.rakuaward-score-chip:hover:not(:disabled) {
+    border-color: var(--primary-color);
+}
+
+.rakuaward-score-chip.active {
+    background: var(--primary-color);
+    color: var(--background-color);
+    border-color: var(--primary-color);
+}
+
+.rakuaward-score-chip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style>

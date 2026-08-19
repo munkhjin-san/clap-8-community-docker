@@ -3,14 +3,19 @@
 namespace App\Services\Learning;
 
 use App\Models\EvaluationRecord;
-use DOMDocument;
-use DOMElement;
-use DOMXPath;
-use JsonException;
 use RuntimeException;
 
 class PersonalMaterialPresentationService
 {
+    /** Fixed section titles — the format's slots, not AI-authored. */
+    public const SECTION_TITLES = [
+        'section1' => 'このテーマを今回の成果目標にどう活かせるか',
+        'section2' => '成果目標達成に向けて本人が理解すべき考え方',
+        'section3' => '過去の自分から見える強み',
+        'section4' => '逆に注意すべき点',
+        'section5' => '達成に向けて意識したい具体的な行動',
+    ];
+
     /**
      * Remove sampling controls that GPT-5.6 Luna does not accept.
      *
@@ -64,223 +69,202 @@ class PersonalMaterialPresentationService
     }
 
     /**
-     * Select one shared light color for the complete lifetime of a generation.
-     */
-    public function randomAccentColor(): string
-    {
-        try {
-            $colors = json_decode(
-                (string) file_get_contents(resource_path('assets/colors.json')),
-                true,
-                512,
-                JSON_THROW_ON_ERROR
-            );
-        } catch (JsonException $exception) {
-            throw new RuntimeException('アクセントカラー設定を読み込めませんでした。', 0, $exception);
-        }
-
-        $lightColors = collect($colors)
-            ->pluck('light')
-            ->filter(fn ($color) => is_string($color) && preg_match('/^#[0-9a-f]{6}$/i', $color))
-            ->values();
-
-        if ($lightColors->isEmpty()) {
-            throw new RuntimeException('プレゼンテーション用のアクセントカラーがありません。');
-        }
-
-        return $lightColors->get(random_int(0, $lightColors->count() - 1));
-    }
-
-    /**
-     * Convert the model's complete HTML document into the persisted presentation envelope.
+     * OpenAI Responses API structured-output schema. The model returns only the
+     * content (sections + discussion); selected_theme/goal_title are added by
+     * the caller from known data. Strict mode: every property required,
+     * additionalProperties false, optionals modelled as nullable.
      *
-     * @return array{html: string, title: string, summary: string}
+     * @return array<string, mixed>
      */
-    public function parseHtmlResponse(string $response): array
+    public function slideDeckSchema(): array
     {
-        $html = $this->extractHtmlDocument($response);
-        $document = $this->loadHtml($html);
-        $xpath = new DOMXPath($document);
-
-        $sceneQuery = '//main[contains(concat(" ", normalize-space(@class), " "), " story ")]'
-            .'/section[contains(concat(" ", normalize-space(@class), " "), " scene ")]';
-        $slideCount = $xpath->query($sceneQuery)?->length ?? 0;
-        if (
-            ! $xpath->query('//style')?->length
-            || ! $xpath->query('//body')?->length
-            || $slideCount < 6
-            || $slideCount > 9
-        ) {
-            throw new RuntimeException('生成されたプレゼンテーションHTMLに必要な要素がありません。');
-        }
-
-        $discussionSections = $xpath->query(
-            '//section[@id="group-discussion"]'
-            .'[contains(concat(" ", normalize-space(@class), " "), " scene ")]'
-        );
-        if (($discussionSections?->length ?? 0) !== 1) {
-            throw new RuntimeException(
-                'グループディスカッション用sceneには、固定IDとclassが必要です。'
-            );
-        }
-
-        $discussionSection = $discussionSections?->item(0);
-        $discussionThemes = $discussionSection
-            ? $xpath->query(
-                './/article[contains(concat(" ", normalize-space(@class), " "), " discussion-theme ")]',
-                $discussionSection
-            )
-            : null;
-        if (($discussionThemes?->length ?? 0) !== 3) {
-            throw new RuntimeException(
-                'グループディスカッション用テーマは、指定されたHTML構造でちょうど3つ必要です。'
-            );
-        }
-
-        foreach ($discussionThemes ?: [] as $index => $discussionTheme) {
-            if (! $discussionTheme instanceof DOMElement) {
-                continue;
-            }
-
-            $expectedNumber = (string) ($index + 1);
-            $heading = $xpath->query('.//h3', $discussionTheme)?->item(0);
-            $question = $xpath->query(
-                './/*[contains(concat(" ", normalize-space(@class), " "), " discussion-question ")]',
-                $discussionTheme
-            )?->item(0);
-
-            if (
-                $discussionTheme->getAttribute('data-theme-number') !== $expectedNumber
-                || ! $heading
-                || $this->normalizeText($heading->textContent) === ''
-                || ! $question
-                || $this->normalizeText($question->textContent) === ''
-            ) {
-                throw new RuntimeException(
-                    '各グループディスカッション用テーマには、連番、見出し、問いが必要です。'
-                );
-            }
-        }
-
-        $title = $this->firstText($xpath, '//h1')
-            ?: $this->firstText($xpath, '//title')
-            ?: '個人専用研修資料';
-        $summary = $this->firstText($xpath, '//h1/following::p[1]')
-            ?: $this->firstText($xpath, '//main//p | //body//p');
+        $figureItem = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['label', 'detail'],
+            'properties' => [
+                'label' => ['type' => 'string'],
+                'detail' => ['type' => ['string', 'null']],
+            ],
+        ];
+        $section = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['body', 'summary', 'figure'],
+            'properties' => [
+                'body' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'summary' => ['type' => ['string', 'null']],
+                'figure' => [
+                    'type' => 'object',
+                    'additionalProperties' => false,
+                    'required' => ['type', 'title', 'items', 'note'],
+                    'properties' => [
+                        'type' => ['type' => 'string', 'enum' => ['flow', 'list', 'concept']],
+                        'title' => ['type' => ['string', 'null']],
+                        'items' => ['type' => 'array', 'items' => $figureItem],
+                        'note' => ['type' => ['string', 'null']],
+                    ],
+                ],
+            ],
+        ];
+        $theme = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['name', 'talk_script', 'landing'],
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'talk_script' => ['type' => 'string'],
+                'landing' => ['type' => 'string'],
+            ],
+        ];
 
         return [
-            'html' => $html,
-            'title' => $title,
-            'summary' => $summary,
+            'type' => 'json_schema',
+            'name' => 'personal_material_slide_deck',
+            'strict' => true,
+            'schema' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['sections', 'discussion'],
+                'properties' => [
+                    'sections' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['section1', 'section2', 'section3', 'section4', 'section5'],
+                        'properties' => [
+                            'section1' => $section,
+                            'section2' => $section,
+                            'section3' => $section,
+                            'section4' => $section,
+                            'section5' => $section,
+                        ],
+                    ],
+                    'discussion' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['intro', 'theme1', 'theme2', 'theme3'],
+                        'properties' => [
+                            'intro' => ['type' => 'string'],
+                            'theme1' => $theme,
+                            'theme2' => $theme,
+                            'theme3' => $theme,
+                        ],
+                    ],
+                ],
+            ],
         ];
     }
 
     /**
-     * Preserve the existing text-based feedback flow with a semantic Markdown copy.
+     * Validate the model's structured content and assemble the persisted spec.
      *
-     * @param  array{html?: mixed}  $presentation
+     * @param  array<string, mixed>  $data  Decoded model output (sections + discussion).
+     * @return array<string, mixed>
      */
-    public function toMarkdown(array $presentation): string
+    public function buildSlideDeckSpec(array $data, string $selectedTheme, string $goalTitle): array
     {
-        if (! is_string($presentation['html'] ?? null)) {
-            throw new RuntimeException('プレゼンテーションHTMLがありません。');
+        $sections = $data['sections'] ?? null;
+        $discussion = $data['discussion'] ?? null;
+
+        if (! is_array($sections) || ! is_array($discussion)) {
+            throw new RuntimeException('生成された研修資料の構造が不正です。');
         }
 
-        $document = $this->loadHtml($presentation['html']);
-        $xpath = new DOMXPath($document);
-        $nodes = $xpath->query(
-            '//body//*[self::h1 or self::h2 or self::h3 or self::p or self::li '
-            .'or self::blockquote or self::figcaption or self::dt or self::dd]'
-            .'[not(ancestor::li) and not(ancestor::blockquote)]'
-        );
-        $lines = [];
-        $previousTag = null;
-
-        foreach ($nodes ?: [] as $node) {
-            if (! $node instanceof DOMElement) {
-                continue;
+        foreach (array_keys(self::SECTION_TITLES) as $key) {
+            $section = $sections[$key] ?? null;
+            if (! is_array($section) || ! is_array($section['body'] ?? null) || ! is_array($section['figure'] ?? null)) {
+                throw new RuntimeException("研修資料の{$key}が不正です。");
             }
+        }
 
-            $text = $this->normalizeText($node->textContent);
-            if ($text === '') {
-                continue;
+        foreach (['theme1', 'theme2', 'theme3'] as $key) {
+            $theme = $discussion[$key] ?? null;
+            if (! is_array($theme) || blank($theme['name'] ?? null)) {
+                throw new RuntimeException("グループディスカッションの{$key}が不正です。");
             }
+        }
 
-            $line = match (strtolower($node->tagName)) {
-                'h1' => '# '.$text,
-                'h2' => '## '.$text,
-                'h3' => '### '.$text,
-                'li' => '- '.$text,
-                'blockquote' => '> '.$text,
-                default => $text,
-            };
+        return [
+            'format' => 'slide_deck_v1',
+            'selected_theme' => $selectedTheme,
+            'goal_title' => $goalTitle,
+            'sections' => $sections,
+            'discussion' => $discussion,
+        ];
+    }
 
-            $tag = strtolower($node->tagName);
-            if ($lines !== [] && ! ($tag === 'li' && $previousTag === 'li')) {
+    /**
+     * Semantic Markdown copy of the deck, used by the text/feedback flow.
+     *
+     * @param  array<string, mixed>  $spec
+     */
+    public function toMarkdown(array $spec): string
+    {
+        $lines = ['# 個別研修資料'];
+        if (filled($spec['selected_theme'] ?? null)) {
+            $lines[] = '';
+            $lines[] = '選択テーマ：'.$spec['selected_theme'];
+        }
+        if (filled($spec['goal_title'] ?? null)) {
+            $lines[] = '';
+            $lines[] = '「'.$spec['goal_title'].'」を達成するために';
+        }
+
+        $sections = $spec['sections'] ?? [];
+        foreach (self::SECTION_TITLES as $key => $title) {
+            $section = $sections[$key] ?? [];
+            $lines[] = '';
+            $lines[] = '## '.$title;
+            foreach (($section['body'] ?? []) as $bullet) {
+                if (filled($bullet)) {
+                    $lines[] = '- '.$bullet;
+                }
+            }
+            $figure = $section['figure'] ?? [];
+            if (filled($figure['title'] ?? null)) {
                 $lines[] = '';
+                $lines[] = '### '.$figure['title'];
             }
-            $lines[] = $line;
-            $previousTag = $tag;
+            foreach (($figure['items'] ?? []) as $item) {
+                $label = $item['label'] ?? '';
+                if (blank($label)) {
+                    continue;
+                }
+                $lines[] = filled($item['detail'] ?? null) ? "- {$label}：{$item['detail']}" : "- {$label}";
+            }
+            if (filled($figure['note'] ?? null)) {
+                $lines[] = $figure['note'];
+            }
+            if (filled($section['summary'] ?? null)) {
+                $lines[] = '';
+                $lines[] = '> '.$section['summary'];
+            }
         }
 
-        if ($lines === []) {
-            throw new RuntimeException('生成されたHTMLから研修資料本文を抽出できませんでした。');
+        $discussion = $spec['discussion'] ?? [];
+        $lines[] = '';
+        $lines[] = '## グループディスカッションテーマ';
+        if (filled($discussion['intro'] ?? null)) {
+            $lines[] = $discussion['intro'];
         }
+        foreach (['theme1', 'theme2', 'theme3'] as $key) {
+            $theme = $discussion[$key] ?? [];
+            if (blank($theme['name'] ?? null)) {
+                continue;
+            }
+            $lines[] = '';
+            $lines[] = '### '.$theme['name'];
+            if (filled($theme['talk_script'] ?? null)) {
+                $lines[] = '話し言葉：'.$theme['talk_script'];
+            }
+            if (filled($theme['landing'] ?? null)) {
+                $lines[] = '着地の方向：'.$theme['landing'];
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = '## お疲れ様でした。';
 
         return implode("\n", $lines);
-    }
-
-    private function extractHtmlDocument(string $response): string
-    {
-        $html = trim($response);
-        $html = preg_replace('/\A```(?:html)?\s*/i', '', $html) ?? $html;
-        $html = preg_replace('/\s*```\z/', '', $html) ?? $html;
-
-        $htmlStart = stripos($html, '<html');
-        $doctypeStart = stripos($html, '<!doctype');
-        $start = $doctypeStart !== false ? $doctypeStart : $htmlStart;
-        $end = strripos($html, '</html>');
-
-        if ($start === false || $end === false || $end <= $start) {
-            throw new RuntimeException('OpenAIから完全なHTMLドキュメントが返されませんでした。');
-        }
-
-        $html = substr($html, $start, $end + strlen('</html>') - $start);
-
-        if (strlen($html) < 500) {
-            throw new RuntimeException('生成されたプレゼンテーションHTMLが短すぎます。');
-        }
-
-        return $html;
-    }
-
-    private function loadHtml(string $html): DOMDocument
-    {
-        $document = new DOMDocument('1.0', 'UTF-8');
-        $previousUseInternalErrors = libxml_use_internal_errors(true);
-        $loaded = $document->loadHTML(
-            '<?xml encoding="UTF-8">'.$html,
-            LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING
-        );
-        libxml_clear_errors();
-        libxml_use_internal_errors($previousUseInternalErrors);
-
-        if (! $loaded) {
-            throw new RuntimeException('生成されたプレゼンテーションHTMLを解析できませんでした。');
-        }
-
-        return $document;
-    }
-
-    private function firstText(DOMXPath $xpath, string $query): string
-    {
-        $node = $xpath->query($query)?->item(0);
-
-        return $node ? $this->normalizeText($node->textContent) : '';
-    }
-
-    private function normalizeText(string $text): string
-    {
-        return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
     }
 }

@@ -68,8 +68,9 @@ export const DASHBOARD_COMPONENTS: Record<string, Component> = {
 /**
  * Type to store collection key mapping
  */
-type DashboardStoreKey = 
+type DashboardStoreKey =
     | 'remindedMessages'
+    | 'remindedProjectComments'
     | 'mustCheckMessages'
     | 'mustSignMessages'
     | 'unfinishedTasks'
@@ -111,7 +112,8 @@ export const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
  * Maps card type to store keys that need to be refreshed
  */
 export const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
-    remindedMessages: ['remindedMessages'],
+    // カードはチャット（remindedMessages）とプロジェクト（remindedProjectComments）の2グループを表示する
+    remindedMessages: ['remindedMessages', 'remindedProjectComments'],
     mustCheckMessages: ['mustCheckMessages'],
     mustSignMessages: ['mustSignMessages'],
     unfinishedTasks: ['unfinishedTasks', 'untouchedTasks'],

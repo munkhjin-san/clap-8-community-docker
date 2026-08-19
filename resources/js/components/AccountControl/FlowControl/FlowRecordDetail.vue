@@ -43,32 +43,48 @@
         </div>
 
         <div class="rd-flow">
-            <div class="rd-flow-status">
+            <!-- Status is a view-mode affair: you can't move status mid-edit, so the pill and its
+                 transitions go away entirely while editing. That also leaves キャンセル/保存 as the bar's
+                 only child, which space-between puts at the left — where the eye already is after
+                 reading the form. -->
+            <div v-if="mode === 'view'" class="rd-flow-status">
                 <template v-if="showStatus">
                     <span class="rd-flow-cur" :style="currentStatusStyle">{{ record?.current_status }}</span>
-                    <!-- status transitions are hidden while editing — you can't move status mid-edit -->
-                    <template v-if="statusActions.length && mode === 'view'">
+                    <!-- only the actions this user may actually press are shown; the separator
+                         goes with them, so a read-only viewer just sees the current status -->
+                    <template v-if="pressableActions.length">
                         <span class="rd-flow-sep">→</span>
                         <button
-                            v-for="a in statusActions"
+                            v-for="a in pressableActions"
                             :key="a.id"
                             class="rd-act"
-                            :class="{ off: !a.can }"
                             :style="actionStyle(a)"
-                            :disabled="!a.can || transitioning"
-                            :title="a.can ? `${a.to_status ?? ''}へ移動` : 'あなたはこのアクションを実行できません'"
+                            :disabled="transitioning"
+                            :title="`${a.to_status ?? ''}へ移動`"
                             @click="transition(a)"
                         >{{ a.label }}</button>
                     </template>
                 </template>
+                <!-- カスタムボタン: same look as a status button, but it runs server-side code instead
+                     of moving the record. Whether it may run in this state is the handler's call —
+                     it refuses with its own message rather than being pre-greyed here. -->
+                <button
+                    v-for="a in customActions"
+                    :key="`ca-${a.id}`"
+                    class="rd-act"
+                    :style="actionStyle(a)"
+                    :disabled="runningAction !== null"
+                    :title="a.label"
+                    @click="runAction(a)"
+                >{{ a.label }}</button>
             </div>
             <div class="rd-flow-tools">
                 <!-- desktop only: on mobile these consolidate into the ⋮ menu in the title bar -->
                 <template v-if="mode === 'view' && !isNarrow">
-                    <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><FileIcon ext="unknown" class="rd-tool-file" />{{ t.name }}</button>
+                    <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="openPdf(t)" :title="t.name"><FileIcon ext="unknown" class="rd-tool-file" />{{ t.name }}</button>
                     <button v-if="canDuplicate" class="rd-tool" title="このレコードを複製して新規作成" @click="duplicate"><Copy size="13" />複製</button>
                     <button v-if="!isNew && can.delete" class="rd-tool danger" @click="remove"><Trash size="13" />削除</button>
-                    <button v-if="can.edit" class="rd-tool primary" @click="mode = 'edit'"><Edit size="13" />編集</button>
+                    <button v-if="can.edit" class="rd-tool primary" title="編集（E）" @click="mode = 'edit'"><Edit size="13" />編集</button>
                 </template>
                 <template v-else-if="mode === 'edit'">
                     <button class="rd-tool" @click="cancelEdit">キャンセル</button>
@@ -79,41 +95,20 @@
 
         <div class="rd-body">
             <div class="rd-main">
-            <div class="rd-canvas">
-                <div v-for="(row, ri) in fieldRows" :key="ri" class="rd-row">
-                    <div
-                        v-for="field in row"
-                        :key="field.id"
-                        class="rd-block"
-                        :class="{ 'rd-heading-block': isLayoutType(field.input_type) }"
-                        :style="{ width: field.input_type === 'heading' ? '100%' : field.width + 'px' }"
-                    >
-                        <template v-if="isLayoutType(field.input_type)">
-                            <FlowFieldInput :field="field" :model-value="null" />
-                        </template>
-                        <template v-else>
-                            <label class="rd-label truncate" :title="field.label">
-                                {{ field.label }}
-                                <span v-if="field.is_required" class="rd-req">*</span>
-                            </label>
-                            <div :class="{ 'rd-disabled': mode === 'edit' && field.validation?.disabled }" :title="mode === 'edit' && field.validation?.disabled ? '入力できません（自動入力のみ）' : undefined">
-                                <FlowFieldInput
-                                    :field="field"
-                                    :users="users"
-                                    :projects="projects"
-                                    :readonly="isReadonly(field)"
-                                    :preview="true"
-                                    :record-id="record?.id ?? null"
-                                    v-model="values[field.id!]"
-                                    @update:model-value="errors[field.id!] = null"
-                                    @lookup="onLookup"
-                                />
-                            </div>
-                            <div v-if="errors[field.id!]" class="rd-err">{{ errors[field.id!] }}</div>
-                        </template>
-                    </div>
-                </div>
-            </div>
+            <FlowRecordForm
+                :fields="definition?.fields ?? []"
+                :values="values"
+                :errors="errors"
+                :readonly="mode === 'view'"
+                :editable-field-ids="record?.editable_field_ids ?? null"
+                :unviewable-field-ids="isNew ? newUnviewable : (record?.unviewable_field_ids ?? null)"
+                :is-new="isNew"
+                :users="users"
+                :projects="projects"
+                :record-id="record?.id ?? null"
+                :parent-label="definition?.name"
+                :stacked="isNarrow"
+            />
             </div>
 
             <div v-if="!isNew" class="rd-side" :class="{ mobile: isNarrow, open: sheetOpen, collapsed: !isNarrow && sideCollapsed }">
@@ -198,20 +193,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
 import { useFlowOptionsStore } from '@/store/flowOptions'
+import { useFilePreview } from '@/store/filePreview'
 import { useResponsive } from '@/store/responsive'
-import { validateFlowField } from '@/utils/flowValidation'
-import { resolveFieldDefault } from '@/utils/flowDefaults'
+import { applyLookupCopy, submittableValues, validateRecordValues, validationSummary } from '@/utils/flowValidation'
+import { useDialog } from '@/composables/dialog'
+import { recordFingerprint } from '@/utils/flowDirty'
+import { useUnsavedGuard } from '@/composables/unsavedGuard'
+import { emptyFieldValue, resolveFieldDefault } from '@/utils/flowDefaults'
 import { readableTextColor } from '@/utils/flowColor'
+import { formatFlowNumber } from '@/utils/flowNumber'
 import { flowColorValue } from '@/utils/flowColors'
 import { useTheme } from '@/store/theme'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
-import FlowFieldInput from './FlowFieldInput.vue'
+import FlowRecordForm from './FlowRecordForm.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import Trash from '@/components/Icons/Trash.vue'
 import Edit from '@/components/Icons/Edit.vue'
@@ -224,11 +224,13 @@ import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { isLayoutType, isSecretType } from '@/types/flow'
+import { decodeAdhoc } from '@/utils/flowAdhoc'
 import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowAppTool } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 import Back from '@/components/Icons/Back.vue'
 
 const api = useApi()
+const dialog = useDialog()
 const route = useRoute()
 const router = useRouter()
 const responsive = useResponsive()
@@ -255,20 +257,71 @@ const currentStatusStyle = computed(() => {
     const c = record.value?.current_status_id != null ? statusColorById.value[record.value.current_status_id] : null
     return c ? { background: c, color: readableTextColor(c), borderColor: c } : {}
 })
-// action button: its own color, else inherit the app theme accent; auto-contrast text
-const actionStyle = (a: { can: boolean; color?: string | null }) => {
-    if (!a.can) return {}
+// action button: its own color, else inherit the app theme accent; auto-contrast text.
+// `can` is absent on カスタムボタン — the server only returns the ones this user may press.
+const actionStyle = (a: { can?: boolean; color?: string | null }) => {
+    if (a.can === false) return {}
     const c = a.color || appAccent.value
     return { background: c, borderColor: c, color: readableTextColor(c) }
 }
 const can = reactive({ view: true, edit: true, delete: false })
+
+const filePreview = useFilePreview()
 const flowOptionsStore = useFlowOptionsStore()
 const { users, projects } = storeToRefs(flowOptionsStore)
+
+/**
+ * Anything that owns the keyboard while it is on screen: .chatCreate is the app-wide dialog panel
+ * (Modal.vue and the hand-rolled overlays alike), .cu-toast-mask the global confirm/prompt from
+ * dialog.ts — the one behind api.post({ ask }) — and .md-window the file preview.
+ *
+ * Deliberately NOT .overlay: this screen puts that class on its own root when narrow, so matching
+ * it would silently kill the shortcut on mobile. .mini-info is out too — a toast blocks nothing.
+ */
+const BLOCKING_LAYERS = '.chatCreate, .cu-toast-mask, .md-window'
+
+const isTypingTarget = (el: EventTarget | null): boolean => {
+    const node = el as HTMLElement | null
+    if (!node || !node.tagName) return false
+    if (node.isContentEditable) return true
+
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(node.tagName)
+}
+
+/**
+ * "E" opens edit mode — only when the 編集 button is genuinely available.
+ *
+ * The guards are the whole feature: a bare letter shortcut is one careless keystroke away from
+ * hijacking normal typing, so it bails out when focus is in a field (typing "e" into 件名 or the
+ * comment box must not flip the record), when an IME is mid-composition, when a modifier is held
+ * (Cmd+E / Ctrl+E belong to the browser), and when a dialog or the file preview is on top.
+ */
+const onEditHotkey = (e: KeyboardEvent) => {
+    if (e.key !== 'e' && e.key !== 'E') return
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.isComposing || e.keyCode === 229) return
+    if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) return
+    if (filePreview.active || document.querySelector(BLOCKING_LAYERS)) return
+    if (mode.value !== 'view' || !can.edit) return
+
+    e.preventDefault()
+    mode.value = 'edit'
+}
+
+onMounted(() => document.addEventListener('keydown', onEditHotkey))
+onBeforeUnmount(() => document.removeEventListener('keydown', onEditHotkey))
+
 const values = reactive<Record<string, any>>({})
 const errors = reactive<Record<string, string | null>>({})
+/** server's per-field 閲覧 answer for a record that does not exist yet (新規作成) */
+const newUnviewable = ref<number[] | null>(null)
 
 interface StatusActionDto { id: number; label: string; color?: string | null; to_status_id: number | null; to_status?: string | null; can: boolean }
 const statusActions = ref<StatusActionDto[]>([])
+/** カスタムボタン (flow_app_tools tool_type=action). Only the ones this user may press are sent. */
+interface CustomActionDto { id: number; label: string; color?: string | null }
+const customActions = ref<CustomActionDto[]>([])
+const runningAction = ref<number | null>(null)
 // prev/next record numbers (record-number order, view-permission aware) for the header arrows
 const nav = reactive<{ prev: number | null; next: number | null }>({ prev: null, next: null })
 // list context riding on the record URL (?view/?sf/?sd/?f) — carried across up/down shifts and
@@ -279,12 +332,30 @@ const listContext = () => {
     for (const k of LIST_CONTEXT_KEYS) if (route.query[k] != null) q[k] = route.query[k]
     return q
 }
+/**
+ * 上下の矢印を一覧と揃えるために、同じ絞り込み・並び順をサーバへ送る。
+ * 名前は一覧APIに合わせる（URL側は短い名前で持っている）。
+ */
+const navParams = () => {
+    const p = new URLSearchParams()
+    if (route.query.view != null) p.set('view_id', String(route.query.view))
+    if (route.query.sf != null) { p.set('sort_field', String(route.query.sf)); p.set('sort_dir', String(route.query.sd ?? 'asc')) }
+    if (route.query.f != null) {
+        const decoded = decodeAdhoc(String(route.query.f))
+        if (decoded) p.set('filters', JSON.stringify(decoded))
+    }
+    const s = p.toString()
+    return s ? `?${s}` : ''
+}
 const goToRecord = (n: number | null) => {
     if (n == null) return
     // never carry ?edit= — arriving on the next record mid-edit would be a surprise
     router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n }, query: listContext() })
 }
 const transitioning = ref(false)
+// buttons the user can't press are hidden rather than greyed out — a disabled button invites a
+// click and then explains why not; absence is quieter and matches 対応待ち, which never listed them
+const pressableActions = computed(() => statusActions.value.filter((a) => a.can))
 
 interface LogDto { id: number; user?: any; action?: string; field?: string | null; old_value?: any; new_value?: any; changes?: Record<string, any> | null; note?: string | null; created_at?: string }
 const logs = ref<LogDto[]>([])
@@ -317,20 +388,11 @@ const isNew = computed(() => !recordId.value)
 // record's values instead of plain defaults. Holds the fetched source values while seeding.
 const dupFrom = computed(() => (route.query.from ? String(route.query.from) : null))
 const dupValues = ref<Record<string, any> | null>(null)
-const visibleFields = computed(() => (definition.value?.fields ?? []).filter((f) => !f.hidden))
+// 関連レコードの「＋追加」: どのルックアップ項目にどのレコードを入れて開くか
+const linkFieldId = computed(() => (route.query.link_field ? Number(route.query.link_field) : null))
+const linkRecordId = computed(() => (route.query.link_record ? Number(route.query.link_record) : null))
 
-const fieldRows = computed<FlowField[][]>(() => {
-    const map = new Map<number, FlowField[]>()
-    for (const f of visibleFields.value) {
-        const r = f.layout_row ?? 0
-        if (!map.has(r)) map.set(r, [])
-        map.get(r)!.push(f)
-    }
-    return [...map.keys()].sort((a, b) => a - b)
-        .map((k) => map.get(k)!.slice().sort((a, b) => (a.order_number ?? 0) - (b.order_number ?? 0)))
-})
 
-const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled
 
 /* ---- unread-comment badge: clears only after the comment tab has really been viewed ---- */
 const unreadComments = ref(0)
@@ -360,19 +422,27 @@ const showFlow = computed(() => !!definition.value?.use_status_flow && !isNew.va
 // Show the status area only when the app uses the flow AND this record actually has a status.
 const showStatus = computed(() => showFlow.value && !!record.value?.current_status)
 
-// active PDF tools → download buttons (only for saved records)
+// active PDF tools → one button each (only for saved records)
 const pdfTools = computed<FlowAppTool[]>(() =>
     isNew.value ? [] : (definition.value?.tools ?? []).filter((t) => t.tool_type === 'pdf' && t.is_active),
 )
-const downloadPdf = (tool: FlowAppTool) => {
+/**
+ * Opens the 帳票 in a new tab for the browser's own PDF viewer to show.
+ *
+ * inline=1 is what makes it a preview rather than a download: the endpoint sends
+ * Content-Disposition: attachment by default, so the new tab used to close itself the instant the
+ * file hit the disk. Checking it over before saving or printing is the common case — the viewer's
+ * own download button is still one click away for the rest.
+ */
+const openPdf = (tool: FlowAppTool) => {
     if (!tool.id || !record.value?.id) return
-    window.open(`/flow_tool_pdf/${tool.id}/${record.value.id}`, '_blank')
+    window.open(`/flow_tool_pdf/${tool.id}/${record.value.id}?inline=1`, '_blank')
 }
 
 // mobile: the PDF/削除/編集 buttons + アプリ設定 consolidate into one ⋮ menu (desktop keeps separate buttons)
 const mobileMenuItems = computed<MenuList[]>(() => {
     const items: MenuList[] = []
-    pdfTools.value.forEach((t) => items.push({ title: t.name, action: () => downloadPdf(t) }))
+    pdfTools.value.forEach((t) => items.push({ title: t.name, action: () => openPdf(t) }))
     if (canDuplicate.value) items.push({ title: '複製', action: () => duplicate() })
     if (!isNew.value && can.delete) items.push({ title: '削除', action: () => remove() })
     if (can.edit) items.push({ title: '編集', action: () => { mode.value = 'edit' } })
@@ -398,7 +468,12 @@ const fieldByKey = computed<Record<string, FlowField>>(() => {
     return map
 })
 const userName = (id: any) => users.value.find((u) => u.id === Number(id))?.name ?? `#${id}`
-const logHeader = (lg: LogDto) => (lg.action === 'created' ? '作成' : '更新')
+const logHeader = (lg: LogDto) => {
+    if (lg.action === 'created') return '作成'
+    // カスタムボタン: the note holds the button's name — 「更新」 alone would hide who did what
+    if (lg.action === 'custom_action') return lg.note ? `${lg.note} を実行` : '処理を実行'
+    return '更新'
+}
 const changeLabel = (key: string) => (key === 'status' ? 'ステータス' : (fieldLabelByKey.value[key] ?? key))
 // history rows for encrypted fields: state what happened, never a value (and never a bare
 // "設定あり → 設定あり", which is what a rotation would otherwise look like)
@@ -421,48 +496,88 @@ const fmtChange = (key: string, val: any): string => {
     if (t === 'file') return (Array.isArray(val) ? val : [val]).map((x: any) => x?.name ?? x).join('、')
     if (t === 'checkbox') return (Array.isArray(val) ? val : [val]).join(' / ')
     if (t === 'toggle') return val ? 'オン' : 'オフ'
-    if (t === 'number') return Number(val).toLocaleString()
+    if (t === 'number') return formatFlowNumber(val, f?.validation)
     if (t === 'table') return Array.isArray(val) ? `${val.length}行` : '未設定'
     if (t === 'reference') return val?.label || (val?.number != null ? `#${val.number}` : '未設定')
     return String(val)
 }
 
-const emptyValue = (f: FlowField) => {
-    if (['checkbox', 'user', 'member', 'file', 'table'].includes(f.input_type)) return []
-    if (f.input_type === 'toggle') return false
-    if (f.input_type === 'number' || f.input_type === 'reference') return null
-    return ''
-}
-// Lookup field copy (kintone-style): the reference field emits its picked record's values keyed by
-// source field key; fill each mapped destination field here. Empty `source` (lookup cleared) blanks
-// them. Formula/layout destinations are skipped defensively (they can't take a copied value).
-const onLookup = (payload: { mappings: { from: string; to: string }[]; source: Record<string, any> }) => {
-    const fields = definition.value?.fields ?? []
-    const cleared = Object.keys(payload.source).length === 0
-    for (const m of payload.mappings) {
-        const dest = fields.find((f) => f.key === m.to)
-        if (!dest?.id || dest.input_type === 'formula' || isLayoutType(dest.input_type)) continue
-        values[dest.id] = cleared ? emptyValue(dest) : (payload.source[m.from] ?? emptyValue(dest))
-        errors[dest.id] = null
-    }
-}
 
 // duplicate copies every editable field EXCEPT formula (recomputed), layout (no value), and file
 // (attachments aren't re-uploaded — copying the refs would share storage between records)
 const canDuplicateField = (f: FlowField) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'file' && !isSecretType(f.input_type)
 const cloneVal = (v: any) => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v)
 
+/* ---- unsaved-changes guard -------------------------------------------------------------------
+ * The baseline is re-taken whenever the form is (re)seeded, so "dirty" means "differs from what is
+ * on the server", not "was touched". View mode is never dirty: nothing there can be edited, and
+ * cancelEdit re-seeds, which clears it.
+ */
+const savedFingerprint = ref('')
+const snapshotValues = () => { savedFingerprint.value = recordFingerprint(definition.value?.fields ?? [], values) }
+const isRecordDirty = () => mode.value === 'edit'
+    && recordFingerprint(definition.value?.fields ?? [], values) !== savedFingerprint.value
+useUnsavedGuard(isRecordDirty)
+
 const initValues = () => {
     const dup = isNew.value ? dupValues.value : null
     ;(definition.value?.fields ?? []).forEach((f) => {
         if (!isNew.value) {
-            values[f.id!] = record.value?.values?.[f.id!] ?? emptyValue(f)
+            values[f.id!] = record.value?.values?.[f.id!] ?? emptyFieldValue(f)
             return
         }
         // duplicate: use the source value when present, else fall back to the field's default
         const src = dup && canDuplicateField(f) ? dup[f.id!] : undefined
         values[f.id!] = src !== undefined && src !== null ? cloneVal(src) : resolveFieldDefault(f, auth.id)
     })
+    // 関連レコードの「＋追加」から来たときは、こちらを指すルックアップを埋めておく。
+    // kintoneでは相手のアプリへ移動して親を手で選び直す必要があった部分。
+    if (isNew.value && linkFieldId.value && linkRecordId.value) {
+        const f = (definition.value?.fields ?? []).find((x) => x.id === linkFieldId.value)
+        if (f && f.input_type === 'reference') {
+            // 保存に必要なのはIDだけ。番号と表示名はサーバから取って足す——ここで入れないと
+            // 保存するまで「#undefined」と出る（画面はIDしか受け取っていないため）。
+            values[f.id!] = { id: linkRecordId.value }
+            // 自分で選んだときと同じ状態にする：ルックアップの自動入力もここで走らせる
+            // （選択イベント経由でしか動かないと、＋追加で来た人だけ空欄が残る）
+            prefillLookupCopy(f)
+        }
+    }
+    // a secret rewrites its own value to the "keep" instruction as it mounts; the fingerprint folds
+    // that into the same state as the marker, so the baseline can be taken right here
+    snapshotValues()
+}
+
+/**
+ * 「＋追加」で先に埋めたルックアップについて、自分で選んだときと同じ自動入力を走らせる。
+ * 画面の選択イベントに乗らない経路なので、同じ取得を明示的に呼ぶ。
+ */
+const prefillLookupCopy = async (field: FlowField) => {
+    const targetId = field.validation?.target_definition_id
+    if (!targetId || !linkRecordId.value) return
+    const mappings = (field.validation?.field_mappings ?? []).filter((m) => m.from && m.to)
+
+    // 自動入力の対象が無くても呼ぶ：表示用の番号・名前はこの1回で一緒に受け取る
+    const keys = [...new Set(mappings.map((m) => m.from))].join(',')
+    const res = await api.get(
+        `/flow_lookup_record/${targetId}/${linkRecordId.value}`
+            + `?ref_field=${field.id}${keys ? `&fields=${encodeURIComponent(keys)}` : ''}`,
+        { silent: true },
+    ) as { values?: Record<string, any>; reference?: { id: number; number: number; label: string | null } } | null
+    if (!res) return
+
+    if (res.reference && values[field.id!]?.id === res.reference.id) {
+        values[field.id!] = {
+            id: res.reference.id,
+            number: res.reference.number,
+            label: res.reference.label ?? '',
+        }
+    }
+
+    if (mappings.length && res.values) {
+        applyLookupCopy(definition.value?.fields ?? [], values, errors,
+            { mappings, source: res.values }, { isNew: true })
+    }
 }
 
 const load = async () => {
@@ -471,13 +586,14 @@ const load = async () => {
         await flowOptionsStore.load()
 
         if (recordId.value) {
-            const data = await api.get(`/flow_app_record_by_number/${flowId.value}/${recordId.value}`)
+            const data = await api.get(`/flow_app_record_by_number/${flowId.value}/${recordId.value}${navParams()}`)
             if (data) {
                 definition.value = data.definition
                 permissions.value = data.permissions
                 record.value = data.record
                 Object.assign(can, data.can ?? {})
                 statusActions.value = data.status_actions ?? []
+                customActions.value = data.custom_actions ?? []
                 logs.value = data.logs ?? []
                 mentionableUsers.value = data.mentionable_users ?? []
                 unreadComments.value = data.unread_comments ?? 0
@@ -489,6 +605,8 @@ const load = async () => {
             if (data) {
                 definition.value = data.definition
                 permissions.value = data.permissions
+                // no record yet, so the per-field answer comes from the app payload
+                newUnviewable.value = data.new_record_unviewable_field_ids ?? null
                 // duplicate: pull the source record's values to pre-fill the form (view perm enforced server-side)
                 dupValues.value = null
                 if (dupFrom.value) {
@@ -517,36 +635,30 @@ const cancelEdit = () => {
 }
 
 const save = async () => {
-    let ok = true
-    for (const f of visibleFields.value) {
-        // disabled fields can't be edited by the user, so don't block save on their validation
-        if (f.input_type === 'formula' || isLayoutType(f.input_type) || f.validation?.disabled) continue
-        // secrets: a blank submit keeps the stored value, so 必須 asks "will one exist after save?"
-        if (isSecretType(f.input_type)) {
-            const v = values[f.id!]
-            const clearing = !!(v && typeof v === 'object' && (v as any).clear)
-            const incoming = typeof v === 'string' ? v.trim() : ''
-            const stored = record.value?.values?.[f.id!] === true
-            const err = f.is_required && (clearing || (incoming === '' && !stored)) ? '必須項目です。' : null
-            errors[f.id!] = err
-            if (err) ok = false
-            continue
-        }
-        const err = validateFlowField(f, values[f.id!])
-        errors[f.id!] = err
-        if (err) ok = false
+    const opts = {
+        editableFieldIds: record.value?.editable_field_ids ?? null,
+        isNew: isNew.value,
+        // a field this user has no 閲覧 on arrived without a value: it must not be validated (必須 would
+        // block a save they cannot fix) nor submitted (that would blank what is stored)
+        unviewableFieldIds: record.value?.unviewable_field_ids ?? null,
     }
-    if (!ok) return
+    const found = validateRecordValues(definition.value?.fields ?? [], values, { ...opts, stored: record.value?.values ?? null })
+    Object.keys(errors).forEach((k) => (errors[k] = null))
+    Object.assign(errors, found)
+    const problem = validationSummary(definition.value?.fields ?? [], found)
+    if (problem) {
+        dialog.ping(problem)
+        return
+    }
 
     saving.value = true
     try {
-        const payload: Record<string, any> = {}
-        visibleFields.value.forEach((f) => {
-            if (f.input_type !== 'formula' && !isLayoutType(f.input_type)) payload[f.id!] = values[f.id!]
-        })
+        const payload = submittableValues(definition.value?.fields ?? [], values, opts)
         if (isNew.value) {
             const data = await api.post('/flow_app_record_create', { flow_definition_id: definition.value?.id, values: payload }, { toast: '作成しました。' })
-            if (data) back()
+            // the work is on the server now, so re-baseline BEFORE navigating — otherwise the guard
+            // asks whether to discard the record it just created
+            if (data) { snapshotValues(); back() }
         } else {
             const data = await api.post('/flow_app_record_update', { id: record.value?.id, values: payload }, { toast: '保存しました。' })
             if (data) await load()
@@ -571,12 +683,39 @@ const transition = async (a: StatusActionDto) => {
             record.value = data.record
             Object.assign(can, data.can ?? {})
             statusActions.value = data.status_actions ?? []
+            customActions.value = data.custom_actions ?? []
             logs.value = data.logs ?? []
             mentionableUsers.value = data.mentionable_users ?? []
             permissions.value = data.permissions
         }
     } finally {
         transitioning.value = false
+    }
+}
+
+/**
+ * Runs a カスタムボタン. Nothing about what it does is sent — only which record and which button;
+ * the server resolves the handler from its own registry.
+ *
+ * The whole record is reloaded afterwards because the handler may have written back into fields
+ * (e.g. the id an external system just issued), and the form holds its own copy of the values.
+ */
+const runAction = async (a: CustomActionDto) => {
+    if (!record.value || runningAction.value !== null) return
+    runningAction.value = a.id
+    try {
+        const data = await api.post(
+            '/flow_record_action',
+            { record_id: record.value.id, tool_id: a.id },
+            { ask: `「${a.label}」を実行しますか？` },
+        )
+        if (data) {
+            // the message is the handler's own (it carries what the external system returned)
+            dialog.toast(data.message ?? `「${a.label}」を実行しました。`)
+            await load()
+        }
+    } finally {
+        runningAction.value = null
     }
 }
 
@@ -636,14 +775,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-act:disabled { cursor: not-allowed; }
 .rd-body { flex: 1; display: flex; min-height: 0; overflow: hidden; position: relative; }
 .rd-main { flex: 1; min-width: 0; overflow: auto; padding: 20px; }
-.rd-canvas { width: max-content; min-width: 100%; }
-.rd-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: stretch; }
-.rd-block { flex: 0 0 auto; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 5px; padding: 15px; }
-.rd-heading-block { border: none; background: none; padding: 4px 0; }
 /* narrow screens: ignore builder-set pixel widths and stack fields full-width */
-.rd-screen.overlay .rd-canvas { width: 100%; }
-.rd-screen.overlay .rd-row { flex-direction: column; align-items: stretch; }
-.rd-screen.overlay .rd-block { width: 100% !important; }
 /* mobile: status row and action/tool buttons stack onto their own lines instead of being crushed */
 .rd-screen.overlay .rd-flow { flex-wrap: wrap; }
 .rd-screen.overlay .rd-flow-status { width: 100%; }
@@ -679,12 +811,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-side.mobile .rd-side-content { max-height: 58vh; }
 /* --sub-color = theme-aware muted text (light #666 / dark #b0b3b8): readable in dark without the
    near-white glare of --primary-color, and not the too-dim fixed gray. */
-.rd-label { display: block; font-size: 13px; color: var(--sub-color); margin-bottom: 15px; }
-.rd-req { color: #e2574c; }
-.rd-err { font-size: 11px; color: #e2574c; margin-top: 3px; }
 /* disabled field (edit mode): muted + not-allowed cursor so it reads as locked; inner ignores pointer events */
-.rd-disabled { cursor: not-allowed; opacity: 0.6; }
-.rd-disabled > * { pointer-events: none; }
 .rd-sec { font-size: 12px; color: gray; margin-bottom: 10px; }
 .rd-log { background: var(--bg3); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
 .rd-log-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

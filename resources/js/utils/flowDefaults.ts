@@ -9,6 +9,18 @@ export const flowNow = () => {
     return { date, time, datetime: `${date}T${time}` }
 }
 
+/**
+ * The "no value" shape for a field type — an empty <input> is '', but a checkbox is [] and a number
+ * is null, and handing a component the wrong empty breaks its v-model. Used when seeding a form
+ * from a record that has no stored value for a field, and when a lookup clears its destinations.
+ */
+export const emptyFieldValue = (f: FlowField): any => {
+    if (['checkbox', 'user', 'member', 'file', 'table'].includes(f.input_type)) return []
+    if (f.input_type === 'toggle') return false
+    if (f.input_type === 'number' || f.input_type === 'reference') return null
+    return ''
+}
+
 /** Initial value for a field on record create (honours builder-configured defaults). */
 export const resolveFieldDefault = (f: FlowField, meId?: number | null): any => {
     const v = f.validation || {}

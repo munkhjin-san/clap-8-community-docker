@@ -1,4 +1,4 @@
-import type { FlowField, TableColumn, FlowAppTool } from '@/types/flow'
+import type { FlowField, TableColumn, FlowAppTool, PdfTemplate } from '@/types/flow'
 
 /**
  * Builder-side detection of formulas that reference a field/column about to be deleted.
@@ -107,14 +107,35 @@ export const renameFieldRefEverywhere = (fields: FlowField[], oldName: string, n
 }
 
 /**
- * Renaming a table column's label: sibling calc columns may reference it bare (`[列名]`). The column
- * KEY is unchanged, so top-level `[table.colKey]` aggregates are unaffected — only bare sibling refs
- * inside this same table need remapping.
+ * Renaming a table column's label.
+ *
+ * Two places can reference it:
+ *  - sibling calc columns inside the same table, bare (`[列名]`)
+ *  - top-level formulas, dotted (`[テーブル.列名]`)
+ *
+ * The dotted case used not to matter, because the formula picker inserted the column KEY and a key is
+ * untouched by a label rename. Now the picker inserts the label — it reads far better than
+ * `[テーブル.c1]` — so a rename has to follow it, otherwise the formula keeps a name nothing answers
+ * to and silently evaluates to 0. `fields` is optional so existing callers keep working.
  */
-export const renameColumnRefInTable = (tableField: FlowField, oldName: string, newName: string): void => {
+export const renameColumnRefInTable = (
+    tableField: FlowField,
+    oldName: string,
+    newName: string,
+    fields?: FlowField[],
+): void => {
     if (!oldName || oldName === newName) return
+
     for (const c of (tableField.validation?.columns ?? []) as TableColumn[]) {
         if (c.input_type === 'formula' && c.formula) c.formula = renameInFormula(c.formula, oldName, newName, { bare: true, dotted: false })
+    }
+
+    // top-level formulas: only the suffix of `[table.column]` moves, so bare refs (which mean a
+    // different, top-level field that happens to share the name) are deliberately left alone.
+    for (const f of fields ?? []) {
+        if (f.input_type === 'formula' && f.formula) {
+            f.formula = renameInFormula(f.formula, oldName, newName, { bare: false, dotted: true })
+        }
     }
 }
 
@@ -122,7 +143,8 @@ export const renameColumnRefInTable = (tableField: FlowField, oldName: string, n
 export const pdfToolsReferencingField = (tools: FlowAppTool[] | undefined, fieldKey: string): string[] => {
     const hits: string[] = []
     for (const t of tools ?? []) {
-        const els = t.config?.elements ?? []
+        if (t.tool_type !== 'pdf') continue
+        const els = (t.config as PdfTemplate)?.elements ?? []
         if (els.some((e) => (e.type === 'field' && e.fieldKey === fieldKey) || (e.type === 'table' && e.sourceFieldKey === fieldKey))) {
             hits.push(t.name || 'PDF帳票')
         }
@@ -134,7 +156,8 @@ export const pdfToolsReferencingField = (tools: FlowAppTool[] | undefined, field
 export const pdfToolsReferencingColumn = (tools: FlowAppTool[] | undefined, tableKey: string, colKey: string): string[] => {
     const hits: string[] = []
     for (const t of tools ?? []) {
-        const els = t.config?.elements ?? []
+        if (t.tool_type !== 'pdf') continue
+        const els = (t.config as PdfTemplate)?.elements ?? []
         if (els.some((e) => e.type === 'table' && e.sourceFieldKey === tableKey && (e.columns ?? []).some((c) => c.colKey === colKey))) {
             hits.push(t.name || 'PDF帳票')
         }

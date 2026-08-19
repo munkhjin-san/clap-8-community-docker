@@ -142,7 +142,7 @@
                 </ExpansionGrid>
             </div>
             <div v-if="dismissedCandidates.length" class="mb-3">
-                <div class="text-[14px] mb-3">却下（{{ dismissedCandidates.length }}）</div>
+                <div class="text-[14px] mb-3">非該当（{{ dismissedCandidates.length }}）</div>
                 <ExpansionGrid class="gap-x-4" :col="col">
                     <ExpansionPanelItem
                         selected-class="selected-panel-item"
@@ -160,7 +160,7 @@
                                 <div v-if="!isCandidateRead(candidate)" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5"></div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
-                                        <span class="candidate-tag candidate-tag--muted">却下</span>
+                                        <span class="candidate-tag candidate-tag--muted">非該当</span>
                                         <UserPanel v-if="candidate.subject" with-name disable-instant size="22" :user="(candidate.subject as any)" />
                                         <span v-else class="text-[13px]">不明</span>
                                     </div>

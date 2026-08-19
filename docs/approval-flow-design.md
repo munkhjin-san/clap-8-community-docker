@@ -1,6 +1,23 @@
 # 申請・承認フロー — Design Document
 
-Status: **Design / pre-implementation** (2026-06-30). No code yet. This doc captures the agreed model, schema, reuse strategy, UI, and phasing for review before build.
+Status: **Superseded as a description of behaviour** — kept as the record of the 2026-06-30 design
+session. It captured the agreed model, schema, reuse strategy, UI and phasing *before* any code
+existed, and the build has since diverged. For how the feature actually behaves, read the in-app help
+(`resources/assets/help/help.documentation.ts`, rendered at `/help/documentation/app`), which is kept
+current.
+
+Diverged since, where this doc would mislead:
+
+- **Assignees are gone.** No `flow_record_assignees`, no per-status assignee rule. 対応待ち is derived
+  live from an action's 押せる人 instead, and the scaffolding described here was removed as dead code
+  (see the `drop_flow_assignee_scaffolding` migration).
+- **共有設定 is gone** as a tab. Access is three layers — app / record-set / field — resolved by
+  specificity (全員 < 役職 < 個人指定), not by row order. `flow_shares` survives write-only.
+- **The builder has seven tabs**, not four: 基本情報・フォーム・フロー設定・ビュー・ツール・アクセス権・監査ログ.
+- **The permission model, statuses and record runtime** all grew well past what is written below
+  (views, 集計スロット, PDF帳票, CSV import/export, formulas, lookups, クイック編集).
+
+The sections below are unedited 2026-06-30 content.
 
 ---
 

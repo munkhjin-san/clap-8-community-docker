@@ -68,6 +68,18 @@
                             >
                                 <span class="pt-pill__dot" />{{ chip.label }}
                             </span>
+                            <!-- 誓約書 etc: the learner's own copy, under the chips. -->
+                            <a
+                                v-for="file in entry.files"
+                                :key="file.key"
+                                class="pt-file"
+                                :href="file.href"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                :title="file.label"
+                            >
+                                <FileIcon :ext="file.ext" class="pt-file__icon" />{{ file.label }}
+                            </a>
                         </div>
                     </td>
                     <template v-if="hasExamColumns">
@@ -111,10 +123,10 @@
                                 詳細
                             </button>
                             <button
-                                v-if="auth.isAdmin && entry.portfolioId"
+                                v-if="auth.isAdmin"
                                 class="pt-btn pt-btn--delete"
                                 type="button"
-                                @click="emit('delete-portfolio', entry.portfolioId)"
+                                @click="requestDelete(row, entry)"
                             >
                                 削除
                             </button>
@@ -241,6 +253,7 @@ import type { LearningPortfolio, ParticipantEntry, ParticipantExamCell, Particip
 import { getPortfolioStatusLabels } from '@/utils/learningProgress'
 import { useAuthUserStore } from '@/store/auth'
 import Modal from '@/components/Global/Modal.vue'
+import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 
 const props = defineProps<{
     rows: ParticipantRow[]
@@ -249,6 +262,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     'rollback-status': [id: number | undefined, status: number]
     'delete-portfolio': [id: number | undefined]
+    'delete-progress': [userId: number]
 }>()
 
 const auth = useAuthUserStore()
@@ -300,6 +314,17 @@ const surveyQa = (portfolio: LearningPortfolio) => {
 const rollback = (portfolio: LearningPortfolio, stageValue: number) => {
     emit('rollback-status', portfolio.id, stageValue - 1)
     detailEntry.value = null
+}
+
+// Portfolio themes delete one attempt; case-study themes have no portfolio, so
+// there the whole of that learner's data for the theme is what goes.
+const requestDelete = (row: ParticipantRow, entry: ParticipantEntry) => {
+    if (entry.portfolioId) {
+        emit('delete-portfolio', entry.portfolioId)
+        return
+    }
+
+    emit('delete-progress', row.userId)
 }
 
 const deleteFromModal = (portfolioId: number) => {
@@ -427,6 +452,30 @@ const deleteFromModal = (portfolioId: number) => {
     white-space: nowrap;
 }
 
+/* File links sit under the status chips, indented to the chip text. */
+.pt-file{
+    /* full basis so it always breaks onto its own line under the chips */
+    flex-basis: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 4px;
+    font-size: 12px;
+    color: var(--primary-color);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.pt-file:hover{
+    text-decoration: underline;
+}
+
+.pt-file__icon :deep(.file-icon-01-mobile){
+    width: auto;
+    min-width: 0;
+    height: 20px;
+}
+
 .pt-pill__dot{
     width: 6px;
     height: 6px;
@@ -462,6 +511,7 @@ const deleteFromModal = (portfolioId: number) => {
     transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 
+/* 誓約書 link styled like the neighbouring buttons. */
 .pt-btn--detail:hover{
     background: var(--primary-button);
     color: #fff;

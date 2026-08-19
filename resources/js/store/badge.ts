@@ -25,6 +25,7 @@ interface State {
         last_chargeable: number,
         last_chargeable_ids: number[],
         last_chargeable_items: PostBadgeItem[],
+        rakuaward_result: number,
     }
     task: number[]
     members_goals: any[]
@@ -91,6 +92,7 @@ export const useBadgeStore = defineStore('badge', () => {
         last_chargeable: 0,
         last_chargeable_ids: [] as number[],
         last_chargeable_items: [] as PostBadgeItem[],
+        rakuaward_result: 0,
     });
     const postNoticeItems = ref<PostNoticeItems>(emptyPostNoticeItems());
     const task = ref<number[]>([]);

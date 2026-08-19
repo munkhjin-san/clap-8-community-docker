@@ -18,15 +18,47 @@ use Illuminate\Support\Facades\DB;
  * status change) — the portal badge is then a single indexed count. Read rules differ
  * by type: new_record & status_change clear when the record is opened; comment clears
  * only after the comment tab has actually been viewed (FE calls markCommentsRead).
- * Own actions never notify. Per-user per-app opt-outs live in flow_notification_prefs
- * (sparse rows; everything defaults ON).
+ * Own actions never notify. Per-user per-app overrides live in flow_notification_prefs
+ * (sparse rows = deviations from PREF_DEFAULTS; new_record is opt-IN, the rest opt-OUT).
  */
 class FlowNotificationService
 {
-    /** Pref keys (all default enabled). */
-    public const PREFS = ['comment_own', 'comment_participated', 'new_record', 'status_change'];
+    /**
+     * Pref keys and their DEFAULT state (sparse rows in flow_notification_prefs store only the
+     * deviations). `new_record` is opt-IN: on a busy app every added record would otherwise ping
+     * everyone who can see the app, which is the fastest way to make people mute the whole thing.
+     * The other three are about something the user is already involved in, so they default on.
+     */
+    public const PREF_DEFAULTS = [
+        'comment_own' => true,
+        'comment_participated' => true,
+        'new_record' => false,
+        'status_change' => true,
+        // a duty someone assigned you by name — the one event you would not want to miss
+        'pending_action' => true,
+    ];
 
-    public function __construct(private FlowService $flowService) {}
+    public const PREFS = ['comment_own', 'comment_participated', 'new_record', 'status_change', 'pending_action'];
+
+    public function __construct(private FlowService $flowService, private BadgeService $badges) {}
+
+    /**
+     * Drop this user's badge_summary cache after rows actually changed.
+     *
+     * /badge_summary is cached 60s per user and the flow unread total rides it, so reading a
+     * notification left the bell showing the old number for up to a minute — the record was open,
+     * the comments were read, and the badge still said 3. FlowControl already corrects the count
+     * from /flow_definitions, but only on the app list; arriving at a record from anywhere else
+     * (side menu, a link, the bell itself) never passed through that screen.
+     *
+     * Guarded on the affected-row count so opening an already-read record is not a cache bust.
+     */
+    private function invalidateBadges(int $affected, User $user): void
+    {
+        if ($affected > 0) {
+            $this->badges->forgetBadgeSummaryForUser($user);
+        }
+    }
 
     /* ---------------------------------------------------------------- events */
 
@@ -85,16 +117,92 @@ class FlowNotificationService
         $this->insert(array_keys($recipients), $record->flow_definition_id, $record->id, 'status_change', $actor->id, ['from' => $from, 'to' => $to]);
     }
 
+    /**
+     * The record now sits on a status whose actions name specific people → tell them it is theirs.
+     *
+     * Mirrors the 対応待ち counter exactly (hasExplicitPendingAction): an action with 押せる人 left
+     * blank is pressable by anyone and therefore nobody's duty, so it notifies no one.
+     *
+     * Idempotent, because it also runs on edits: whoever is still responsible keeps the row they
+     * already have (and its read state), anyone no longer responsible loses theirs. That matters for
+     * `field`-type eligibility, where editing a ユーザー field changes who is on the hook.
+     */
+    public function syncPendingAction(FlowRecord $record, ?User $actor = null): void
+    {
+        $definition = $record->relationLoaded('definition') ? $record->definition : $record->definition;
+        if (! $definition || ! $definition->use_status_flow || ! $definition->is_active) {
+            $this->withdrawPendingAction($record);
+
+            return;
+        }
+
+        $responsible = $this->pendingActionRecipientIds($record, $definition, $actor);
+
+        // drop rows for anyone who is no longer responsible (status moved on, or eligibility changed)
+        FlowNotification::where('flow_record_id', $record->id)
+            ->where('type', 'pending_action')
+            ->when($responsible, fn ($q) => $q->whereNotIn('user_id', $responsible))
+            ->delete();
+
+        if (! $responsible) {
+            return;
+        }
+        // keep existing rows (and their read state) so an unrelated edit does not re-flag everyone
+        $already = FlowNotification::where('flow_record_id', $record->id)
+            ->where('type', 'pending_action')
+            ->whereIn('user_id', $responsible)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $fresh = array_values(array_diff($responsible, $already));
+        $this->insert($fresh, $definition->id, $record->id, 'pending_action', (int) ($actor->id ?? 0), [
+            'status' => $record->relationLoaded('currentStatus') ? $record->currentStatus?->name : null,
+        ]);
+    }
+
+    /** The duty is over (record moved on, deleted, or the app stopped using statuses). */
+    public function withdrawPendingAction(FlowRecord $record): void
+    {
+        FlowNotification::where('flow_record_id', $record->id)
+            ->where('type', 'pending_action')
+            ->delete();
+    }
+
+    /** Users explicitly named by an action on the current status, who may view the record. */
+    private function pendingActionRecipientIds(FlowRecord $record, FlowDefinition $definition, ?User $actor): array
+    {
+        $definition->loadMissing(['statuses', 'statusActions', 'recordPermissionSets', 'appPermissions', 'fields']);
+        $record->loadMissing(['values', 'currentStatus']);
+
+        $ids = $this->newRecipientCandidates($definition)
+            ->filter(fn ($u) => (int) $u->id !== (int) ($actor->id ?? 0)
+                && $this->flowService->hasExplicitPendingAction($u, $record)
+                && $this->flowService->recordPermissions($u, $record, $definition)['view'])
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_keys($this->filterByPrefs($definition->id, array_fill_keys($ids, 'pending_action')));
+    }
+
     /* ---------------------------------------------------------------- reads */
 
-    /** Record opened → new_record / status_change events for it are considered seen. */
+    /**
+     * Record opened → new_record / status_change / pending_action events for it are considered seen.
+     * pending_action is marked read but NOT removed: the duty outlives the glance, and the row is
+     * withdrawn only when the record actually moves on. The live 対応待ち counter stays the
+     * authority on "you still have to act".
+     */
     public function markRecordOpened(User $user, FlowRecord $record): void
     {
-        FlowNotification::where('user_id', $user->id)
+        $affected = FlowNotification::where('user_id', $user->id)
             ->where('flow_record_id', $record->id)
-            ->whereIn('type', ['new_record', 'status_change'])
+            ->whereIn('type', ['new_record', 'status_change', 'pending_action'])
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
     }
 
     /**
@@ -103,22 +211,45 @@ class FlowNotificationService
      */
     public function markImportSeen(User $user, FlowDefinition $definition): void
     {
-        FlowNotification::where('user_id', $user->id)
+        $affected = FlowNotification::where('user_id', $user->id)
             ->where('flow_definition_id', $definition->id)
             ->where('type', 'new_record')
             ->whereNull('flow_record_id')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
     }
 
     /** Comment tab actually viewed (FE fires after it has been visible a few seconds). */
     public function markCommentsRead(User $user, FlowRecord $record): void
     {
-        FlowNotification::where('user_id', $user->id)
+        $affected = FlowNotification::where('user_id', $user->id)
             ->where('flow_record_id', $record->id)
             ->where('type', 'comment')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
+    }
+
+    /**
+     * すべて既読 — every unread event for this user on this app.
+     *
+     * Read state only. A pending_action row marked read still means the duty is yours: those rows are
+     * withdrawn when the record moves on, and the live 対応待ち counter stays the authority on "you
+     * still have to act". This is the same thing opening each record one by one would have done.
+     */
+    public function markAllRead(User $user, FlowDefinition $definition): int
+    {
+        $affected = FlowNotification::where('user_id', $user->id)
+            ->where('flow_definition_id', $definition->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
+
+        return $affected;
     }
 
     /** Unread badge totals for the portal: [flow_definition_id => count]. */
@@ -144,10 +275,10 @@ class FlowNotificationService
 
     /* ---------------------------------------------------------------- prefs */
 
-    /** The user's resolved prefs for an app (defaults ON, overridden by stored rows). */
+    /** The user's resolved prefs for an app (PREF_DEFAULTS, overridden by stored rows). */
     public function prefsFor(User $user, int $definitionId): array
     {
-        $prefs = array_fill_keys(self::PREFS, true);
+        $prefs = self::PREF_DEFAULTS;
         $rows = FlowNotificationPref::where('user_id', $user->id)
             ->where('flow_definition_id', $definitionId)
             ->pluck('enabled', 'pref');
@@ -216,13 +347,20 @@ class FlowNotificationService
         if (! $recipientPrefKeys) {
             return [];
         }
-        $disabled = FlowNotificationPref::where('flow_definition_id', $definitionId)
+        // Read every stored row (not just the disabled ones): with per-key defaults, "no row" can
+        // mean either notify or don't, so each recipient resolves to explicit-setting ?? default.
+        $rows = FlowNotificationPref::where('flow_definition_id', $definitionId)
             ->whereIn('user_id', array_keys($recipientPrefKeys))
-            ->where('enabled', false)
-            ->get(['user_id', 'pref']);
-        foreach ($disabled as $row) {
-            if (($recipientPrefKeys[(int) $row->user_id] ?? null) === $row->pref) {
-                unset($recipientPrefKeys[(int) $row->user_id]);
+            ->get(['user_id', 'pref', 'enabled']);
+        $explicit = [];
+        foreach ($rows as $row) {
+            $explicit[(int) $row->user_id][$row->pref] = (bool) $row->enabled;
+        }
+
+        foreach ($recipientPrefKeys as $userId => $pref) {
+            $on = $explicit[(int) $userId][$pref] ?? (self::PREF_DEFAULTS[$pref] ?? true);
+            if (! $on) {
+                unset($recipientPrefKeys[$userId]);
             }
         }
 

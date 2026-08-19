@@ -2,27 +2,33 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\BumpCalendarFavourites;
+use App\Jobs\GenerateTranscriptAiSummary;
+use App\Jobs\SendCalendarMails;
 use App\Models\CalendarMeetingSummary;
+use App\Models\CalendarMeetingTranscript;
+use App\Models\CalendarMeetingTranscriptSummary;
 use App\Models\CalendarFacility;
 use App\Models\ProjectRecord;
 use App\Models\ZoomAccount;
 use App\Services\ZoomApiService;
+use App\Services\ZoomVttParser;
 use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
 use App\Models\CalendarGroup;
 use App\Models\User;
+use App\Models\CalendarExtraUser;
 use App\Models\MyGroup;
 use App\Models\MyWorkGroup;
 use App\Models\boardRecord;
 use App\Models\workGroup;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
-use App\Mail\Calendar;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\GoogleController;
 class CalendarController extends Controller
 {
@@ -31,6 +37,7 @@ class CalendarController extends Controller
     public function __construct(
         GoogleController $googleController,
         private readonly ZoomApiService $zoomApi,
+        private readonly ZoomVttParser $zoomVttParser,
     ) {
         $this->googleController = $googleController;
     }
@@ -42,6 +49,20 @@ class CalendarController extends Controller
     private function active_user(){
         // Double-account (act-as / linked sub-account) is dropped on this branch — always the auth user.
         return Auth::user();
+    }
+    private function authorizeMeetingRecordView(CalendarRecord $record): User
+    {
+        $activeUser = $this->active_user();
+        $members = $record->calendar_users()->pluck('id')->toArray();
+        $viewUsers = $record->calendar_view_users()->pluck('id')->toArray();
+        $allowedUsers = array_merge($members, $viewUsers);
+
+        // Community-aware admin override (was hardcoded [608, 610]).
+        if (! in_array($activeUser->id, $allowedUsers) && ! $activeUser->isAdmin()) {
+            throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
+        }
+
+        return $activeUser;
     }
     private function zoom_account($index){
         $account = $this->zoomApi->accountForSlot((int) $index);
@@ -113,6 +134,18 @@ class CalendarController extends Controller
         //     throw ValidationException::withMessages(['message' => 'Zoom予約に失敗しました。']);
         // }
     }
+    /**
+     * ゲストがホストを待たずに入室できる設定。待機室はUIから外したので常にこれを使う。
+     * jbh_time は 0 = 開始時刻前でもいつでも入室可（Zoom APIは 0 / 5 / 10 のみ）。
+     */
+    private function zoom_open_join_settings(): array
+    {
+        return [
+            'waiting_room' => false,
+            'join_before_host' => true,
+            'jbh_time' => 0,
+        ];
+    }
     private function update_zoom_meeting($params){
         $account = $this->zoom_account($params['zoom_id']); 
         $meetings_url = 'https://api.zoom.us/v2/meetings' . '/' . $params['meetingId'];
@@ -121,14 +154,8 @@ class CalendarController extends Controller
             'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
             'auto_start_ai_companion_questions' => false
         );
-        if($params['waiting_room']){
-            $settings['waiting_room'] = true;
-            $settings['join_before_host'] = false;
-        }else{
-            $settings['waiting_room'] = false;
-            $settings['join_before_host'] = true;
-            $settings['jbh_time'] = 0;
-        }
+        // 待機室は常に無効。ホスト不在でもゲストがいつでも入室できるようにする
+        $settings = array_merge($settings, $this->zoom_open_join_settings());
         $data_to_zoom_api = array(
             'meetingId' => $params['meetingId'],
             'duration' => $params['duration'],
@@ -162,14 +189,8 @@ class CalendarController extends Controller
             'use_pmi' => false,
             'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
         );
-        if($params['waiting_room']){
-            $settings['waiting_room'] = true;
-            $settings['join_before_host'] = false;
-        }else{
-            $settings['waiting_room'] = false;
-            $settings['join_before_host'] = true;
-            $settings['jbh_time'] = 10;
-        }
+        // 待機室は常に無効。ホスト不在でもゲストがいつでも入室できるようにする
+        $settings = array_merge($settings, $this->zoom_open_join_settings());
         $data_to_zoom_api = array(
             'topic' => $params['title'],
             'type' => $params['type'],
@@ -235,20 +256,11 @@ class CalendarController extends Controller
         $validatedData = $request->validate([
             'day' => 'required',
         ]);
-        $active_user = Auth::user();
-        $myGroupCheck = MyGroup::where('user_id', $active_user->id)->exists();
-        
-        if(!$myGroupCheck){
-            
-            $newMyGroup = MyGroup::create([
-                'user_id' => $active_user->id,
-                'name' =>  'マイグループ',
-                'selected' => true
-            ]);
-            $newMyGroup->users()->syncWithPivotValues([$active_user->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
-        }        
-        $gr = MyGroup::where('user_id', $active_user->id)
-                    // ->where('selected', true)
+        $active_user = $this->active_user();
+        $this->ensure_active_my_group($active_user);
+
+        $gr = $this->my_groups_query($active_user)
+                    ->where('selected', true)
                     ->with('selected_users')
                     ->get()
                     ->pluck('selected_users.*.id')
@@ -260,7 +272,12 @@ class CalendarController extends Controller
         
         $my_group_ids = $gr ?? [];
 
-        $list = array_merge($my_group_ids, $work_group_users_id);
+        // 保存済みの追加ユーザーとリクエスト分を合わせる。
+        // （トグル直後の再取得がPOST完了前に走っても表示が欠けないように両方見る）
+        $requested_extras = is_array($request->extra_users) ? array_map('intval', $request->extra_users) : [];
+        $extra_users = array_unique(array_merge($this->calendar_extra_user_ids($active_user), $requested_extras));
+
+        $list = array_merge($my_group_ids, $work_group_users_id, $extra_users);
         $date = $request["day"];
 
         $carbonDate = Carbon::parse($date);
@@ -314,7 +331,11 @@ class CalendarController extends Controller
             'calendar_view_users',
    
         ])
-        ->withCount('summaries')
+        ->withCount([
+            'summaries',
+            'transcripts as transcripts_count' => fn ($query) => $query
+                ->where('status', CalendarMeetingTranscript::STATUS_DOWNLOADED),
+        ])
         ->get();
 
 
@@ -689,7 +710,6 @@ class CalendarController extends Controller
                     "duration" => $record_duration_minute,
                     "title" => $request['title'],
                     "start_time" => $formattedDate,
-                    "waiting_room" => $request['zoom_waiting_room'],
                     "auto_start_meeting_summary" => $request['zoom_ai_companion'],
                     "zoom_id" => $request['facility']['zoom_value'],
                     "type" => $request['repetition_type'] == 0 ? 2 : 3            
@@ -749,7 +769,7 @@ class CalendarController extends Controller
             "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
             "created_user" => $has_prev_date ? $has_prev_date['created_user'] : $active_user->id,
             "descendant_of" => $has_prev_date ? $has_prev_date['id'] : null,
-            "zoom_waiting_room" => $request['zoom_waiting_room'],
+            "zoom_waiting_room" => false,
             "zoom_ai_companion" => $request['zoom_ai_companion'],
             "real_created_at" => now()
         ]);
@@ -758,27 +778,22 @@ class CalendarController extends Controller
             throw ValidationException::withMessages(['message' => 'zoom予約に失敗しました。']);
         }
 
-        $targetIds = $request['users'];
-        $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', $active_user->id)->pluck('email')->toArray();
-        $type = $has_prev_date ? '更新' : '作成';
-        $c_records = CalendarRecord::whereIn('id', $ids)->get();
-        $title = $c_records[0]['title'];
-        $details = [];
-        $recursion_types = ["1回のみ", "毎週", "毎月", "毎年"];
-        foreach($c_records as $rec){        
-            $title = $rec['temp_flag'] ? ' (仮)' . $rec['title'] : $rec['title'];
-            $d = [
-                "title" => $rec['title'],
-                "id" => $rec['id'],
-                "start_at" => Carbon::parse($rec['date_start'])->format('Y/m/d H:i'),
-                "recursion" => $recursion_types[$rec['repetition_type']],
-                "content" => $rec['remarks'],
-            ];
-            $details[] = $d;
+        $targetIds = is_array($request['users']) ? array_map('intval', $request['users']) : [];
+
+        // 通知メールと並び順スコアはどちらも予定の保存には関係しないので、
+        // レスポンスを返した後に実行する（失敗してもログだけで main flow は通す）
+        SendCalendarMails::dispatchAfterResponse(
+            array_map('intval', $ids),
+            $targetIds,
+            (int) $active_user->id,
+            $has_prev_date ? '更新' : '作成'
+        );
+
+        // 新規作成のときだけ「よく一緒の人」スコアを進める（編集・削除は追わない）
+        if(!$has_prev_date){
+            BumpCalendarFavourites::dispatchAfterResponse($targetIds);
         }
-        foreach($targetUsersMail as $to){
-            Mail::to($to)->send(new Calendar( $details, $title, $type, $rec['temp_flag']));
-        }
+
         return $records;
     }
     private function time_parser($instance, $time){               
@@ -982,22 +997,120 @@ class CalendarController extends Controller
 
         return response()->json($items);       
     }
-    public function get_my_groups(Request $request){
+    private function my_groups_query($active_user){
+        return MyGroup::where('user_id', $active_user->id)->where('deleted_flag', 0);
+    }
+    /**
+     * カレンダーのマイグループは常に1つだけが選択中。
+     * グループが無ければ既定グループを作り、選択中が0件/2件以上なら1件に正す。
+     */
+    private function ensure_active_my_group($active_user){
+        $groups = $this->my_groups_query($active_user)->orderBy('id')->get();
 
-        $members = User::where('retire', 0)
-                        ->where('deleted_flag', 0)
-                        ->select('id', 'name', 'icon_path', 'icon_bg')
-                        ->where('id', '>', 105)
+        if($groups->isEmpty()){
+            $newMyGroup = MyGroup::create([
+                'user_id' => $active_user->id,
+                'name' =>  'マイグループ',
+                'selected' => true
+            ]);
+            $newMyGroup->users()->attach([$active_user->id], ['selected_as_calendar_member' => 1, 'created_at' => now(), 'updated_at' => now()]);
+            return $newMyGroup;
+        }
+
+        $selected = $groups->where('selected', 1);
+
+        // 既に1件だけ選択されていれば何も書き換えない（読み取り系から呼ばれても副作用なし）
+        if($selected->count() === 1){
+            return $selected->first();
+        }
+
+        // 0件/2件以上のときだけ修復する。updated_at が新しい方＝ユーザーが最後に選んだ物を残すので、
+        // 同時リクエストが選択を書き換えても、それを id 順で踏み潰さない。
+        $candidates = $selected->isNotEmpty() ? $selected : $groups;
+        $active = $candidates->sortByDesc(fn($group) => $group->updated_at)->first();
+
+        $this->my_groups_query($active_user)->whereNot('id', $active->id)->update(['selected' => false]);
+        if(!$active->selected){
+            $active->selected = true;
+            $active->save();
+        }
+
+        return $active;
+    }
+    public function get_my_groups(Request $request){
+        $active_user = $this->active_user();
+        $this->ensure_active_my_group($active_user);
+
+        // よく一緒に予定を入れる人を先に出す（全ユーザータブが数百件あって探しづらいため）
+        $members = User::where('users.retire', 0)
+                        ->where('users.deleted_flag', 0)
+                        ->where('users.id', '>', 105)
+                        ->leftJoin('calendar_favourite_users as fav', function($join) use ($active_user) {
+                            $join->on('fav.member_id', '=', 'users.id')
+                                 ->where('fav.owner_id', '=', $active_user->id);
+                        })
+                        ->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg')
+                        ->orderByDesc('fav.score')
+                        // スコアが無い人は社員→協力会社の順、その中は名前順にする
+                        ->orderBy('users.partner_flag')
+                        ->orderBy('users.name')
                         ->get();
-        $groups = MyGroup::where('user_id', Auth::user()->id)->where('deleted_flag', 0)->with('users')->get();
+        $groups = $this->my_groups_query($active_user)->orderBy('id')->with('users')->get();
         $res = [
             "my_groups" => $groups,
             "all_members" => $members,
-            "work_groups" => [],
-            "my_work_groups" => []
+            "extra_users" => $this->calendar_extra_user_ids($active_user),
         ];
-        
-        return response()->json($res); 
+
+        return response()->json($res);
+    }
+    private function calendar_extra_user_ids($active_user){
+        return CalendarExtraUser::where('user_id', $active_user->id)
+                ->pluck('member_id')
+                ->map(fn($id) => (int) $id)
+                ->values()
+                ->all();
+    }
+    /**
+     * マイグループ外から一時的に足した表示メンバーの追加・削除。
+     * member_id = -1 かつ value=false で全解除。
+     */
+    public function update_calendar_extra_users(Request $request){
+        $active_user = $this->active_user();
+        $add = filter_var($request->value, FILTER_VALIDATE_BOOLEAN);
+        $member_id = (int) $request->member_id;
+
+        if($member_id === -1){
+            if(!$add){
+                CalendarExtraUser::where('user_id', $active_user->id)->delete();
+            }
+            return response()->json($this->calendar_extra_user_ids($active_user));
+        }
+
+        if($add){
+            $exists = User::where('id', $member_id)->where('retire', 0)->where('deleted_flag', 0)->exists();
+            if(!$exists){
+                return response()->json(['message' => '対象のユーザーが見つかりません。'], 422);
+            }
+            CalendarExtraUser::firstOrCreate([
+                'user_id' => $active_user->id,
+                'member_id' => $member_id
+            ]);
+        }else{
+            CalendarExtraUser::where('user_id', $active_user->id)->where('member_id', $member_id)->delete();
+        }
+
+        return response()->json($this->calendar_extra_user_ids($active_user));
+    }
+    public function select_my_group(Request $request){
+        $active_user = $this->active_user();
+        $group = $this->my_groups_query($active_user)->findOrFail($request->id);
+
+        $this->my_groups_query($active_user)->update(['selected' => false]);
+        $group->selected = true;
+        $group->save();
+
+        return response()->json($group);
     }
     public function select_work_group(Request $request){
         $active_user = Auth::user();
@@ -1010,39 +1123,48 @@ class CalendarController extends Controller
         return response()->json($create); 
     }
     public function update_selected_calendar_members(Request $request){
-        if($request->user_id == -1){
-            $user = MyGroup::findOrFail($request->group_id);
-            $rec = $user->users()->update([
-                'updated_at' => now(),
-                'selected_as_calendar_member' => $request->value
-            ]);
-           
-            if($request->by == 'byGroup'){
-                $user->update(['selected' => $request->value]);
-                // $unselect = MyGroup::where('user_id', Auth::user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
-            }
-            
-            return response()->json($user);
-        }else{
-            $user = MyGroup::findOrFail($request->group_id);
-            $rec = $user->users()->where('user_id', $request->user_id)->update([
-                'updated_at' => now(),
-                'selected_as_calendar_member' => $request->value
-            ]);
-            // $unselect = MyGroup::where('user_id', Auth::user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
-            return response()->json($rec); 
+        $active_user = $this->active_user();
+        $group = $this->my_groups_query($active_user)->findOrFail($request->group_id);
+        $value = filter_var($request->value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+
+        $pivots = DB::table('my_group_users')
+                    ->where('record_id', $group->id)
+                    ->whereNull('deleted_at');
+
+        // user_id = -1 はグループ全員が対象
+        if($request->user_id != -1){
+            $pivots->where('user_id', (int) $request->user_id);
         }
-        
-    } 
+
+        $rec = $pivots->update([
+            'selected_as_calendar_member' => $value,
+            'updated_at' => now()
+        ]);
+
+        return response()->json($rec);
+    }
     public function delete_my_group(Request $request){
-        $groups = MyGroup::findOrFail($request->id);
-        $groups->users()->detach();
-        $groups->delete();
-        return response()->json($groups); 
+        $active_user = $this->active_user();
+        $group = $this->my_groups_query($active_user)->findOrFail($request->id);
+        $was_selected = (bool) $group->selected;
+
+        $group->users()->detach();
+        $group->deleted_flag = 1;
+        $group->save();
+        $group->delete();
+
+        // 選択中グループを消した場合は別のグループへ選択を移す（0件なら既定グループを再作成）
+        if($was_selected){
+            $this->ensure_active_my_group($active_user);
+        }
+
+        return response()->json($group);
     }
     public function calendar_more_users(Request $request){
-        $user = MyGroup::where('user_id', Auth::user()->id)->latest()->first();
-        $rec = $user->users()->pluck('id')->toArray();        
+        $active_user = $this->active_user();
+        $user = $this->my_groups_query($active_user)->where('selected', 1)->first()
+                ?? $this->my_groups_query($active_user)->latest()->first();
+        $rec = $user ? $user->users()->pluck('id')->toArray() : [];
         $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->inActiveCommunity()->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->inActiveCommunity()->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $merged_users = $close_users->concat($other_users)->toArray();
@@ -1051,19 +1173,38 @@ class CalendarController extends Controller
     public function set_more_members(Request $request){
         $active_user = Auth::user();
         if($request->id){
-            $group = MyGroup::findOrFail($request->id);
-          
+            $group = $this->my_groups_query($active_user)->findOrFail($request->id);
         }else{
             $group = new MyGroup;
             $group->user_id = $active_user->id;
-            
         }
         $group->selected = true;
         $group->name = $request->title;
         $group->save();
-        $group->users()->syncWithPivotValues($request->users, ['selected_as_calendar_member' => 1, "created_at" => now()]);  
-        $unselect = MyGroup::where('user_id', $active_user->id)->whereNot('id', $group->id)->update(['selected' => false]);
-        return response()->json($request->users); 
+
+        $requested = collect($request->users ?? [])->map(fn($id) => (int) $id)->unique()->values();
+        $current = collect(
+                        DB::table('my_group_users')
+                            ->where('record_id', $group->id)
+                            ->whereNull('deleted_at')
+                            ->pluck('selected_as_calendar_member', 'user_id')
+                    )->mapWithKeys(fn($selected, $user_id) => [(int) $user_id => (int) $selected]);
+
+        $removed = $current->keys()->reject(fn($id) => $requested->contains($id))->values();
+        $added   = $requested->reject(fn($id) => $current->has($id))->values();
+
+        if($removed->isNotEmpty()){
+            $group->users()->detach($removed->all());
+        }
+        // 新しく追加したメンバーだけ表示ONで始める。
+        // 既存メンバーには触らないので、個別に外した表示設定はそのまま残る。
+        if($added->isNotEmpty()){
+            $group->users()->attach($added->all(), ['selected_as_calendar_member' => 1, 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        $this->my_groups_query($active_user)->whereNot('id', $group->id)->update(['selected' => false]);
+
+        return response()->json($group->load('users'));
     }
     public function get_calendar_search(Request $request){
         $active_user = Auth::user();
@@ -1141,7 +1282,6 @@ class CalendarController extends Controller
                     "start_time" => $formattedDate,    
                     "zoom_id" => $record->zoom_value,
                     "title" => $record['title'],
-                    "waiting_room" => $record['zoom_waiting_room'],      
                     "auto_start_meeting_summary" => $request['zoom_ai_companion'],
                     
                 ];
@@ -1290,7 +1430,9 @@ class CalendarController extends Controller
     public function get_departments_calendar(){
         $departments = ProjectRecord::whereHas('members')
                                     ->orWhereHas('manager')
+                                    ->whereNull('completed_at')
                                     ->with(['members', 'manager', 'director'])
+                                    ->select('id', 'name')
                                     ->get();
         $sortedProjects = $departments->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
@@ -1308,17 +1450,8 @@ class CalendarController extends Controller
         return response()->json($sortedProjects);
     }
     public function get_schedule_summaries(Request $request){
-        $active_user = Auth::user();
-
         $record = CalendarRecord::findOrFail($request->id);
-
-        $members = $record->calendar_users()->pluck('id')->toArray();
-        $view_users = $record->calendar_view_users()->pluck('id')->toArray();
-        $all_users = array_merge($members, $view_users);
-        $hasPrivilage = in_array($active_user->id, $all_users) || $active_user->isAdmin();
-        if(!$hasPrivilage){
-            throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
-        }
+        $this->authorizeMeetingRecordView($record);
         $recordDate = Carbon::parse($record->date_start, config('app.timezone'));
         $summaryDayStart = $recordDate->copy()->startOfDay();
         $summaryDayEnd = $recordDate->copy()->endOfDay();
@@ -1327,7 +1460,250 @@ class CalendarController extends Controller
             ->with(['details', 'steps'])
             ->orderBy('created_at', 'desc')
             ->get();
-        return response()->json($summaries);
+
+        $transcripts = $record->transcripts()
+            ->where('status', CalendarMeetingTranscript::STATUS_DOWNLOADED)
+            ->whereNotNull('storage_path')
+            ->with('aiSummary')
+            ->orderBy('meeting_start_time')
+            ->get()
+            ->map(function (CalendarMeetingTranscript $transcript): array {
+                $disk = Storage::disk('local');
+                $content = $disk->exists($transcript->storage_path)
+                    ? $disk->get($transcript->storage_path)
+                    : '';
+
+                return [
+                    'id' => $transcript->id,
+                    'meeting_id' => $transcript->meeting_id,
+                    'meeting_uuid' => $transcript->meeting_uuid,
+                    'meeting_start_time' => $transcript->meeting_start_time?->toISOString(),
+                    'downloaded_at' => $transcript->downloaded_at?->toISOString(),
+                    'cues' => $transcript->applySpeakerOverrides($this->zoomVttParser->parse($content)),
+                    'ai_summary' => $this->serializeTranscriptAiSummary($transcript->aiSummary),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'summaries' => $summaries,
+            'transcripts' => $transcripts,
+        ]);
+    }
+
+    /**
+     * 文字起こしの話者名を手直しする。
+     * scope=cue  … その行だけ
+     * scope=all  … この文字起こし内で元が同じ名前の行すべて
+     * VTT 本体は書き換えず、上書き分だけを保存する。
+     */
+    public function update_transcript_speaker(Request $request)
+    {
+        $validated = $request->validate([
+            'transcript_id' => ['required', 'integer'],
+            'cue_index' => ['required', 'integer', 'min:0'],
+            'name' => ['required', 'string', 'max:100'],
+            'scope' => ['required', 'in:cue,all'],
+        ]);
+
+        $transcript = CalendarMeetingTranscript::query()
+            ->with('calendarRecord')
+            ->findOrFail($validated['transcript_id']);
+        $record = $transcript->calendarRecord;
+
+        if (! $record) {
+            throw ValidationException::withMessages([
+                'message' => 'この文字起こしに対応するスケジュールがありません。',
+            ]);
+        }
+
+        $this->authorizeMeetingRecordView($record);
+
+        if (
+            $transcript->status !== CalendarMeetingTranscript::STATUS_DOWNLOADED
+            || ! $transcript->storage_path
+            || ! Storage::disk('local')->exists($transcript->storage_path)
+        ) {
+            throw ValidationException::withMessages([
+                'message' => '編集できる文字起こしファイルがありません。',
+            ]);
+        }
+
+        $name = trim($validated['name']);
+
+        if ($name === '') {
+            throw ValidationException::withMessages(['message' => '話者名を入力してください。']);
+        }
+
+        // 上書きは「VTTの元の名前」を基準に持つので、毎回パースし直して元の名前を引く
+        $cues = $this->zoomVttParser->parse(Storage::disk('local')->get($transcript->storage_path));
+        $cueIndex = $validated['cue_index'];
+
+        if (! array_key_exists($cueIndex, $cues)) {
+            throw ValidationException::withMessages(['message' => '対象の発言が見つかりません。']);
+        }
+
+        $originalName = $cues[$cueIndex]['speaker'];
+        $overrides = $transcript->speaker_overrides ?? [];
+        $byName = $overrides['all'] ?? [];
+        $byCue = $overrides['cues'] ?? [];
+
+        if ($validated['scope'] === 'all') {
+            if ($originalName === null) {
+                throw ValidationException::withMessages([
+                    'message' => '話者名のない発言はまとめて変更できません。',
+                ]);
+            }
+
+            // 元の名前に戻すだけなら上書きを消す
+            if ($name === $originalName) {
+                unset($byName[$originalName]);
+            } else {
+                $byName[$originalName] = $name;
+            }
+
+            // まとめて変更したのに一部だけ残ると分かりづらいので、
+            // 同じ元名を持つ行の個別指定は外す
+            foreach ($cues as $index => $cue) {
+                if ($cue['speaker'] === $originalName) {
+                    unset($byCue[(string) $index]);
+                }
+            }
+        } else {
+            $inheritedName = ($originalName !== null && array_key_exists($originalName, $byName))
+                ? $byName[$originalName]
+                : $originalName;
+
+            // まとめ指定と同じ結果になるなら個別指定は持たない
+            if ($name === $inheritedName) {
+                unset($byCue[(string) $cueIndex]);
+            } else {
+                $byCue[(string) $cueIndex] = $name;
+            }
+        }
+
+        $transcript->speaker_overrides = ($byName === [] && $byCue === [])
+            ? null
+            : ['all' => $byName, 'cues' => $byCue];
+        $transcript->save();
+
+        return response()->json([
+            'cues' => $transcript->applySpeakerOverrides($cues),
+        ]);
+    }
+    public function generate_transcript_ai_summary(Request $request)
+    {
+        $validated = $request->validate([
+            'transcript_id' => ['required', 'integer'],
+            'regenerate' => ['sometimes', 'boolean'],
+        ]);
+
+        $transcript = CalendarMeetingTranscript::query()
+            ->with('calendarRecord')
+            ->findOrFail($validated['transcript_id']);
+        $record = $transcript->calendarRecord;
+
+        if (! $record) {
+            throw ValidationException::withMessages([
+                'message' => 'この文字起こしに対応するスケジュールがありません。',
+            ]);
+        }
+
+        $activeUser = $this->authorizeMeetingRecordView($record);
+        if (
+            $transcript->status !== CalendarMeetingTranscript::STATUS_DOWNLOADED
+            || ! $transcript->storage_path
+            || ! Storage::disk('local')->exists($transcript->storage_path)
+        ) {
+            throw ValidationException::withMessages([
+                'message' => '要約できる文字起こしファイルがありません。',
+            ]);
+        }
+
+        $regenerate = (bool) ($validated['regenerate'] ?? false);
+        $transcriptHash = hash('sha256', Storage::disk('local')->get($transcript->storage_path));
+
+        $result = DB::transaction(function () use (
+            $transcript,
+            $activeUser,
+            $regenerate,
+            $transcriptHash,
+        ): array {
+            $summary = CalendarMeetingTranscriptSummary::query()
+                ->where('calendar_meeting_transcript_id', $transcript->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                $summary
+                && in_array($summary->status, [
+                    CalendarMeetingTranscriptSummary::STATUS_PENDING,
+                    CalendarMeetingTranscriptSummary::STATUS_PROCESSING,
+                ], true)
+            ) {
+                return ['summary' => $summary, 'dispatch' => false, 'status' => 202];
+            }
+
+            if ($summary?->content && ! $regenerate) {
+                return ['summary' => $summary, 'dispatch' => false, 'status' => 409];
+            }
+
+            if (! $summary) {
+                $summary = new CalendarMeetingTranscriptSummary([
+                    'calendar_meeting_transcript_id' => $transcript->id,
+                    'generation' => 0,
+                ]);
+            }
+
+            $summary->forceFill([
+                'requested_by' => $activeUser->id,
+                'status' => CalendarMeetingTranscriptSummary::STATUS_PENDING,
+                'prompt_version' => (string) config(
+                    'services.openai.transcript_summary_prompt_version',
+                    'v1'
+                ),
+                'transcript_hash' => $transcriptHash,
+                'generation' => $summary->generation + 1,
+                'last_error' => null,
+                'requested_at' => now(),
+            ])->save();
+
+            return ['summary' => $summary, 'dispatch' => true, 'status' => 202];
+        });
+
+        /** @var CalendarMeetingTranscriptSummary $summary */
+        $summary = $result['summary'];
+        if ($result['dispatch']) {
+            GenerateTranscriptAiSummary::dispatch($summary->id, $summary->generation)->afterResponse();
+        }
+
+        return response()->json([
+            'ai_summary' => $this->serializeTranscriptAiSummary($summary),
+            'message' => $result['status'] === 409
+                ? '既存のAI要約を再生成するには確認が必要です。'
+                : 'AI要約の作成を開始しました。',
+        ], $result['status']);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function serializeTranscriptAiSummary(
+        ?CalendarMeetingTranscriptSummary $summary,
+    ): ?array {
+        if (! $summary) {
+            return null;
+        }
+
+        return [
+            'status' => $summary->status,
+            'content' => $summary->content,
+            'model' => $summary->model,
+            'prompt_version' => $summary->prompt_version,
+            'last_error' => $summary->last_error,
+            'requested_at' => $summary->requested_at?->toISOString(),
+            'completed_at' => $summary->completed_at?->toISOString(),
+        ];
     }
 
     public function save_edited_summary(Request $request){
@@ -1490,25 +1866,13 @@ class CalendarController extends Controller
             case 1:
                 $record->update(['temp_flag' => 0, 'updated_user' => $active_user->id]);
                 $record->related_temp_records()->delete();
-                $title = $record['title'];
-                $details = [];
-    
-                $title = $record['temp_flag'] ? ' (仮)' . $record['title'] : $record['title'];
-                $d = [
-                    "title" => $record['title'],
-                    "id" => $record['id'],
-                    "start_at" => Carbon::parse($record['date_start'])->format('Y/m/d H:i'),
-                    "recursion" => "1回のみ",
-                    "content" => $record['remarks'],
-                ];
-                $details[] = $d;
-                $type = '確定';
-                $targetIds = $record->calendar_users()->pluck('id')->toArray();
-                $targetUsersMail = User::whereIn('id', $targetIds)->where('retire', 0)->whereNotNull('email')->where('id', '!=', $active_user->id)->pluck('email')->toArray();
-
-                foreach($targetUsersMail as $to){
-                    Mail::to($to)->send(new Calendar( $details, $title, $type, $record['temp_flag']));
-                }
+                // メールはレスポンス後に送る（確定処理そのものを待たせない）
+                SendCalendarMails::dispatchAfterResponse(
+                    [(int) $record->id],
+                    $record->calendar_users()->pluck('id')->map(fn($id) => (int) $id)->toArray(),
+                    (int) $active_user->id,
+                    '確定'
+                );
 
                 return response('予約を確定しました。', 200);
             case 0:

@@ -544,7 +544,6 @@ class WorkController extends Controller
         }
 
         return $activeUser->isAdmin()
-            || (int) $activeUser->work_authority === 1
             || $activeUser->isProjectManager($segment->project_id);
     }
 
@@ -4784,6 +4783,7 @@ class WorkController extends Controller
         }
         $checkDuplicateRequest = PlannedLeaveChangeRequest::where('user_id', $shift->user_id)
                                     ->where('shift_record_id', $shift->id)
+                                    ->where('status', 'pending')
                                     ->exists();
         if($checkDuplicateRequest){
             throw ValidationException::withMessages(['message' => '既に同シフトに対して変更申請が存在しています。']);

@@ -11,13 +11,29 @@
             </div>                 
             <div class="flex flex-col gap-[15px]">
                 <!-- <router-link :to="{name: 'survey-answers-detail', query: route.query}">回答を確認する</router-link> -->
-                <router-link :to="{name: 'survey-form', params: {surveyId: String(route.query.surveyId)}}">新しい回答を作成</router-link>
+                <!-- Reached from a learning checklist: offer the way back to the
+                     theme rather than another answer. Plain forms are unchanged. -->
+                <router-link
+                    v-if="lessonThemeId"
+                    :to="{name: 'basic', params: {lessonThemeId}}"
+                >研修に戻る</router-link>
+                <router-link
+                    v-else
+                    :to="{name: 'survey-form', params: {surveyId: String(route.query.surveyId)}}"
+                >新しい回答を作成</router-link>
             </div>
         </div>
     </div>
 </template>
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 const route = useRoute()
+const lessonThemeId = computed(() => {
+    const value = Array.isArray(route.query.lessonThemeId)
+        ? route.query.lessonThemeId[0]
+        : route.query.lessonThemeId
+    return value ? String(value) : null
+})
 </script>

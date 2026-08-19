@@ -306,7 +306,7 @@ import Error from '@/components/Global/Error.vue'
     const normalMonthLayoutRef = ref<InstanceType<typeof NormalMonthLayout> | null>(null)
     const summeryViewing = ref<CalendarRecord | null>(null)
     const tempReserveWindow = ref(false)
-    const { getFacilities, facilitiesList, departmentsList, getDepartments, selectedDepartment, setDraggingCalendar, draggingCalendar } = useCalendar()
+    const { getFacilities, facilitiesList, departmentsList, getDepartments, selectedDepartment, setDraggingCalendar, draggingCalendar, extraUserIds } = useCalendar()
     const layouts = computed(() => {
         return [normalHourLayoutRef.value, normalMonthLayoutRef.value, memberMonthLayoutRef.value, memberHourLayoutRef.value]
     })
@@ -794,7 +794,7 @@ import Error from '@/components/Global/Error.vue'
         }   
         
         const depIds = selectedDepartment.value.map(ob => ob.id)
-        const recordsList = await api.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value, departments: depIds})
+        const recordsList = await api.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value, departments: depIds, extra_users: extraUserIds.value})
             
         if(method == 'updated'){
             const valid_id = recordsList.map((ob: CalendarRecord) => ob.id)
