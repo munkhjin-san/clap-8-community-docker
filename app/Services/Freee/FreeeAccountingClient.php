@@ -161,6 +161,28 @@ class FreeeAccountingClient extends FreeeBaseClient
      * 振替伝票を削除する。テストで登録したものを片付けるために使う。
      * 月次締め済みの期間は freee 側で拒否される。
      */
+    /**
+     * 振替伝票がfreeeにまだ存在するか。
+     *
+     * 台帳に登録済みでも、freee側で手で消されていることがある。
+     * 「変更なし」で送信を省く前にこれで確かめないと、台帳とfreeeがずれたまま
+     * 永久に再登録されなくなる。
+     */
+    public function manualJournalExists(FreeeCredential $credential, int $journalId): bool
+    {
+        try {
+            $payload = $this->get($credential, '/api/1/manual_journals/'.$journalId);
+        } catch (ValidationException $exception) {
+            if (str_contains((string) collect($exception->errors())->flatten()->first(), 'HTTP 404')) {
+                return false;
+            }
+
+            throw $exception;
+        }
+
+        return filled($payload['manual_journal'] ?? null);
+    }
+
     public function deleteManualJournal(FreeeCredential $credential, int $journalId): void
     {
         $this->sendJson(

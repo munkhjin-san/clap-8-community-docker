@@ -275,13 +275,21 @@ class FreeeJournalPostService
             ->first();
 
         // 前回と同じ内容なら送らない。これが「何度押しても増えない」の要。
+        // ただし freee 側で伝票が消されていることがあるので、その場合は登録し直す。
+        // 存在確認をしないと、台帳とfreeeがずれたまま永久に「変更なし」になる。
         if ($existing && $existing->fingerprint === $fingerprint) {
-            return $base + [
-                'action' => self::ACTION_UNCHANGED,
-                'amount' => $total,
-                'lines' => $details,
-                'freee_journal_id' => $existing->freee_journal_id,
-            ];
+            if ($this->accounting->manualJournalExists($credential, $existing->freee_journal_id)) {
+                return $base + [
+                    'action' => self::ACTION_UNCHANGED,
+                    'amount' => $total,
+                    'lines' => $details,
+                    'freee_journal_id' => $existing->freee_journal_id,
+                ];
+            }
+
+            // freee側に無い＝作り直す。台帳の伝票IDはもう使えない。
+            $existing->delete();
+            $existing = null;
         }
 
         $action = $existing ? self::ACTION_UPDATED : self::ACTION_CREATED;
