@@ -224,7 +224,7 @@
                                     :model-value="row[col.key]"
                                     :users="users"
                                     :projects="projects"
-                                    :readonly="col.input_type === 'formula'"
+                                    :readonly="col.input_type === 'formula' || !!col.validation?.disabled"
                                     :owner-field-id="field.id"
                                     :column-key="col.key"
                                     @update:model-value="setCell(ri, col.key, $event)"
