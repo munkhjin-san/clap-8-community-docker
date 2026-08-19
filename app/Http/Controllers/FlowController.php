@@ -2216,6 +2216,7 @@ class FlowController extends Controller
         // one step nobody is told about
         $this->notifySafely(fn () => $this->flowNotifications->syncPendingAction($record, $user));
 
+
         return response()->json($this->serializeRecord($record, $definition->fields));
     }
 
@@ -2295,6 +2296,7 @@ class FlowController extends Controller
         }
 
         $record->load(['values', 'currentStatus', 'createdByUser']);
+
 
         return response()->json($this->serializeRecord($record, $def->fields, $recordPerms, $user, $def));
     }

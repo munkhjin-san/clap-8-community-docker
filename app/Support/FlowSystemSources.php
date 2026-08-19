@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\officeRecord;
+use App\Models\PartnerRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,6 +61,39 @@ class FlowSystemSources
                 'value' => fn ($m, string $key) => match ($key) {
                     'post_code' => self::joinPostCode($m->post_code_1 ?? null, $m->post_code_2 ?? null),
                     'employee_count' => (int) ($m->employee_count ?? 0),
+                    default => $m->{$key} ?? null,
+                },
+            ],
+
+            /*
+             * 取引先マスタ（freee連携）。会社の名刺情報だけの allowlist — note（社内メモ）と
+             * ヒアリング回答、freee連携の内部状態はフォームが写して回る情報ではないので出さない。
+             */
+            'partner' => [
+                'label' => '取引先',
+                'model' => PartnerRecord::class,
+                'search' => ['name', 'name_kana', 'long_name', 'code'],
+                'label_column' => 'name',
+                'columns' => [
+                    ['key' => 'name', 'label' => '取引先名'],
+                    ['key' => 'name_kana', 'label' => 'フリガナ'],
+                    ['key' => 'long_name', 'label' => '正式名称'],
+                    ['key' => 'code', 'label' => '取引先コード'],
+                    ['key' => 'corporate_number', 'label' => '法人番号'],
+                    ['key' => 'invoice_registration_number', 'label' => 'インボイス登録番号'],
+                    ['key' => 'postal_code', 'label' => '郵便番号'],
+                    ['key' => 'address', 'label' => '住所'],
+                    ['key' => 'phone', 'label' => 'TEL'],
+                    ['key' => 'contact_name', 'label' => '担当者名'],
+                    ['key' => 'email', 'label' => 'メールアドレス'],
+                    ['key' => 'website', 'label' => 'Webサイト'],
+                ],
+                // freeeで使用不可にした取引先は新たに選べない（過去レコードの表示は
+                // 保存済みスナップショットなので影響しない）
+                'filter' => fn (Builder $q) => $q->where('available', true),
+                'value' => fn ($m, string $key) => match ($key) {
+                    // 都道府県コード＋住所1・2を読める一行に。全て空なら null で、コピー先を上書きしない
+                    'address' => self::joinAddress($m),
                     default => $m->{$key} ?? null,
                 },
             ],
@@ -197,6 +231,18 @@ class FlowSystemSources
         $parts = array_filter(array_map(fn ($x) => trim((string) ($x ?? '')), $v), fn ($x) => $x !== '');
 
         return $parts ? implode('、', $parts) : null;
+    }
+
+    /** 都道府県＋住所1＋住所2 as one line; null when the partner has no address at all. */
+    private static function joinAddress(PartnerRecord $partner): ?string
+    {
+        $parts = array_filter([
+            PartnerRecord::prefectureName($partner->prefecture_code),
+            trim((string) ($partner->address_1 ?? '')),
+            trim((string) ($partner->address_2 ?? '')),
+        ], fn ($part) => $part !== null && $part !== '');
+
+        return $parts ? implode(' ', $parts) : null;
     }
 
     private static function joinPostCode($a, $b): string
