@@ -13,7 +13,15 @@
                 :viewer-css-theme="viewerCssTheme">
             </pdfjs-viewer-element>
         </div>
-        <SignAction v-if="signActive" :file="file" :viewer="viewer" :source="source"/>
+        <SignAction
+            v-if="signActive"
+            :file="file"
+            :viewer="viewer"
+            :source="source"
+            :mode="signMode ?? 'chat'"
+            :can-sign="forceSign ? true : null"
+            :save-handler="saveHandler ?? null"
+        />
     </main>
 </template>
 
@@ -26,9 +34,14 @@ import Error from '@/components/Global/Error.vue'
     const auth = useAuthUserStore()
     
     const SignAction = defineAsyncComponent({ loader: () => import('./SignAction.vue'), errorComponent: Error })
+    // `forceSign` / `signMode` / `saveHandler` let another feature (learning
+    // 誓約書) reuse this exact screen. Unset, everything behaves as chat did.
     const props = defineProps<{
-        source: string, 
-        file: FileRecord, 
+        source: string,
+        file: FileRecord,
+        forceSign?: boolean,
+        signMode?: string,
+        saveHandler?: ((bytes: Uint8Array) => Promise<void>) | null,
     }>()
     const emit = defineEmits(['refresh'])
     const viewerCssTheme = ref('DARK')
@@ -36,6 +49,13 @@ import Error from '@/components/Global/Error.vue'
 
     onMounted(() => {
         init()
+        // NB: Vue casts an absent Boolean prop to false, so `forceSign` can't be
+        // used to detect "not provided". Branch on the (String) signMode instead,
+        // which stays undefined for chat.
+        if(props.signMode && props.signMode !== 'chat'){
+            signActive.value = !!props.forceSign
+            return
+        }
         const unsignedUsers = props.file.unsigned_users;
         if(unsignedUsers && (props.file.multiple_flag == 2 || props.file.multiple_flag == 0)){
             const includesUser = Object.values(unsignedUsers).some(user => user.id === auth.activeUser.id && user.pivot.cancel_flag === 0);

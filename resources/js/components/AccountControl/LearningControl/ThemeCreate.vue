@@ -72,6 +72,35 @@
                     </div>
                     <p class="form-helper theme-create__helper">ONにすると管理画面には残りますが、受講者画面のテーマ選択には表示されません。</p>
                 </div>
+                <div class="si-box">
+                    <div class="switchLabel">
+                        <p class="form-lbl theme-create__switch-label">誓約書</p>
+                    </div>
+
+                    <div class="selectSwitchArea theme-create__switch">
+                        <input v-model="pledge" type="checkbox" id="pledge_theme">
+                        <label for="pledge_theme" class="cursor-pointer theme-create__toggle-label"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                    </div>
+                    <p class="form-helper theme-create__helper">ONにすると受講者は誓約書PDFへの署名が必要になり、署名するまでテーマは修了しません。</p>
+
+                    <div v-if="pledge" class="theme-create__pledge">
+                        <label class="theme-create__pledge-upload">
+                            <input type="file" accept="application/pdf" @change="uploadPledge">
+                            <span>{{ pledgeUploading ? 'アップロード中...' : 'PDFを選択' }}</span>
+                        </label>
+                        <a
+                            v-if="pledgeFilePath"
+                            :href="pledgeFilePath"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="theme-create__pledge-file"
+                        >{{ pledgeFileName }}</a>
+                        <span v-else class="theme-create__pledge-empty">未選択</span>
+                    </div>
+                    <p v-if="errors.pledgeFile" class="form-error theme-create__error">{{ errors.pledgeFile }}</p>
+                </div>
                 <ThemeAccessSection
                     v-model:selected-form="selectedForm"
                     v-model:selected-positions="selectedPositions"
@@ -108,6 +137,7 @@ interface ThemeFormErrors {
     episodeGuidance: string
     titleGuidance: string
     structure: string
+    pledgeFile: string
 }
 
 const props = defineProps<{
@@ -126,6 +156,11 @@ const forms = ref<ThemeFormOption[]>([])
 const positions = ref<ThemePositionOption[]>([])
 const categoryOptions = ref<LearningThemeCategory[]>([])
 const selectedForm = ref<number | null>(props.editTarget?.custom_form_id ?? null)
+// 誓約書: toggle + the blank PDF every learner signs.
+const pledge = ref(Boolean(props.editTarget?.pledge))
+const pledgeFilePath = ref<string | null>(props.editTarget?.pledge_file_path ?? null)
+const pledgeUploading = ref(false)
+const pledgeFileName = computed(() => (pledgeFilePath.value ?? '').split('/').pop() || '')
 const selectedPositions = ref<number[]>([])
 const selectedMembers = ref<User[]>(props.editTarget?.access_members ?? [])
 const selectedCategories = ref<number[]>(props.editTarget?.categories?.map(category => category.id) ?? [])
@@ -160,7 +195,8 @@ const errors = reactive<ThemeFormErrors>({
     portfolioGuidance: '',
     episodeGuidance: '',
     titleGuidance: '',
-    structure: ''
+    structure: '',
+    pledgeFile: '',
 })
 watch(initialPortfolioGuidance, (value) => {
     portfolioGuidanceContent.value = value || ''
@@ -217,6 +253,7 @@ const resetErrors = () => {
     errors.episodeGuidance = ''
     errors.titleGuidance = ''
     errors.structure = ''
+    errors.pledgeFile = ''
 }
 const validateForm = () => {
     resetErrors()
@@ -238,6 +275,10 @@ const validateForm = () => {
             errors.titleGuidance = 'タイトル説明は必須です。'
             valid = false
         }
+    }
+    if(pledge.value && !pledgeFilePath.value){
+        errors.pledgeFile = '誓約書のPDFを選択してください。'
+        valid = false
     }
     if(!portfolio.value && !case_study.value){
         errors.structure = 'ポートフォリオまたはケーススタディのどちらかは必ずONにしてください。'
@@ -269,6 +310,8 @@ const create = async() => {
                 portfolio: portfolio.value,
                 has_case_study: case_study.value,
                 custom_form_id: selectedForm.value,
+                pledge: pledge.value,
+                pledge_file_path: pledge.value ? pledgeFilePath.value : null,
             },
             access_members: selectedMembers.value.map((member) => member.id),
             category_ids: selectedCategories.value,
@@ -281,6 +324,26 @@ const create = async() => {
         loader.value = false
     }
 
+}
+const uploadPledge = async(event: Event) => {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    if(!file) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', 'pdf')
+    try{
+        // Same endpoint the material editor uses; returns a /lesson_files/... path.
+        const path = await api.post('/upload_lesson_file', formData, { loadingRef: pledgeUploading })
+        pledgeFilePath.value = typeof path === 'string' ? path : null
+        errors.pledgeFile = ''
+    }catch(error){
+        console.error(error)
+        toast('誓約書のアップロードに失敗しました。')
+    }finally{
+        input.value = ''
+    }
 }
 const getForms = async() => {
     const response = await api.get('/get_forms')
@@ -338,6 +401,34 @@ onMounted(() => {
     font-size: 12px;
     line-height: normal;
     margin-top: 5px;
+}
+
+/* 誓約書 document row */
+.theme-create__pledge{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+.theme-create__pledge-upload input{
+    display: none;
+}
+.theme-create__pledge-upload span{
+    display: inline-block;
+    padding: 8px 14px;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    font-size: 12px;
+    cursor: pointer;
+}
+.theme-create__pledge-file{
+    font-size: 12px;
+    word-break: break-all;
+}
+.theme-create__pledge-empty{
+    font-size: 12px;
+    color: gray;
 }
 
 .theme-create__section-title{

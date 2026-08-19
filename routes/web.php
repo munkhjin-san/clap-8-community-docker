@@ -699,6 +699,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/lesson_theme_category/{category}/default', [LessonController::class, 'set_default_lesson_category']);
         Route::get('/get_portfolios_list', [LessonController::class, 'get_portfolios_list']);
         Route::delete('/admin/learning/portfolio/{portfolio}', [LessonController::class, 'delete_admin_portfolio']);
+        Route::delete('/admin/learning/theme/{theme}/user/{user}/progress', [LessonController::class, 'delete_admin_theme_progress']);
         Route::get('/get_previous_experience', [LessonController::class, 'get_previous_experience']);
 
         Route::post('/upload_lesson_file', [LessonController::class, 'upload_lesson_file']);
@@ -708,6 +709,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         });
         Route::get('/get_lesson_files', [LessonController::class, 'get_lesson_files']);
         Route::delete('/remove_lesson_file', [LessonController::class, 'remove_lesson_file']);
+        // 誓約書
+        Route::post('/lesson_theme/{theme}/pledge/sign', [LessonController::class, 'sign_lesson_pledge']);
+        Route::get('/lesson_pledge_file/{signature}', [LessonController::class, 'download_lesson_pledge']);
 
         Route::post('/section_update', [LessonController::class, 'section_update']);
         Route::put('/update_portfolio_status', [LessonController::class, 'update_portfolio_status']);

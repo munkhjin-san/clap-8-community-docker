@@ -17,6 +17,8 @@ export interface LearningTheme {
     prompt_id: string | null
     assistant_id: string | null
     custom_form_id: number | null
+    pledge?: boolean | number
+    pledge_file_path?: string | null
     salary_issue_target?: number | boolean
     previous_version?: number | null
     discussion_date: string | null
@@ -153,6 +155,14 @@ export interface LearningThemeProgress {
         available: boolean
         completed: boolean
         completed_at: string | null
+    }
+    // 誓約書: required when the theme has the toggle on with a document.
+    pledge: {
+        required: boolean
+        signed: boolean
+        signed_at: string | null
+        signature_id: number | null
+        file_available: boolean
     }
     portfolio: {
         required: boolean
@@ -413,6 +423,9 @@ export interface ParticipantEntry {
     methodLabel: string | null
     attemptNo: number
     statusChips: Array<{ label: string; done: boolean }>
+    // Files the learner produced for this entry (誓約書 signed copy), listed
+    // under the status chips.
+    files: Array<{ key: string; label: string; href: string; ext: string }>
     portfolioId: number | null // portfolio attempts are deletable / rollback-able
     detail: ParticipantDetail
 }

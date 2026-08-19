@@ -45,6 +45,7 @@ export const portfolioParticipantRows = (
                         label: stage.label,
                         done: stage.value <= status,
                     })),
+                    files: [],
                     portfolioId: portfolio.id ?? null,
                     detail: { type: 'portfolio', portfolio } as const,
                 }
@@ -77,7 +78,21 @@ export const caseStudyParticipantRows = (
             { label: '基礎知識', done: Boolean(progress?.basic.completed) },
             { label: 'ケーススタディ', done: Boolean(progress?.case_study.completed) },
             { label: 'チェックリスト', done: Boolean(progress?.survey.completed) },
+            ...(progress?.pledge?.required
+                ? [{ label: '誓約書', done: Boolean(progress.pledge.signed) }]
+                : []),
         ]
+
+        // The signed 誓約書 copy hangs under the chips as a file link.
+        const files = progress?.pledge?.signed && progress.pledge.signature_id
+            ? [{
+                key: `pledge-${progress.pledge.signature_id}`,
+                label: '誓約書（署名済み）',
+                href: `/lesson_pledge_file/${progress.pledge.signature_id}`,
+                // signed copies are always stored as PDF
+                ext: 'pdf',
+            }]
+            : []
 
         const examRows = exam && (exam.available || (exam.attempts_count ?? 0) > 0)
             ? [{
@@ -98,6 +113,7 @@ export const caseStudyParticipantRows = (
                 methodLabel: null,
                 attemptNo: 1,
                 statusChips,
+                files,
                 portfolioId: null,
                 detail: { type: 'caseStudy', participant } as const,
             }],

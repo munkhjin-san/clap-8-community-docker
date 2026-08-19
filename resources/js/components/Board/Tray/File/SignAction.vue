@@ -1,7 +1,10 @@
 <template>
     <div>
-        <Teleport to=".mySwiper-wrapper">
-            <div v-if="canvasElementShow" :class="['signCanvas', {'overlay' : !isDragging}]">
+        <Teleport :to="canvasTarget">
+            <!-- Only while the pad is actually shown: during placement this
+                 wrapper would otherwise stay as an empty absolutely-positioned
+                 full-size box and swallow clicks on the 保存 row. -->
+            <div v-if="canvasElementShow && !isDragging" :class="['signCanvas', {'overlay' : !isDragging}]">
 
                 <div v-if="!isDragging" class="chatCreate scrollable" style="align-items: center;">
                     <div style="padding-top: 20px;align-self: baseline;">マイサイン</div>
@@ -28,7 +31,7 @@
 
                     </div>
                     <div style="position: relative;">                            
-                        <canvas :id="'canvas' + file.id + '_' + file.message_id" class="canvasClass" ref="signaturePadDraw"  style="background:white; z-index:1;border:1px dotted black;"></canvas>
+                        <canvas :id="'canvas' + uid" class="canvasClass" ref="signaturePadDraw"  style="background:white; z-index:1;border:1px dotted black;"></canvas>
                         <div style="position: absolute;top: 10px;left: 10px;">
                             <div style="display: flex;position: relative;border: solid thin var(--formBorder);box-sizing: border-box;">
                                 <div v-if="menu.id == 54 && menu.name == 'widthSelector'" id="widthSelector" class="lineOptions" style="left: -25px;top: 30px;right: auto;">
@@ -50,9 +53,9 @@
                 
             </div>
         </Teleport>
-        <Teleport to=".md-window">
-            <div v-if="isDragging" ref="resizable" :id="'signImage' + file.id + '_' + file.message_id" style="z-index: 2;display:flex; flex-direction: column;position:absolute;">
-                <img ref="imgRef" class="resizeable" id="resizeable" :src="imgData"/>
+        <Teleport :to="dragTarget">
+            <div v-if="isDragging" ref="resizable" :id="'signImage' + uid" style="z-index: 2;display:flex; flex-direction: column;position:absolute;">
+                <img ref="imgRef" :class="['resizeable', { 'resizeable--fluid': !isChat }]" id="resizeable" :src="imgData"/>
                 <div class="corner" id="topRight"></div>
                 <div class="corner" id="bottomLeft"></div>
             </div>
@@ -60,7 +63,7 @@
         </Teleport>
         <div class="pdfButton-wrapper">
             <button class="signatureButton cursor-pointer" v-if="!canvasElementShow && signableFile" @click="electronicSignatureRequest">サインする</button>
-            <button class="signatureButton cursor-pointer" v-if="!canvasElementShow && signableFile" @click="notSign">サインしない</button>
+            <button class="signatureButton cursor-pointer" v-if="isChat && !canvasElementShow && signableFile" @click="notSign">サインしない</button>
             <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="savePdf()">
                 <span v-if="!processing">保存</span>
                 <div v-if="processing" id="loaderMini">
@@ -70,7 +73,7 @@
             <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="cancelSign()">
                 <span>キャンセル</span>
             </button>
-            <button v-if="file.multiple_flag == 1 && !file.unsigned_users.length && file.user_id == auth.activeUser.id" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="downloadAll()">すべてダウンロード</button>
+            <button v-if="isChat && file.multiple_flag == 1 && !file.unsigned_users.length && file.user_id == auth.activeUser.id" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="downloadAll()">すべてダウンロード</button>
         </div>
     </div>
 
@@ -88,7 +91,28 @@ import { useDialog } from '@/composables/dialog';
 import { useDashboardStore } from '@/store/dashboard';
     const menu = useMenuStore()
     const responsive = useResponsive()
-    const props = defineProps(['file', 'viewer', 'source'])
+    // `file` stays the chat contract. The optional props below let another
+    // feature (learning 誓約書) reuse this signer without touching chat: every
+    // default reproduces the previous chat-only behaviour.
+    const props = defineProps({
+        file: { type: Object, default: () => ({}) },
+        viewer: { type: Function, required: true },
+        source: { type: String, required: true },
+        // 'chat' keeps the message-file flow (lock check, upload, notSign).
+        mode: { type: String, default: 'chat' },
+        // When provided, receives the signed PDF bytes instead of the chat upload.
+        saveHandler: { type: Function, default: null },
+        // Host containers for the pad / draggable stamp.
+        canvasTarget: { type: String, default: '.mySwiper-wrapper' },
+        dragTarget: { type: String, default: '.md-window' },
+        // Element the stamp is constrained to.
+        boundsSelector: { type: String, default: '#mainPdfParent' },
+        // Overrides the chat unsigned-users computation.
+        canSign: { type: Boolean, default: null },
+    })
+    const isChat = computed(() => props.mode === 'chat')
+    // Unique suffix for the pad/stamp element ids.
+    const uid = computed(() => `${props.file?.id ?? 'x'}_${props.file?.message_id ?? props.mode}`)
     const canvasElementShow = ref(false)
     const isDragging = ref(false)
     const signaturePad = ref(null)
@@ -109,6 +133,9 @@ import { useDashboardStore } from '@/store/dashboard';
     const { getBatchDashboardData } = useDashboardStore()
     const refreshMessage = inject('refreshMessage')
     const signableFile = computed(() => {
+        // Same Boolean-casting caveat as PdfViewer: branch on the mode, not on a
+        // null sentinel, so chat always uses its own unsigned-users rule.
+        if (!isChat.value) return props.canSign !== false
         const unsignedUsers = props.file.unsigned_users;
         const includesUser = Object.values(unsignedUsers).some(user => user.id === auth.activeUser.id && user.pivot.cancel_flag === 0);
         return includesUser && (props.file.multiple_flag == 2 || props.file.multiple_flag == 0)
@@ -121,17 +148,32 @@ import { useDashboardStore } from '@/store/dashboard';
             pageIndex = 0
         }
 
-        const signImageGet = document.getElementById('signImage' + props.file.id + '_' + props.file.message_id);
-        const parent = document.getElementById('docViewer')
-        const parentRect = parent.getBoundingClientRect()
+        const signImageGet = document.getElementById('signImage' + uid.value);
         const contentRect = viewer._pages[pageIndex].canvas.getBoundingClientRect()
         const markRect = signImageGet.getBoundingClientRect();
-        const markX = markRect.left - parentRect.left - contentRect.left
-        const markY = markRect.top - parentRect.top - contentRect.top
+        let markX, markY
+        if(isChat.value){
+            // Chat keeps its original calculation (relative to #docViewer) so
+            // existing signature placement is unchanged.
+            const parent = document.getElementById('docViewer')
+            const parentRect = parent.getBoundingClientRect()
+            markX = markRect.left - parentRect.left - contentRect.left
+            markY = markRect.top - parentRect.top - contentRect.top
+        }else{
+            // The page canvas lives inside the pdf.js iframe, so its rect is in
+            // IFRAME coordinates while the stamp's rect is in this document's.
+            // Shift the canvas into page coordinates before comparing, or every
+            // signature lands offset by the iframe's own position. (Chat gets
+            // this for free by subtracting its #docViewer wrapper.)
+            const frame = viewer._pages[pageIndex].canvas.ownerDocument?.defaultView?.frameElement
+            const frameRect = frame ? frame.getBoundingClientRect() : { left: 0, top: 0 }
+            markX = markRect.left - (contentRect.left + frameRect.left)
+            markY = markRect.top - (contentRect.top + frameRect.top)
+        }
         const percentLeft = markX / viewer._pages[pageIndex].width * 100;
         const percentTop = markY / viewer._pages[pageIndex].height * 100;
-        const percentLeft1 = Math.max(0, Math.min(100, percentLeft));
-        const percentTop1 = Math.max(0, Math.min(100, percentTop));
+        let percentLeft1 = Math.max(0, Math.min(100, percentLeft));
+        let percentTop1 = Math.max(0, Math.min(100, percentTop));
         const existingPdfBytes = await fetch(props.source).then(res => res.arrayBuffer());
         const {PDFDocument} = await import('pdf-lib')
         const pdfDoc = await PDFDocument.load(existingPdfBytes);
@@ -142,6 +184,12 @@ import { useDashboardStore } from '@/store/dashboard';
         const pageHeight = page.getHeight();
         const perImgWidth = markRect.width / viewer._pages[pageIndex].width * 100
         const perImgHeight = markRect.height / viewer._pages[pageIndex].height * 100
+        if(!isChat.value){
+            // Keep the whole signature on the page: a stamp resting past an edge
+            // would otherwise be drawn partly outside and come back clipped.
+            percentLeft1 = Math.max(0, Math.min(percentLeft1, 100 - perImgWidth))
+            percentTop1 = Math.max(0, Math.min(percentTop1, 100 - perImgHeight))
+        }
         const fromLeft = percentLeft1
         const fromBottom = 100 - percentTop1 - perImgHeight
         const x1 = pageWidth * fromLeft / 100;
@@ -161,7 +209,16 @@ import { useDashboardStore } from '@/store/dashboard';
     const electronicSignatureRequest = async() => {
 
         try{
-            
+            if(!isChat.value){
+                // No cross-user file lock outside chat: each learner signs their own copy.
+                if(auth.activeUser?.sign_path){
+                    mySignature.value = `${auth.activeUser.id}_${auth.activeUser.sign_path}.png`
+                }
+                canvasElementShow.value = true;
+                nextTick(() => { canvasCreate() })
+                return
+            }
+
             const response = await api.post('/get_edit_user', {file_id: props.file.id})
 
             if(response.sign_path){
@@ -271,7 +328,21 @@ import { useDashboardStore } from '@/store/dashboard';
         if(processing.value) return
         processing.value = true     
         const answer = await ask('一度サインすると、変更することはできません。よろしいですか?')  
-        if(!answer.value) return
+        if(!answer.value){
+            processing.value = false
+            return
+        }
+
+        if(props.saveHandler){
+            try{
+                await props.saveHandler(modifiedPdf)
+                closePdf()
+                modifiedPdfBytes.value = null
+            }finally{
+                processing.value = false
+            }
+            return
+        }
 
         const formData = new FormData()
         const name = props.file.name
@@ -285,7 +356,7 @@ import { useDashboardStore } from '@/store/dashboard';
         modifiedPdfBytes.value = null
         processing.value = false 
         ping('サインを保存しました。')
-        refreshMessage()
+        refreshMessage?.()
     }
 
     const signImageAdd = async() => {
@@ -333,7 +404,7 @@ import { useDashboardStore } from '@/store/dashboard';
     }
     const lastScale = ref(1)
     const interactPDF = async() => {
-        const instance = document.getElementById('mainPdfParent')
+        const instance = document.querySelector(props.boundsSelector)
         const angleScale = {
             angle: 0,
             scale: 1
@@ -341,6 +412,47 @@ import { useDashboardStore } from '@/store/dashboard';
 
         const viewerWidth = instance.clientWidth
         const viewerRect = instance.getBoundingClientRect()
+        // Chat's teleport target happens to drop the stamp over the document.
+        // Other hosts append it after their own content, so it starts BELOW the
+        // page — and then saves as "off the bottom edge", clipped. Give it a
+        // real starting box inside the visible page instead. Chat is untouched.
+        if(!isChat.value){
+            const v = props.viewer()
+            const idx = Math.max(0, (v?.currentPageNumber ?? 1) - 1)
+            const canvas = v?._pages?.[idx]?.canvas
+            const host = resizable.value.offsetParent
+            if(canvas && host){
+                // Same frame conversion as savePdf: the canvas rect comes from
+                // inside the pdf.js iframe.
+                const frame = canvas.ownerDocument?.defaultView?.frameElement
+                const fr = frame ? frame.getBoundingClientRect() : { left: 0, top: 0 }
+                const raw = canvas.getBoundingClientRect()
+                const cr = {
+                    left: raw.left + fr.left,
+                    top: raw.top + fr.top,
+                    right: raw.right + fr.left,
+                    bottom: raw.bottom + fr.top,
+                    width: raw.width,
+                    height: raw.height,
+                }
+                const hr = host.getBoundingClientRect()
+                const visTop = Math.max(cr.top, viewerRect.top)
+                const visBottom = Math.min(cr.bottom, viewerRect.bottom)
+                // Size from the PNG's own pixels: the rendered image is
+                // width/height:100% of this box, so reading it back would be
+                // circular. Setting BOTH keeps box and image identical, which is
+                // what savePdf measures.
+                const naturalW = imgRef.value.naturalWidth || imgRef.value.clientWidth || 1
+                const naturalH = imgRef.value.naturalHeight || imgRef.value.clientHeight || 1
+                const width = Math.min(naturalW, cr.width * 0.35)
+                const height = width * (naturalH / naturalW)
+                resizable.value.style.width = `${Math.round(width)}px`
+                resizable.value.style.height = `${Math.round(height)}px`
+                resizable.value.style.left = `${Math.round(cr.left - hr.left + cr.width - width - 40)}px`
+                resizable.value.style.top = `${Math.round(Math.max(visTop, visBottom - height - 40) - hr.top)}px`
+                await nextTick()
+            }
+        }
         const imageWidth = imgRef.value.clientWidth
         const minScale = 0.3;
         const maxScale = viewerWidth / imageWidth;
@@ -429,4 +541,90 @@ import { useDashboardStore } from '@/store/dashboard';
         touch-action: none;
         user-select: none;
     }
+</style>
+
+<!-- The signer used to rely on its chat hosts (FilePreview/PdfViewer) for these
+     styles. Declaring them here (unscoped) lets other features mount it and get
+     the same look; the chat copies remain untouched. -->
+<style>
+/* Chat lets the wrapper shrink-wrap the image, so the measured box always
+   equals the image. Other hosts size the wrapper (to fit their narrower
+   viewer), so the image must follow it — otherwise savePdf measures the box
+   while the user positions a differently-sized image, and the signature lands
+   offset. */
+.resizeable--fluid{
+    width: 100%;
+    height: 100%;
+    display: block;
+    box-sizing: border-box;
+}
+.pdfButton-wrapper{
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 15px;
+    bottom: 0;
+    z-index: 1;
+}
+.signCanvas{
+    display: flex;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    flex-direction: column;
+}
+.signatureButton{
+    padding: 5px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 0;
+    background: var(--primary-button);
+    color: #fff !important;
+    cursor: pointer;
+}
+.cbar-command{
+    padding: 5px;
+    background: var(--bg3);
+}
+.canvasClass{
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+.lineOptions{
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px #0000001a;
+    top: 33px;
+    z-index: 5;
+    left: 35px;
+}
+.lineOption{
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    width: 100px;
+}
+.lineOption:hover{
+    background-color: #f0f0f0;
+}
+.lineOption .line{
+    flex-grow: 1;
+}
+.corner{
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: #fff;
+    border: 1px solid black;
+    z-index: 3;
+}
 </style>

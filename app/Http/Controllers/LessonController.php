@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CustomForm;
 use App\Models\LessonAnswer;
 use App\Models\LessonPersonalMaterial;
+use App\Models\LessonPledgeSignature;
 use App\Models\LessonSummary;
 use App\Models\LessonSummaryAnswer;
 use App\Models\LessonSummaryQuestion;
@@ -129,6 +130,21 @@ class LessonController extends Controller
                 ]);
             }
         }
+        // 誓約書: a document is mandatory while the toggle is on, and turning it
+        // off clears the file. Only touched when the client sends the keys, so
+        // other callers can't wipe an existing pledge by omitting them.
+        if (array_key_exists('pledge', $params)) {
+            $params['pledge'] = ! empty($params['pledge']);
+            if ($params['pledge'] && blank($params['pledge_file_path'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'pledge_file_path' => '誓約書のPDFをアップロードしてください。',
+                ]);
+            }
+            if (! $params['pledge']) {
+                $params['pledge_file_path'] = null;
+            }
+        }
+
         $theme = LessonTheme::updateOrCreate(['id' => $id], $params);
         $theme->accessMembers()->sync($allowed_positions);
         $theme->categories()->sync($categoryIds);
@@ -594,6 +610,110 @@ class LessonController extends Controller
         return response()->json(['deleted' => true]);
     }
 
+    /**
+     * Admin: remove one learner's data for a theme. Case-study themes have no
+     * portfolio, so per-attempt deletion cannot reach them; this clears every
+     * table the theme's progress is derived from (and every attempt at once on
+     * portfolio themes).
+     */
+    public function delete_admin_theme_progress(Request $request, LessonTheme $theme, \App\Models\User $user)
+    {
+        $actor = $this->active_user();
+        abort_unless(optional($actor)->isAdmin(), 403);
+
+        $userId = (int) $user->id;
+
+        // All versions of the theme's materials: the learner may hold answers on
+        // retired ones, and those still count as their data.
+        $materialIds = LessonMaterial::where('lesson_theme_id', $theme->id)->pluck('id');
+        $examIds = \App\Models\LessonExam::where('lesson_theme_id', $theme->id)
+            ->orWhereIn('lesson_material_id', $materialIds)
+            ->pluck('id');
+        $portfolios = LessonPortfolio::where('lesson_theme_id', $theme->id)
+            ->where('user_id', $userId)
+            ->get();
+        $signature = LessonPledgeSignature::where('lesson_theme_id', $theme->id)
+            ->where('user_id', $userId)
+            ->first();
+
+        \Illuminate\Support\Facades\DB::transaction(function () use (
+            $theme, $userId, $actor, $request, $materialIds, $examIds, $portfolios, $signature
+        ) {
+            $attemptIds = \App\Models\LessonExamAttempt::whereIn('lesson_exam_id', $examIds)
+                ->where('user_id', $userId)
+                ->pluck('id');
+            \App\Models\LessonExamAnswer::whereIn('lesson_exam_attempt_id', $attemptIds)->delete();
+            \App\Models\LessonExamAttempt::whereIn('id', $attemptIds)->delete();
+
+            $summaryIds = LessonSummary::whereIn('lesson_material_id', $materialIds)->pluck('id');
+            LessonSummaryAnswer::whereIn('lesson_summary_id', $summaryIds)
+                ->where('user_id', $userId)
+                ->delete();
+
+            LessonAnswer::whereIn('material_id', $materialIds)->where('user_id', $userId)->delete();
+            LessonSection::where('user_id', $userId)
+                ->where(function ($query) use ($materialIds, $portfolios) {
+                    $query->whereIn('material_id', $materialIds)
+                        ->orWhereIn('portfolio_id', $portfolios->pluck('id'));
+                })
+                ->delete();
+            LessonPersonalMaterial::where('lesson_theme_id', $theme->id)->where('user_id', $userId)->delete();
+            LessonForm::where('lesson_theme_id', $theme->id)->where('user_id', $userId)->delete();
+
+            // チェックリスト answers live on the theme's custom form.
+            if ($theme->custom_form_id) {
+                $surveys = \App\Models\SurveyAnswer::with('block_answers')
+                    ->where('custom_form_id', $theme->custom_form_id)
+                    ->where('user_id', $userId)
+                    ->get();
+
+                foreach ($surveys as $survey) {
+                    $survey->block_answers->each(fn ($blockAnswer) => $blockAnswer->element_answers()->delete());
+                    $survey->block_answers()->delete();
+                    $survey->delete();
+                }
+            }
+
+            foreach ($portfolios as $portfolio) {
+                \App\Models\LessonPortfolioDeletionLog::create([
+                    'lesson_portfolio_id' => $portfolio->id,
+                    'lesson_theme_id' => $portfolio->lesson_theme_id,
+                    'owner_user_id' => $portfolio->user_id,
+                    'deleted_by' => (int) $actor->id,
+                    'attempt_no' => $portfolio->attempt_no,
+                    'status' => $portfolio->status,
+                    'reason' => $request->reason,
+                    'snapshot' => [
+                        'public_title' => $portfolio->public_title,
+                        'public_content' => $portfolio->public_content,
+                        'portfolio_title' => $portfolio->portfolio_title,
+                        'content' => $portfolio->content,
+                        'positive_feedback' => $portfolio->positive_feedback,
+                        'negative_feedback' => $portfolio->negative_feedback,
+                        'noticed' => $portfolio->noticed,
+                        'salary_issue_id' => $portfolio->salary_issue_id,
+                    ],
+                ]);
+
+                if ($portfolio->salary_issue_id) {
+                    \App\Models\SalaryIssue::where('id', $portfolio->salary_issue_id)->delete();
+                }
+
+                $portfolio->delete();
+            }
+
+            $signature?->delete();
+        });
+
+        // Outside the transaction: the stored copy is only unreachable once the
+        // signature row is really gone.
+        if ($signature?->file_path) {
+            Storage::disk('local')->delete($signature->file_path);
+        }
+
+        return response()->json(['deleted' => true]);
+    }
+
     public function get_lesson_portfolio(Request $request){
         $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->lesson_theme_id)
         ->where('user_id', Auth::id())
@@ -793,6 +913,13 @@ class LessonController extends Controller
             $sectionExams = $this->learningParticipantProgressService->portfolioSectionExams((int) $theme->id);
             $payload['section_exams'] = $sectionExams['section_exams'];
             $payload['section_exam_results'] = $sectionExams['results'];
+            // 誓約書: portfolio rows are built from portfolios (not the progress
+            // map), so hand the signatures over separately for the admin links.
+            $payload['pledge_signatures'] = $this->enabledFlag($theme->pledge) && filled($theme->pledge_file_path)
+                ? LessonPledgeSignature::where('lesson_theme_id', $theme->id)
+                    ->get(['id', 'user_id', 'signed_at'])
+                    ->keyBy('user_id')
+                : [];
         }
 
         return response()->json($payload);
@@ -1033,9 +1160,79 @@ PROMPT;
         return response()->json($personalMaterial->fresh());
     }
 
+    private function enabledFlag($value): bool
+    {
+        return $value === true || (int) $value === 1;
+    }
+
     private function repeaterConfigKey(int $attemptId): string
     {
         return 'repeater_attempt_'.$attemptId;
+    }
+
+    /**
+     * 誓約書: store the learner's signed copy of the pledge PDF. The client burns
+     * the signature into the document (same approach as the chat サイン依頼 flow)
+     * and uploads the finished file here.
+     */
+    public function sign_lesson_pledge(Request $request, LessonTheme $theme)
+    {
+        $userId = (int) Auth::id();
+        $this->authorizeLearnerThemeAccess($theme, $userId);
+
+        abort_unless(
+            $this->enabledFlag($theme->pledge) && filled($theme->pledge_file_path),
+            404,
+            'このテーマには誓約書がありません。'
+        );
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf', 'max:51200'],
+        ]);
+
+        $directory = 'lesson_pledges/'.$theme->id;
+        $fileName = $userId.'_'.uniqid().'.pdf';
+
+        $signature = LessonPledgeSignature::query()
+            ->where('lesson_theme_id', $theme->id)
+            ->where('user_id', $userId)
+            ->first();
+        $previousPath = $signature?->file_path;
+
+        Storage::disk('local')->putFileAs($directory, $request->file('file'), $fileName);
+
+        $signature = LessonPledgeSignature::updateOrCreate(
+            [
+                'lesson_theme_id' => $theme->id,
+                'user_id' => $userId,
+            ],
+            [
+                'file_path' => $directory.'/'.$fileName,
+                'signed_at' => now(),
+            ]
+        );
+
+        // Re-signing replaces the old copy.
+        if ($previousPath && $previousPath !== $signature->file_path) {
+            Storage::disk('local')->delete($previousPath);
+        }
+
+        return response()->json($signature->fresh());
+    }
+
+    /**
+     * Serve a signed 誓約書. Only its owner (or an admin) may download it.
+     */
+    public function download_lesson_pledge(LessonPledgeSignature $signature)
+    {
+        $userId = (int) Auth::id();
+        $actor = $this->active_user();
+        $isOwner = (int) $signature->user_id === $userId;
+
+        abort_unless($isOwner || optional($actor)->isAdmin(), 403);
+        abort_unless(Storage::disk('local')->exists($signature->file_path), 404);
+
+        return response()->file(Storage::disk('local')->path($signature->file_path));
     }
 
     public function save_personal_material_feedback(Request $request, LessonTheme $theme)

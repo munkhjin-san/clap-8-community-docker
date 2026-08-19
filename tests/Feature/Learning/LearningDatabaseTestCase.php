@@ -53,6 +53,8 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->integer('portfolio')->nullable();
             $table->integer('has_case_study')->nullable();
             $table->integer('custom_form_id')->nullable();
+            $table->boolean('pledge')->default(false);
+            $table->string('pledge_file_path')->nullable();
             $table->integer('previous_version')->nullable();
             $table->timestamps();
         });
@@ -117,6 +119,15 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->integer('user_id');
             $table->text('content')->nullable();
             $table->integer('status')->default(0);
+            $table->timestamps();
+        });
+
+        Schema::create('lesson_pledge_signatures', function ($table) {
+            $table->increments('id');
+            $table->integer('lesson_theme_id');
+            $table->integer('user_id');
+            $table->string('file_path');
+            $table->timestamp('signed_at')->nullable();
             $table->timestamps();
         });
 

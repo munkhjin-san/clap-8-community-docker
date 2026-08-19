@@ -186,7 +186,7 @@ provide('providedMaterial', themeRecords)
     content: "\00A0";
 }
 .topic-container{
-    margin-top: 5px;
+    margin-top: 20px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(calc(33% - 30px), 1fr));
     padding: 0 20px;

@@ -5,6 +5,7 @@ namespace App\Services\Learning;
 use App\Models\LessonExam;
 use App\Models\LessonExamAttempt;
 use App\Models\LessonPersonalMaterial;
+use App\Models\LessonPledgeSignature;
 use App\Models\LessonPortfolio;
 use App\Models\LessonTheme;
 use Illuminate\Support\Collection;
@@ -87,8 +88,16 @@ class LearningProgressService
                 ->get()
                 ->keyBy('lesson_material_id');
 
+        // One lookup for everyone: pledgeProgress would otherwise query per user.
+        $pledgeSignatures = ($this->enabled($theme->pledge) && filled($theme->pledge_file_path))
+            ? LessonPledgeSignature::where('lesson_theme_id', $themeId)
+                ->whereIn('user_id', $userIds)
+                ->get()
+                ->keyBy('user_id')
+            : collect();
+
         return $userIds
-            ->mapWithKeys(function (int $userId) use ($theme, $portfolios, $exam, $materialExams) {
+            ->mapWithKeys(function (int $userId) use ($theme, $portfolios, $exam, $materialExams, $pledgeSignatures) {
                 return [
                     $userId => $this->buildProgress(
                         $theme,
@@ -96,7 +105,8 @@ class LearningProgressService
                         $theme->materials,
                         $portfolios->get($userId),
                         $this->examProgress($theme->id, $userId, $exam, true),
-                        $materialExams
+                        $materialExams,
+                        $pledgeSignatures
                     ),
                 ];
             })
@@ -109,7 +119,8 @@ class LearningProgressService
         Collection $materials,
         ?LessonPortfolio $portfolio,
         ?array $examProgress = null,
-        ?Collection $materialExams = null
+        ?Collection $materialExams = null,
+        ?Collection $pledgeSignatures = null
     ): array {
         $sectionStatuses = $portfolio?->lesson_sections ?? collect();
 
@@ -136,13 +147,20 @@ class LearningProgressService
         $recurringBasicCompleted = (bool) $recurringMaterial?->understand;
         $recurringBasicNotUnderstood = $recurringMaterial && $recurringMaterial->understand === false;
 
-        $basicCompleted = $recurringBasicCompleted || (
+        // A finished portfolio proves the basic stage was cleared: the portfolio
+        // step is unreachable until every section is complete. Older completions
+        // (pre per-section records) have no lesson_sections rows at all, so
+        // without this they would report 知識研修 as unfinished forever.
+        $portfolioFinished = (int) ($portfolio?->status ?? 0) >= self::PORTFOLIO_FINAL_COMPLETED;
+
+        $basicCompleted = $recurringBasicCompleted || $portfolioFinished || (
             $this->answersCompleted($basicMaterials, $userId)
             && $this->sectionsCompleted($understandingMaterials, $sectionStatuses)
         );
         $caseCompleted = $this->caseStudiesCompleted($caseStudyMaterials, $sectionStatuses, $userId);
         $exam = $examProgress ?? $this->examProgress($theme->id, $userId);
         $survey = $this->surveyProgress($theme, $userId, $basicCompleted, $caseCompleted, $exam);
+        $pledge = $this->pledgeProgress($theme, $userId, $pledgeSignatures);
         $portfolioProgress = $this->portfolioProgress($theme, $portfolio);
 
         $themeCompleted = $this->themeCompleted(
@@ -151,6 +169,7 @@ class LearningProgressService
             $caseCompleted,
             $exam,
             $survey,
+            $pledge,
             $portfolioProgress
         );
 
@@ -171,6 +190,7 @@ class LearningProgressService
             'exam' => $exam,
             'material_exams' => $this->materialExamsProgress($materials, $userId, $materialExams),
             'survey' => $survey,
+            'pledge' => $pledge,
             'portfolio' => $portfolioProgress,
             'theme_completed' => $themeCompleted,
             'basic_completed' => $basicCompleted,
@@ -367,7 +387,9 @@ class LearningProgressService
         $available = ! empty($theme->custom_form_id)
             && $basicCompleted
             && $caseCompleted
-            && (! $exam['available'] || $exam['passed']);
+            // Taking the exam is what unlocks the checklist; passing is not
+            // required, so a failed attempt still lets the learner advance.
+            && (! $exam['available'] || $exam['attempts_count'] > 0);
 
         $completedAnswer = $theme->form?->survey_answers?->firstWhere('user_id', $userId);
 
@@ -375,6 +397,43 @@ class LearningProgressService
             'available' => $available,
             'completed' => (bool) $completedAnswer,
             'completed_at' => $completedAnswer?->updated_at,
+        ];
+    }
+
+    /**
+     * 誓約書 progress: required when the theme has the toggle on with a document,
+     * satisfied once the learner has signed their own copy.
+     *
+     * @return array{required: bool, signed: bool, signed_at: mixed, file_available: bool}
+     */
+    private function pledgeProgress(LessonTheme $theme, int $userId, ?Collection $preloaded = null): array
+    {
+        $required = $this->enabled($theme->pledge) && filled($theme->pledge_file_path);
+
+        if (! $required) {
+            return [
+                'required' => false,
+                'signed' => false,
+                'signed_at' => null,
+                'signature_id' => null,
+                'file_available' => filled($theme->pledge_file_path),
+            ];
+        }
+
+        $signature = $preloaded !== null
+            ? $preloaded->get($userId)
+            : LessonPledgeSignature::query()
+                ->where('lesson_theme_id', $theme->id)
+                ->where('user_id', $userId)
+                ->first();
+
+        return [
+            'required' => true,
+            'signed' => (bool) $signature?->signed_at,
+            'signed_at' => $signature?->signed_at,
+            // Lets an admin open this learner's signed copy.
+            'signature_id' => $signature?->id,
+            'file_available' => true,
         ];
     }
 
@@ -397,17 +456,25 @@ class LearningProgressService
         bool $caseCompleted,
         array $exam,
         array $survey,
+        array $pledge,
         array $portfolio
     ): bool {
         if (! $basicCompleted || ! $caseCompleted) {
             return false;
         }
 
-        if ($exam['available'] && ! $exam['passed']) {
+        // Same rule as the checklist: the exam must have been taken, but a
+        // failed attempt does not block the theme from completing.
+        if ($exam['available'] && $exam['attempts_count'] < 1) {
             return false;
         }
 
         if (! empty($theme->custom_form_id) && ! $survey['completed']) {
+            return false;
+        }
+
+        // 誓約書: the theme cannot finish until the learner has signed it.
+        if ($pledge['required'] && ! $pledge['signed']) {
             return false;
         }
 

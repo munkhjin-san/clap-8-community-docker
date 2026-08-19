@@ -57,6 +57,15 @@
         </div>
         
       
+        <LearningPledgeSigner
+            v-if="pledgeOpen && pledgeSource"
+            :theme-id="selectedTopic.id"
+            :source="pledgeSource"
+            :document-name="selectedTopic?.pledge_file_path ?? null"
+            :signed-at="progress?.pledge?.signed_at ?? null"
+            @close="pledgeOpen = false"
+            @signed="refreshLessonView?.()"
+        />
         <router-view v-slot="{ Component }">
             <transition name="modalFade">
                 <component :is="Component" 
@@ -79,6 +88,7 @@ import TTSPlayer from '@/components/Global/TTSPlayer.vue';
 import LearningTopicMenu, { type LearningTopicMenuItem } from '@/components/Learning/shared/LearningTopicMenu.vue';
 import LearningPreviousExperiencePanel from '@/components/Learning/shared/LearningPreviousExperiencePanel.vue';
 import LearningContentRenderer from '@/components/Learning/shared/LearningContentRenderer.vue';
+import LearningPledgeSigner from '@/components/Learning/Pledge/LearningPledgeSigner.vue';
 import Back from '@/components/Icons/Back.vue';
 import { LEARNING_MATERIAL_TYPES, LESSON_ANSWER_STATUS, LESSON_MATERIAL_PRIORITY, LESSON_PORTFOLIO_STATUS, LESSON_SECTION_STATUS } from '@/config/learning';
 import { isEnabled } from '@/utils/learningProgress';
@@ -185,9 +195,20 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
     const examPassed = computed(() => {
         return progress.value?.exam.passed ?? false
     })
-    const examAttempted = computed(() => {
-        return progress.value?.exam.exhausted ?? false
+    // Advancement needs the exam taken, not passed.
+    const examTaken = computed(() => (progress.value?.exam.attempts_count ?? 0) > 0)
+    const pledgeRequired = computed(() => progress.value?.pledge?.required ?? false)
+    const pledgeSigned = computed(() => progress.value?.pledge?.signed ?? false)
+    // Once signed, show the learner their own signed copy rather than the blank
+    // original (served auth-scoped; only the owner or an admin can fetch it).
+    const pledgeSource = computed(() => {
+        const pledge = progress.value?.pledge
+        if (pledge?.signed && pledge.signature_id) {
+            return `/lesson_pledge_file/${pledge.signature_id}`
+        }
+        return props.selectedTopic?.pledge_file_path ?? null
     })
+    const pledgeOpen = ref(false)
     const surveyAvailable = computed(() => {
         return progress.value?.survey.available ?? false
     })
@@ -199,7 +220,12 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
     }
     const goSurvey = () => {
         if(!surveyAvailable.value) return
-        router.push(`/survey/${props.selectedTopic?.custom_form_id}`)
+        // Tag the origin so the form's completion screen offers a way back to
+        // this theme instead of "create another answer".
+        router.push({
+            path: `/survey/${props.selectedTopic?.custom_form_id}`,
+            query: { lessonThemeId: String(props.selectedTopic?.id) },
+        })
     }
     const dateFormat = (date: string | null | undefined) => {
         if (!date) return ''
@@ -242,9 +268,9 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
             items.push({
                 id: 'exam',
                 title: '試験',
-                disabled: !canAccessExam.value && !examPassed.value,
-                completed: examPassed.value || examAttempted.value,
-                tone: !examPassed.value && !examAttempted.value && canAccessExam.value ? 'warning' : undefined,
+                disabled: !canAccessExam.value && !examTaken.value,
+                completed: examTaken.value,
+                tone: !examTaken.value && canAccessExam.value ? 'warning' : undefined,
                 meta: examMeta.value,
             })
         }
@@ -261,7 +287,7 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
 
         if (props.selectedTopic?.custom_form_id) {
             const meta: string[] = []
-            if (examAvailable.value && !examPassed.value) meta.push('試験合格後に回答できます。')
+            if (examAvailable.value && !examTaken.value) meta.push('試験の受験後に回答できます。')
             const surveyDate = progress.value?.survey.completed_at ?? props.selectedTopic.survey_date
             if (surveyDate) meta.push(`完了日:${dateFormat(surveyDate)}`)
 
@@ -271,6 +297,19 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
                 disabled: !surveyAvailable.value,
                 completed: progress.value?.survey.completed ?? Boolean(props.selectedTopic.survey_completed),
                 meta,
+            })
+        }
+
+        // 誓約書: signing is required before the theme can finish.
+        if (pledgeRequired.value) {
+            items.push({
+                id: 'pledge',
+                title: '誓約書',
+                completed: pledgeSigned.value,
+                tone: pledgeSigned.value ? undefined : 'warning',
+                meta: pledgeSigned.value
+                    ? [`署名日:${dateFormat(progress.value?.pledge.signed_at)}`]
+                    : ['署名するとテーマを修了できます。'],
             })
         }
 
@@ -296,6 +335,8 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
             router.push({name: portfolioStatus.value < LESSON_PORTFOLIO_STATUS.DISCUSSION_DRAFT_READY ? 'story' : 'summary'})
         } else if (item.id === 'survey') {
             goSurvey()
+        } else if (item.id === 'pledge') {
+            pledgeOpen.value = true
         }
     }
 </script>
