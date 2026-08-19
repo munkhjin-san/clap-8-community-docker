@@ -226,11 +226,45 @@ class FreeeAccountingClient extends FreeeBaseClient
             Cache::forget($key);
         }
 
+        // 1回だけ取ると件数の多い事業所で取りこぼす（本番で「品目が無い」と誤判定した）。
+        // 取引先と同じくoffsetを進めて全件取る。
         return Cache::remember(
             $key,
             self::CACHE_TTL_SECONDS,
-            fn () => array_values($this->get($credential, '/api/1/items')['items'] ?? []),
+            fn () => $this->fetchAllItems($credential),
         );
+    }
+
+    /**
+     * @return array<int, array>
+     */
+    private function fetchAllItems(FreeeCredential $credential): array
+    {
+        $all = [];
+        $offset = 0;
+
+        for ($i = 0; $i < self::MAX_FETCH_PAGES; $i++) {
+            $payload = $this->get($credential, '/api/1/items', [
+                'offset' => $offset,
+                'limit' => self::MAX_LIMIT,
+            ]);
+
+            $batch = array_values($payload['items'] ?? []);
+            $all = array_merge($all, $batch);
+
+            if (count($batch) < self::MAX_LIMIT) {
+                return $all;
+            }
+
+            $offset += self::MAX_LIMIT;
+        }
+
+        Log::warning('freee items fetch hit the page cap; the list may be incomplete.', [
+            'freee_credential_id' => $credential->id,
+            'fetched' => count($all),
+        ]);
+
+        return $all;
     }
 
     /**

@@ -686,12 +686,19 @@ const postToFreee = async () => {
 
     const sendable = preview.results.filter((row) => row.action === 'created' || row.action === 'updated');
 
+    // 送れなかった理由（科目や品目が無いなど）は必ず出す。
+    // 「既に最新」に紛れ込ませると、送信できていないことに気付けない。
+    const blocked = preview.results.filter((row) => row.action === 'skipped' && row.reason);
+    const blockedText = blocked.length
+        ? `\n\n送信できなかったもの:\n${blocked.map((row) => `・${row.label}：${row.reason}`).join('\n')}`
+        : '';
+
     if (!sendable.length) {
         const unchanged = preview.results.filter((row) => row.action === 'unchanged');
 
-        await dialog.ping(unchanged.length
+        await dialog.ping((unchanged.length
             ? 'freeeは既に最新です。送信の必要はありません。'
-            : '送信できる積立金がありません。');
+            : '送信できる積立金がありません。') + blockedText);
 
         return;
     }
