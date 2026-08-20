@@ -17,8 +17,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
-package-lock.json
-composer.lock
+/.env.docker
 /public/mix-manifest.json
 /root
 .DS_Store

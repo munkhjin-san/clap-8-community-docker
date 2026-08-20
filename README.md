@@ -10,6 +10,68 @@
   <p>企業のコミュニケーションとプロジェクト管理を統合するWebアプリケーション</p>
 </div>
 
+## Docker quick start
+
+This repository includes a production-like local stack with Laravel PHP-FPM,
+nginx, MySQL, Redis, a queue worker, and compiled Vue/Vite assets.
+
+```bash
+cp .env.docker.example .env.docker
+docker compose up --build -d
+docker compose ps
+curl http://localhost:8080/up
+```
+
+The application is available at `http://localhost:8080`. MySQL and Redis are
+bound to local-only ports `3307` and `6380`. On the first startup, MySQL creates
+the database named by `MYSQL_DATABASE`; the one-shot `migrate` service then
+loads the schema baseline and runs every pending Laravel migration before the
+application and queue worker start.
+
+Useful commands:
+
+```bash
+docker compose exec app php artisan about
+docker compose exec app php artisan migrate:status
+docker compose logs migrate
+docker compose exec app php artisan list --format=txt
+docker compose logs -f app nginx queue
+docker compose down
+```
+
+The scheduler is disabled by default because this application contains
+production-specific recurring jobs. Start it only after reviewing the schedule
+and configuring safe local integrations:
+
+```bash
+docker compose --profile scheduler up -d scheduler
+```
+
+### Database baseline
+
+The tracked migrations are incremental: 202 legacy tables, including `users`,
+`board_records`, and `post_records`, do not have a tracked table-creation
+migration. `database/schema/mysql-schema.sql` is a schema-only snapshot of the
+authorized legacy database. It contains table definitions, indexes, foreign
+keys, two views, and migration-history rows, but no application/user data.
+
+Laravel automatically loads this snapshot only when the target database has no
+migration table. It then runs the migrations that are newer than the snapshot.
+Future schema changes must still be added as normal Laravel migrations.
+
+To deliberately test a completely fresh local database, remove this project's
+Docker volumes and start it again:
+
+```bash
+docker compose down --volumes
+docker compose up --build -d
+docker compose ps --all
+```
+
+`down --volumes` permanently deletes this local Docker project's MySQL, Redis,
+and application-storage volume data. It does not touch the legacy database, but
+do not run it when you need to preserve local Docker data.
+
 ## 📋 目次
 
 - [概要](#概要)

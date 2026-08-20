@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\Community\CommunityBladeCatalog;
+use App\Services\Community\CommunityCapabilityCatalog;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +23,7 @@ return new class extends Migration
             return;
         }
 
-        $defaults = CommunityBladeCatalog::roleDefaults();
+        $defaults = CommunityCapabilityCatalog::roleDefaults();
 
         foreach (DB::table('communities')->pluck('id') as $communityId) {
             $this->ensurePartnerRole((int) $communityId);
@@ -66,7 +66,7 @@ return new class extends Migration
             'key' => 'partner',
             'name' => 'パートナー',
             'sort_order' => $sortOrder,
-            'capabilities' => json_encode(CommunityBladeCatalog::roleDefaults()['partner'], JSON_UNESCAPED_UNICODE),
+            'capabilities' => json_encode(CommunityCapabilityCatalog::roleDefaults()['partner'], JSON_UNESCAPED_UNICODE),
             'scopes' => json_encode([], JSON_UNESCAPED_UNICODE),
             'is_system' => true,
             'created_at' => now(),

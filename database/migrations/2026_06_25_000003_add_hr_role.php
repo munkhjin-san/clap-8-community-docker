@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\Community\CommunityBladeCatalog;
+use App\Services\Community\CommunityCapabilityCatalog;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,7 +21,7 @@ return new class extends Migration
             return;
         }
 
-        $hrBlades = CommunityBladeCatalog::roleDefaults()['hr'];
+        $hrBlades = CommunityCapabilityCatalog::roleDefaults()['hr'];
 
         foreach (DB::table('communities')->pluck('id') as $communityId) {
             $hrRoleId = DB::table('community_roles')
