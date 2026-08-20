@@ -1,0 +1,106 @@
+name: clap-community
+
+x-app-service: &app-service
+  build:
+    context: .
+    target: app
+  env_file:
+    - .env.docker
+  restart: unless-stopped
+  volumes:
+    - app_storage:/var/www/html/storage
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  migrate:
+    <<: *app-service
+    command: ["php", "artisan", "migrate", "--force", "--no-interaction"]
+    restart: "no"
+
+  app:
+    <<: *app-service
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    build:
+      context: .
+      target: nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - app_storage:/var/www/html/storage:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.4
+    env_file:
+      - .env.docker
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  queue:
+    <<: *app-service
+    command: ["php", "artisan", "queue:work", "redis", "--sleep=3", "--tries=3", "--timeout=120"]
+    stop_grace_period: 30s
+    depends_on:
+      app:
+        condition: service_healthy
+
+  scheduler:
+    <<: *app-service
+    command: ["php", "artisan", "schedule:work"]
+    profiles:
+      - scheduler
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  app_storage:
+  mysql_data:
+  redis_data:
